@@ -176,6 +176,8 @@ class VomnibarUI {
       return "enter";
     } else if ((event.key === "Delete") && event.shiftKey && !event.ctrlKey && !event.altKey) {
       return "remove";
+    } else if (event.ctrlKey && (key === "d")) {
+      return "closeTab";
     } else if (KeyboardUtils.isBackspace(event)) {
       return "delete";
     }
@@ -187,6 +189,12 @@ class VomnibarUI {
     const action = this.actionFromKeyEvent(event);
     if (!action) {
       return;
+    }
+
+    // Prevent default browser behavior for closeTab action (Ctrl+D normally closes the tab)
+    if (action === "closeTab") {
+      event.stopImmediatePropagation();
+      event.preventDefault();
     }
 
     if (action === "dismiss") {
@@ -243,6 +251,23 @@ class VomnibarUI {
     } else if ((action === "remove") && (this.selection >= 0)) {
       const completion = this.completions[this.selection];
       console.log(completion);
+    } else if ((action === "closeTab") && (this.selection >= 0)) {
+      const completion = this.completions[this.selection];
+      if (completion.tabId != null) {
+        // Close the tab
+        chrome.runtime.sendMessage({ handler: "closeTabFromVomnibar", tabIdToBeRemoved: completion.tabId });
+        // Remove the completion from the list
+        this.completions.splice(this.selection, 1);
+        // Adjust selection if needed
+        if (this.selection >= this.completions.length) {
+          this.selection = this.completions.length - 1;
+        }
+        // Re-render completions
+        this.renderCompletions(this.completions);
+        this.updateSelection();
+      }
+      // Already prevented default at the top of the function, so just return
+      return;
     }
 
     event.stopImmediatePropagation();

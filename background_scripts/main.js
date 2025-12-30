@@ -741,6 +741,10 @@ const sendRequestHandlers = {
     const completer = completers[request.completerName];
     completer.cancel();
   },
+
+  async closeTabFromVomnibar(request) {
+    await chrome.tabs.remove(request.tabIdToBeRemoved);
+  },
 };
 
 Utils.addChromeRuntimeOnMessageListener(
