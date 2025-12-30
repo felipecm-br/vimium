@@ -358,6 +358,33 @@ const allCommands = [
     topFrame: true,
   },
 
+  {
+    name: "Vomnibar.activateOmniSearch",
+    desc: "Unified search across tabs, bookmarks, and history",
+    details: "Opens a search interface that displays results grouped by category (tabs, " +
+      "bookmarks, history) rather than mixing them by relevancy. Tabs are sorted by Most " +
+      "Recently Used order. Bookmarks can be found by their full folder path.",
+    options: {
+      query: "The text to prefill the Vomnibar with.",
+    },
+    group: "vomnibar",
+    topFrame: true,
+  },
+
+  {
+    name: "Vomnibar.activateOmniSearchInNewTab",
+    desc: "Unified search across tabs, bookmarks, and history in a new tab",
+    details: "Opens a search interface that displays results grouped by category (tabs, " +
+      "bookmarks, history) rather than mixing them by relevancy. Tabs are sorted by Most " +
+      "Recently Used order. Bookmarks can be found by their full folder path. " +
+      "Results open in a new tab.",
+    options: {
+      query: "The text to prefill the Vomnibar with.",
+    },
+    group: "vomnibar",
+    topFrame: true,
+  },
+
   //
   // Find
   //

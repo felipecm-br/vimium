@@ -58,6 +58,23 @@ const Vomnibar = {
     });
   },
 
+  activateOmniSearch(sourceFrameId, registryEntry) {
+    const options = Object.assign({}, registryEntry.options, {
+      completer: "omniSearch",
+      selectFirst: true,
+    });
+    this.open(sourceFrameId, options);
+  },
+
+  activateOmniSearchInNewTab(sourceFrameId, registryEntry) {
+    const options = Object.assign({}, registryEntry.options, {
+      completer: "omniSearch",
+      selectFirst: true,
+      newTab: true,
+    });
+    this.open(sourceFrameId, options);
+  },
+
   init() {
     if (!this.vomnibarUI) {
       this.vomnibarUI = new UIComponent();

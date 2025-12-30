@@ -51,6 +51,8 @@ export class Suggestion {
   // The generated HTML string for showing this suggestion in the Vomnibar.
   html;
   searchUrl;
+  // The full folder path for bookmarked tabs. Populated by OmniSearchCompleter.
+  bookmarkPath;
 
   constructor(options) {
     Object.seal(this);
@@ -689,6 +691,289 @@ export class MultiCompleter {
     }
 
     return dedupedSuggestions;
+  }
+}
+
+// OmniSearch completer: provides unified search across tabs, bookmarks, and history with grouped
+// results. Unlike MultiCompleter which mixes results by relevancy, this completer returns results
+// organized by source category (tabs, bookmarks, history) with tabs ordered by Most Recently Used.
+// This is inspired by the OmniSearch feature from Surfing Keys.
+const omniSearchMaxResultsPerCategory = 4;
+const omniSearchMaxResults = 10;
+
+export class OmniSearchCompleter {
+  constructor() {
+    this.bookmarksCache = null;
+    this.bookmarksMap = null;
+  }
+
+  refresh() {
+    this.bookmarksCache = null;
+    this.bookmarksMap = null;
+  }
+
+  cancel() {
+    // No async operations to cancel
+  }
+
+  // Load and cache bookmarks with full folder paths
+  async loadBookmarks() {
+    if (this.bookmarksCache) return;
+
+    const tree = await chrome.bookmarks.getTree();
+    const { bookmarksList, bookmarksMap } = this.traverseBookmarksWithPath(tree);
+    this.bookmarksCache = bookmarksList;
+    this.bookmarksMap = bookmarksMap;
+  }
+
+  // Recursively traverse bookmark tree and build full folder paths
+  traverseBookmarksWithPath(tree, parentPath = "") {
+    let bookmarksList = [];
+    let bookmarksMap = new Map();
+
+    for (const node of tree) {
+      const isFolder = !node.url && node.children;
+
+      if (isFolder) {
+        // Build folder path, skipping ignored top-level folders
+        const folderTitle = (parentPath === "" && ignoredTopLevelBookmarks[node.title])
+          ? ""
+          : (parentPath ? `${parentPath}/${node.title}` : node.title);
+
+        const { bookmarksList: childBookmarks, bookmarksMap: childMap } =
+          this.traverseBookmarksWithPath(node.children, folderTitle);
+
+        bookmarksList = bookmarksList.concat(childBookmarks);
+        bookmarksMap = new Map([...bookmarksMap, ...childMap]);
+      } else if (node.url) {
+        const bookmark = {
+          ...node,
+          fullPathTitle: parentPath ? `${parentPath}/${node.title}` : node.title,
+        };
+        bookmarksList.push(bookmark);
+        bookmarksMap.set(node.url, bookmark);
+      }
+    }
+
+    return { bookmarksList, bookmarksMap };
+  }
+
+  // Get tabs ordered by Most Recently Used, with bookmark annotation
+  getTabsWithMRU(tabs, queryTerms, bookmarksMap) {
+    // Sort by recency (most recent first)
+    const sortedTabs = tabs.sort((a, b) => {
+      const recencyA = bgUtils.tabRecency.recencyScore(a.id);
+      const recencyB = bgUtils.tabRecency.recencyScore(b.id);
+      return recencyB - recencyA;
+    });
+
+    // Filter tabs and annotate with bookmark info (like omniSearchHandler)
+    const filteredTabs = sortedTabs.filter((tab) => {
+      // Attach bookmark info to tab if URL matches
+      if (bookmarksMap.has(tab.url)) {
+        tab.bookmark = bookmarksMap.get(tab.url);
+        bookmarksMap.delete(tab.url); // Remove to avoid duplicates in bookmark results
+      }
+
+      if (queryTerms.length === 0) {
+        return true;
+      }
+
+      // Check against title, URL, and bookmark path if available
+      const bookmarkPath = tab.bookmark?.fullPathTitle || "";
+      return RankingUtils.matches(queryTerms, tab.url, tab.title, bookmarkPath);
+    });
+
+    return filteredTabs.map((tab, index) => {
+      return new Suggestion({
+        queryTerms,
+        description: "tab",
+        url: tab.url,
+        title: tab.title,
+        tabId: tab.id,
+        deDuplicate: false,
+        relevancy: 1.0 - (index * 0.1), // MRU ordering preserved via relevancy
+        bookmarkPath: tab.bookmark?.fullPathTitle, // Include bookmark path if available
+      });
+    });
+  }
+
+  // Get top sites
+  getTopSites(topSites, queryTerms, excludeUrls = new Set()) {
+    const filteredSites = topSites.filter((site) => {
+      if (excludeUrls.has(site.url)) return false;
+      if (queryTerms.length === 0) return true;
+      return RankingUtils.matches(queryTerms, site.url, site.title);
+    });
+
+    return filteredSites.slice(0, omniSearchMaxResultsPerCategory).map((site) => {
+      return new Suggestion({
+        queryTerms,
+        description: "topSite",
+        url: site.url,
+        title: site.title,
+        deDuplicate: false,
+        relevancyFunction: (s) =>
+          queryTerms.length > 0
+            ? RankingUtils.wordRelevancy(s.queryTerms, s.url, s.title)
+            : 0.5,
+      });
+    });
+  }
+
+  // Get bookmarks with fuzzy matching on full path
+  getBookmarksWithPath(queryTerms, excludeUrls = new Set()) {
+    if (queryTerms.length === 0) {
+      // Return recent bookmarks when no query
+      return this.bookmarksCache
+        .filter((b) => !excludeUrls.has(b.url))
+        .slice(0, omniSearchMaxResultsPerCategory)
+        .map((bookmark) => this.createBookmarkSuggestion(bookmark, queryTerms));
+    }
+
+    // Filter bookmarks by matching query terms against title, URL, and full path
+    const matches = this.bookmarksCache.filter((bookmark) => {
+      if (excludeUrls.has(bookmark.url)) return false;
+      return RankingUtils.matches(queryTerms, bookmark.url, bookmark.title, bookmark.fullPathTitle);
+    });
+
+    // Sort by relevancy
+    const scored = matches.map((bookmark) => ({
+      bookmark,
+      score: RankingUtils.wordRelevancy(
+        queryTerms,
+        bookmark.url,
+        bookmark.fullPathTitle, // Use full path for ranking
+      ),
+    }));
+
+    scored.sort((a, b) => b.score - a.score);
+
+    return scored
+      .slice(0, omniSearchMaxResultsPerCategory)
+      .map(({ bookmark, score }) => {
+        const suggestion = this.createBookmarkSuggestion(bookmark, queryTerms);
+        suggestion.relevancy = score;
+        return suggestion;
+      });
+  }
+
+  createBookmarkSuggestion(bookmark, queryTerms) {
+    return new Suggestion({
+      queryTerms,
+      description: "bookmark",
+      url: bookmark.url,
+      title: bookmark.fullPathTitle, // Show full path as title
+      relevancyFunction: (s) =>
+        RankingUtils.wordRelevancy(s.queryTerms, s.url, s.title),
+    });
+  }
+
+  // Get history entries
+  getHistory(queryTerms, excludeUrls = new Set()) {
+    let results;
+    if (queryTerms.length > 0) {
+      results = HistoryCache.history.filter((entry) => {
+        if (excludeUrls.has(entry.url)) return false;
+        return RankingUtils.matches(queryTerms, entry.url, entry.title);
+      });
+
+      // Sort by relevancy
+      results = results.map((entry) => ({
+        entry,
+        score: RankingUtils.wordRelevancy(queryTerms, entry.url, entry.title),
+      }));
+      results.sort((a, b) => b.score - a.score);
+      results = results.map((r) => r.entry);
+    } else {
+      // Return recent history when no query
+      results = HistoryCache.history.filter((entry) => !excludeUrls.has(entry.url));
+      results.sort((a, b) => (b.lastVisitTime || 0) - (a.lastVisitTime || 0));
+    }
+
+    return results.slice(0, omniSearchMaxResultsPerCategory).map((entry) => {
+      const suggestion = new Suggestion({
+        queryTerms,
+        description: "history",
+        url: entry.url,
+        title: entry.title,
+        relevancyFunction: (s) =>
+          RankingUtils.wordRelevancy(s.queryTerms, s.url, s.title),
+      });
+      if (queryTerms.length === 0) {
+        suggestion.relevancy = RankingUtils.recencyScore(entry.lastVisitTime);
+      }
+      return suggestion;
+    });
+  }
+
+  async filter(request) {
+    const { queryTerms } = request;
+    RegexpCache.clear();
+
+    // Load all dependencies in parallel (like omniSearchHandler)
+    const [tabs, topSites] = await Promise.all([
+      (async () => {
+        await bgUtils.tabRecency.init();
+        return chrome.tabs.query({});
+      })(),
+      chrome.topSites?.get() || Promise.resolve([]),
+      HistoryCache.onLoaded(),
+      this.loadBookmarks(),
+    ]);
+
+    // Create a copy of bookmarksMap for this request (will be modified during tab annotation)
+    const bookmarksMap = new Map(this.bookmarksMap);
+
+    // Get tabs with MRU ordering and bookmark annotation
+    const tabSuggestions = this.getTabsWithMRU(tabs, queryTerms, bookmarksMap);
+
+    // Get remaining bookmarks (not already open as tabs)
+    const remainingBookmarks = [...bookmarksMap.values()];
+
+    // Track URLs that are already shown as tabs
+    const tabUrls = new Set(tabSuggestions.map((s) => s.url));
+
+    // Get top sites (excluding URLs already shown as tabs)
+    const topSiteSuggestions = this.getTopSites(topSites, queryTerms, tabUrls);
+
+    // Track all URLs shown so far
+    const allShownUrls = new Set([
+      ...tabUrls,
+      ...topSiteSuggestions.map((s) => s.url),
+    ]);
+
+    // Update bookmarks cache to use remaining bookmarks
+    const originalCache = this.bookmarksCache;
+    this.bookmarksCache = remainingBookmarks;
+
+    // Get bookmarks (excluding URLs already shown)
+    const bookmarkSuggestions = this.getBookmarksWithPath(queryTerms, allShownUrls);
+
+    // Restore original cache
+    this.bookmarksCache = originalCache;
+
+    // Track all URLs including bookmarks
+    const bookmarkUrls = new Set(bookmarkSuggestions.map((s) => s.url));
+    const shownUrls = new Set([...allShownUrls, ...bookmarkUrls]);
+
+    // Get history (excluding URLs already shown)
+    const historySuggestions = this.getHistory(queryTerms, shownUrls);
+
+    // Generate HTML for all suggestions
+    const allSuggestions = [
+      ...tabSuggestions,
+      ...topSiteSuggestions,
+      ...bookmarkSuggestions,
+      ...historySuggestions,
+    ].slice(0, omniSearchMaxResults);
+
+    for (const s of allSuggestions) {
+      s.computeRelevancy();
+      s.generateHtml();
+    }
+
+    return allSuggestions;
   }
 }
 

@@ -17,6 +17,7 @@ import {
   DomainCompleter,
   HistoryCompleter,
   MultiCompleter,
+  OmniSearchCompleter,
   SearchEngineCompleter,
   TabCompleter,
 } from "./completion.js";
@@ -59,6 +60,7 @@ const completers = {
   ]),
   bookmarks: new MultiCompleter([completionSources.bookmarks]),
   tabs: new MultiCompleter([completionSources.tabs]),
+  omniSearch: new OmniSearchCompleter(),
 };
 
 // A query dictionary for `chrome.tabs.query` that will return only the visible tabs.
