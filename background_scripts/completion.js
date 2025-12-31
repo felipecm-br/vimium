@@ -74,40 +74,43 @@ export class Suggestion {
     const relevancyHtml = showRelevancy
       ? `<span class='relevancy'>${this.computeRelevancy()}</span>`
       : "";
-    const insertTextClass = this.insertText ? "" : "no-insert-text";
-    const insertTextIndicator = "&#8618;"; // A right hooked arrow.
     if (this.insertText && this.isCustomSearch) {
       this.title = this.insertText;
     }
+
+    // Type icons for different suggestion sources
+    const typeIcons = {
+      tab: "󰓩",        // Window/tab icon
+      bookmark: "",   // Star for bookmarks
+      history: "",    // Clock for history
+      domain: "◉",     // Globe/domain icon
+      topSite: "󱞒",    // Top/trending icon
+      search: "",     // Search icon
+    };
+    const typeIcon = typeIcons[this.description] || (this.isCustomSearch ? "⚲" : "○");
+
+    // Generate favicon HTML (works for all types in Chrome, not just tabs)
     let faviconHtml = "";
-    if (this.description === "tab" && !bgUtils.isFirefox()) {
+    if (this.url && !bgUtils.isFirefox()) {
       const faviconUrl = new URL(chrome.runtime.getURL("/_favicon/"));
       faviconUrl.searchParams.set("pageUrl", this.url);
       faviconUrl.searchParams.set("size", "16");
-      faviconHtml = `<img class="icon" src="${faviconUrl.toString()}" />`;
+      faviconHtml = `<img class="favicon" src="${faviconUrl.toString()}" loading="lazy" decoding="async" />`;
     }
-    if (this.isCustomSearch) {
-      this.html = `\
-<div class="top-half">
-   <span class="source ${insertTextClass}">${insertTextIndicator}</span><span class="source">${this.description}</span>
-   <span class="title">${this.highlightQueryTerms(Utils.escapeHtml(this.title))}</span>
-   ${relevancyHtml}
- </div>\
-`;
-    } else {
-      this.html = `\
-<div class="top-half">
-   <span class="source ${insertTextClass}">${insertTextIndicator}</span><span class="source">${this.description}</span>
-   <span class="title">${this.highlightQueryTerms(Utils.escapeHtml(this.title))}</span>
- </div>
- <div class="bottom-half">
-  <span class="source no-insert-text">${insertTextIndicator}</span>${faviconHtml}<span class="url">${
+
+    const iconsHtml = `<span class="suggestion-icons">${faviconHtml}<span class="type-icon">${typeIcon}</span></span>`;
+    const titleHtml = this.highlightQueryTerms(Utils.escapeHtml(this.title));
+    this.html = `\
+${iconsHtml}
+<div class="suggestion-content">
+  <div class="top-half">
+    <span class="title">${titleHtml}</span>
+    <span class="url">${
         this.highlightQueryTerms(Utils.escapeHtml(this.shortenUrl()))
-      }</span>
-  ${relevancyHtml}
-</div>\
-`;
-    }
+    }</span>
+    ${relevancyHtml}
+  </div>
+</div>`;
     return this.html;
   }
 
