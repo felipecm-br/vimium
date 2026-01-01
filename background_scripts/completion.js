@@ -110,7 +110,7 @@ export class Suggestion {
 ${iconsHtml}
 <div class="suggestion-content">
   <div class="top-half">
-    <span class="title">${titleHtml}</span>
+    <span class="title">${titleHtml}</span> - 
     <span class="url">${
         this.highlightQueryTerms(Utils.escapeHtml(this.shortenUrl()))
     }</span>
