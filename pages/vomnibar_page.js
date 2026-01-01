@@ -13,6 +13,7 @@ import "../lib/dom_utils.js";
 import "../lib/handler_stack.js";
 import * as UIComponentMessenger from "./ui_component_messenger.js";
 import * as userSearchEngines from "../background_scripts/user_search_engines.js";
+import { themeManager, themeDefinitions } from "./vomnibar_themes.js";
 
 export let ui; // An instance of VomnibarUI.
 
@@ -50,6 +51,9 @@ export async function activate(options) {
   await ui.update();
 }
 
+// Theme command prefix for triggering theme selection in OmniSearch
+const THEME_COMMAND_PREFIX = "theme";
+
 class VomnibarUI {
   constructor() {
     this.onKeyEvent = this.onKeyEvent.bind(this);
@@ -62,6 +66,11 @@ class VomnibarUI {
     this.activeUserSearchEngine = null;
     // Used for synchronizing requests and responses to the background page.
     this.lastRequestId = null;
+    // Theme selection mode state
+    this.isThemeMode = false;
+    this.themeCompletions = [];
+    // Initialize theme manager
+    themeManager.init();
   }
 
   setQuery(query) {
@@ -87,6 +96,23 @@ class VomnibarUI {
     return this.activeUserSearchEngine != null;
   }
 
+  // Check if current query is a theme command (for OmniSearch only)
+  isThemeCommand() {
+    if (this.completerName !== "omniSearch") return false;
+    const query = this.input.value.trim().toLowerCase();
+    return query.startsWith(THEME_COMMAND_PREFIX);
+  }
+
+  // Get the theme search query (part after "theme ")
+  getThemeSearchQuery() {
+    const query = this.input.value.trim();
+    if (query.toLowerCase() === THEME_COMMAND_PREFIX) return "";
+    if (query.toLowerCase().startsWith(THEME_COMMAND_PREFIX + " ")) {
+      return query.slice(THEME_COMMAND_PREFIX.length + 1).toLowerCase();
+    }
+    return "";
+  }
+
   // The sequence of events when the vomnibar is hidden:
   // 1. Post a "hide" message to the host page.
   // 2. The host page hides the vomnibar.
@@ -98,6 +124,10 @@ class VomnibarUI {
   hide(onHiddenCallback = null) {
     this.onHiddenCallback = onHiddenCallback;
     this.input.blur();
+    // Cancel theme preview if active
+    if (this.isThemeMode && themeManager.isInPreviewMode()) {
+      themeManager.cancelPreview();
+    }
     this.reset();
     // Wait until this iframe's DOM has been rendered before hiding the iframe. This is to prevent
     // Chrome caching the previous visual state of the vomnibar iframe. See #4708.
@@ -121,6 +151,9 @@ class VomnibarUI {
     this.selection = this.initialSelectionValue;
     this.seenTabToOpenCompletionList = false;
     this.lastRequestId = null;
+    this.isThemeMode = false;
+    this.themeCompletions = [];
+    this.box.classList.remove("theme-preview");
   }
 
   updateSelection() {
@@ -143,6 +176,15 @@ class VomnibarUI {
     // Highlight the selected entry.
     for (const [i, el] of Object.entries(this.completionList.children)) {
       el.className = i == this.selection ? "selected" : "";
+    }
+
+    // Preview theme when in theme mode and selection changes
+    if (this.isThemeMode && this.selection >= 0) {
+      const themeCompletion = this.themeCompletions[this.selection];
+      if (themeCompletion) {
+        themeManager.previewTheme(themeCompletion.name);
+        this.box.classList.add("theme-preview");
+      }
     }
   }
 
@@ -198,6 +240,11 @@ class VomnibarUI {
     }
 
     if (action === "dismiss") {
+      // In theme mode, cancel preview and revert to previous theme
+      if (this.isThemeMode && themeManager.isInPreviewMode()) {
+        themeManager.cancelPreview();
+        this.box.classList.remove("theme-preview");
+      }
       this.hide();
     } else if (["tab", "down"].includes(action)) {
       if (
@@ -275,6 +322,17 @@ class VomnibarUI {
   }
 
   async handleEnterKey(event) {
+    // Handle theme selection mode
+    if (this.isThemeMode && this.selection >= 0) {
+      const themeCompletion = this.themeCompletions[this.selection];
+      if (themeCompletion) {
+        themeManager.confirmPreview();
+        this.box.classList.remove("theme-preview");
+        this.hide();
+        return;
+      }
+    }
+
     const isPrimarySearchSuggestion = (c) => c?.isPrimarySuggestion && c?.isCustomSearch;
     let query = this.input.value.trim();
 
@@ -338,7 +396,75 @@ class VomnibarUI {
     return prefix + this.input.value;
   }
 
+  // Generate theme completions based on search query
+  getThemeCompletions(searchQuery) {
+    const currentTheme = themeManager.getCurrentTheme();
+    let themes = themeDefinitions;
+
+    // Filter themes if there's a search query
+    if (searchQuery) {
+      const lowerQuery = searchQuery.toLowerCase();
+      themes = themes.filter(theme => 
+        theme.name.toLowerCase().includes(lowerQuery) ||
+        theme.description.toLowerCase().includes(lowerQuery)
+      );
+    }
+
+    return themes.map(theme => ({
+      name: theme.name,
+      icon: theme.icon,
+      description: theme.description,
+      isActive: theme.name === currentTheme,
+      html: this.generateThemeItemHtml(theme, theme.name === currentTheme)
+    }));
+  }
+
+  // Generate HTML for a theme item
+  generateThemeItemHtml(theme, isActive) {
+    const activeLabel = isActive ? `<span class="theme-active">Active</span>` : "";
+    return `
+      <span class="theme-icon">${theme.icon}</span>
+      <div class="theme-info">
+        <div class="theme-name">${Utils.escapeHtml(theme.name)}</div>
+        <div class="theme-description">${Utils.escapeHtml(theme.description)}</div>
+      </div>
+      ${activeLabel}
+    `;
+  }
+
+  // Render theme completions
+  renderThemeCompletions() {
+    this.completionList.innerHTML = this.themeCompletions.map((theme, index) => 
+      `<li class="theme-item" data-index="${index}">${theme.html}</li>`
+    ).join("");
+    this.completionList.style.display = this.themeCompletions.length > 0 ? "block" : "";
+  }
+
   async updateCompletions() {
+    // Check if this is a theme command (OmniSearch only)
+    if (this.isThemeCommand()) {
+      this.isThemeMode = true;
+      const searchQuery = this.getThemeSearchQuery();
+      this.themeCompletions = this.getThemeCompletions(searchQuery);
+      
+      // Create fake completions for rendering
+      this.completions = this.themeCompletions.map((theme, index) => ({
+        html: theme.html,
+        isTheme: true,
+        themeIndex: index
+      }));
+      
+      this.selection = 0; // Auto-select first theme
+      this.renderThemeCompletions();
+      this.updateSelection();
+      return;
+    }
+
+    // Not in theme mode
+    this.isThemeMode = false;
+    this.themeCompletions = [];
+    this.box.classList.remove("theme-preview");
+
     const requestId = Utils.createUniqueId();
     this.lastRequestId = requestId;
     const query = this.getInputValueAsQuery();

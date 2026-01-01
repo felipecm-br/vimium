@@ -1,27 +1,47 @@
+/* 
+ * Vomnibar Styles with CSS Custom Properties Theme System
+ * 
+ * All colors are defined as CSS variables for easy theming.
+ * The default values provide a dark theme that matches Vimium's aesthetic.
+ */
+
 /* JetBrains Mono font for modern code-like appearance */
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  /* Colors */
-  --vomnibar-bg-color: rgba(0, 0, 0, 0.7);
-  --vomnibar-inner-background-color: #1c1f2b;
-  --vomnibar-text-color: rgb(255, 255, 255);
-  --vomnibar-text-color-transparent: rgba(255, 255, 255, 0.255);
-  --vomnibar-secondary-text: #536471;
+  /* Core Colors - These are the main theme variables */
+  --vomnibar-bg-color: rgba(0, 0, 0, 0.85);
+  --vomnibar-inner-bg: #1c1f2b;
+  --vomnibar-text-color: #ffffff;
+  --vomnibar-secondary-text: #8b949e;
 
   /* Interactive States */
-  --vomnibar-li-hover-color: rgba(255, 255, 255, 0.18);
-  --vomnibar-li-focused-color: var(--primary-color);
+  --vomnibar-selected-bg: rgba(102, 81, 161, 0.35);
+  --vomnibar-hover-bg: rgba(255, 255, 255, 0.08);
 
   /* Borders & Accents */
-  --primary-color: #6651a1;
-  --vomnibar-border-color: #cfd9de;
-  --vomnibar-border: 1px solid rgba(75, 75, 75);
+  --vomnibar-border-color: rgba(75, 75, 75, 0.8);
+  --vomnibar-accent-color: #6651a1;
 
-  /* Animated Border Gradient */
-  --vomnibar-gradient-color-1: #ff00c1;
-  --vomnibar-gradient-color-2: #3d009d;
-  --vomnibar-gradient-color-3: #04d9ff;
+  /* Text Colors */
+  --vomnibar-url-color: #58a6ff;
+  --vomnibar-match-color: #79c0ff;
+  --vomnibar-input-text: #ffffff;
+  --vomnibar-icon-color: rgba(255, 255, 255, 0.7);
+
+  /* Gradient Colors for animated border (optional) */
+  --vomnibar-gradient-1: #ff00c1;
+  --vomnibar-gradient-2: #3d009d;
+  --vomnibar-gradient-3: #04d9ff;
+
+  /* Sizing */
+  --vomnibar-border-radius: 16px;
+  --vomnibar-item-radius: 8px;
+}
+
+/* Reset */
+* {
+  box-sizing: border-box;
 }
 
 ul {
@@ -31,198 +51,281 @@ ul {
   padding: 0;
 }
 
+/* Main Vomnibar Container */
 #vomnibar {
   display: block;
   position: fixed;
   width: 90%;
-  max-width: 600px;
-  max-height: 80%;
-  top: 34%;
+  max-width: 650px;
+  max-height: 70vh;
+  top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
 
-  background: #f1f1f1;
+  font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  background: var(--vomnibar-inner-bg);
+  color: var(--vomnibar-text-color);
+
   text-align: left;
-  border-radius: 4px;
-  box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.8);
-  border: 1px solid #aaa;
-  /* One less than hint markers and the help dialog (see ../content_scripts/vimium.css). */
+  border-radius: var(--vomnibar-border-radius);
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px var(--vomnibar-border-color);
+
+  /* Ensure vomnibar is below hint markers and help dialog */
   z-index: 2139999999;
+
+  overflow: hidden;
 }
 
-#vomnibar input {
-  font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
-  font-size: 18px;
-  height: 32px;
-  background-color: transparent;
-  color: white;
-  width: 100%;
-  outline: none;
-  box-sizing: border-box;
-  border: none
-}
-
+/* Search Area */
 #vomnibar-search-area {
   display: flex;
-  padding: 0 1rem;
-  gap: 10px;
-  border-radius: 4px 4px 0 0;
+  align-items: center;
+  padding: 12px 16px;
+  gap: 12px;
+  border-bottom: 1px solid var(--vomnibar-border-color);
+  background: var(--vomnibar-inner-bg);
 }
 
-#vomnibar ul {
-  border-radius: 0 0 4px 4px;
+/* Position Indicator */
+#vomnibar-position-indicator {
+  font-size: 11px;
+  color: var(--vomnibar-secondary-text);
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  font-variant-numeric: tabular-nums;
+  min-width: 50px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
-#vomnibar li {
-  line-height: 1.4em;
-  padding: 0 1rem;
-  font-size: 14px;
-  color: white;
-  position: relative;
+#vomnibar-position-indicator.visible {
+  opacity: 1;
+}
+
+#vomnibar-position-indicator .current {
+  color: var(--vomnibar-accent-color);
+  font-weight: 500;
+}
+
+/* Search Icon */
+#vomnibar .search-icon {
+  color: var(--vomnibar-icon-color);
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: auto;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
-#vomnibar li:last-of-type {
-  border-bottom: none;
+#vomnibar .search-icon::before {
+  content: "";
 }
 
-#vomnibar li .top-half,
-#vomnibar li .bottom-half {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-#vomnibar li .bottom-half {
-  font-size: 12px;
-  margin-top: 2px;
+/* Input Field */
+#vomnibar input {
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 24px;
+  height: 32px;
+  background-color: transparent;
+  color: var(--vomnibar-input-text);
+  width: 100%;
+  outline: none;
+  border: none;
   padding: 0;
+}
+
+#vomnibar input::placeholder {
+  color: var(--vomnibar-secondary-text);
   opacity: 0.7;
 }
 
+#vomnibar input::selection {
+  background-color: var(--vomnibar-accent-color);
+  color: var(--vomnibar-text-color);
+}
+
+/* Results List */
+#vomnibar ul {
+  max-height: calc(70vh - 60px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--vomnibar-border-color) transparent;
+}
+
+#vomnibar ul::-webkit-scrollbar {
+  width: 8px;
+}
+
+#vomnibar ul::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#vomnibar ul::-webkit-scrollbar-thumb {
+  background-color: var(--vomnibar-border-color);
+  border-radius: 4px;
+}
+
+/* Result Item */
+#vomnibar li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 6px;
+  margin: 2px 0;
+  border-radius: var(--vomnibar-item-radius);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  position: relative;
+}
+
+#vomnibar li:hover {
+  background-color: var(--vomnibar-hover-bg);
+}
+
+#vomnibar li.selected {
+  background-color: var(--vomnibar-selected-bg);
+}
+
+/* Suggestion Icons Container */
 #vomnibar li .suggestion-icons {
   position: relative;
-  cursor: pointer;
-  transition: transform 0.3s ease;
-  max-width: 2rem;
-  min-width: 2rem;
-  height: 2rem;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+/* Favicon */
 #vomnibar li .favicon {
-  z-index: 2140000000;
-  position: absolute;
-  bottom: 10px;
-  right: 12px;
-  width: 18px;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: contain;
 }
 
-/* #vomnibar li .type-icon {
-  z-index: 2139999999;
-  position: absolute;
-  left: 10px;
-  top: 1px;
-  font-size: 18px;
-  width: 24px;
-  text-align: center;
-  flex-shrink: 0;
-  background-clip: text;
-  color: transparent;
-  background-image: linear-gradient(90deg, rgb(255, 255, 255, 0) 4%, rgb(255, 255, 255, 0) 20%, rgb(255, 255, 255, 1) 100%);
-} */
-
-
+/* Type Icon Overlay */
 #vomnibar li .type-icon {
-  z-index: 2159999999;
   position: absolute;
-  left: 15px;
-  top: 12px;
-  font-size: 12px;
-  width: 12px;
-  height: 12px;
-  text-align: center;
-  flex-shrink: 0;
-  border-radius: 4rem;
-  color: white;
-  background-color: var(--vimium-background-color);
+  right: -2px;
+  bottom: -2px;
+  width: 14px;
+  height: 14px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--vomnibar-inner-bg);
+  border-radius: 50%;
+  color: var(--vomnibar-icon-color);
+  border: 1px solid var(--vomnibar-border-color);
 }
 
 #vomnibar li.selected .type-icon {
-  background-color: #37383a;
+  background-color: var(--vomnibar-selected-bg);
 }
 
-#vomnibar li .source {
-  display: none;
-}
-
+/* Suggestion Content */
 #vomnibar li .suggestion-content {
   flex: 1;
   min-width: 0;
-  max-width: 85%;
   overflow: hidden;
 }
 
-#vomnibar li .relevancy {
-  position: absolute;
-  right: 0;
-  top: 0;
-  padding: 5px;
-  color: black;
-  font-family: monospace;
-  width: 100px;
+#vomnibar li .top-half {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   overflow: hidden;
+}
+
+#vomnibar li .title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--vomnibar-text-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 #vomnibar li .url {
+  font-size: 12px;
+  color: var(--vomnibar-url-color);
   white-space: nowrap;
-  color: #224684;
-}
-
-#vomnibar li .match {
-  font-weight: bold;
-  color: black;
-}
-
-#vomnibar li em,
-#vomnibar li .title {
-  color: black;
-  margin-left: 0;
-  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 2;
+  min-width: 0;
+  opacity: 0.85;
 }
 
 #vomnibar li em {
   font-style: italic;
+  color: var(--vomnibar-text-color);
 }
 
-#vomnibar li em .match,
+/* Match Highlighting */
+#vomnibar li .match {
+  font-weight: 600;
+  color: var(--vomnibar-match-color);
+}
+
 #vomnibar li .title .match {
-  color: #333;
+  color: var(--vomnibar-match-color);
 }
 
-#vomnibar li.selected {
-  background-color: #bbcee9;
+#vomnibar li .url .match {
+  color: var(--vomnibar-match-color);
 }
 
-/* Switch tab button */
+/* Relevancy Score (debug) */
+#vomnibar li .relevancy {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: monospace;
+  font-size: 10px;
+  color: var(--vomnibar-secondary-text);
+  opacity: 0.6;
+}
+
+/* Source Label (hidden by default) */
+#vomnibar li .source {
+  display: none;
+}
+
+/* Switch Tab Button */
 #vomnibar li .switch-tab-btn {
-  font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
-  width: 24px;
-  height: 24px;
+  font-family: inherit;
+  width: 28px;
+  height: 28px;
   border: none;
   background: transparent;
-  color: #666;
-  font-size: 16px;
+  color: var(--vomnibar-secondary-text);
+  font-size: 14px;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
+  justify-content: center;
   opacity: 0;
-  transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 #vomnibar li:hover .switch-tab-btn,
@@ -232,102 +335,125 @@ ul {
 
 #vomnibar li .switch-tab-btn:hover {
   opacity: 1;
-  background-color: rgba(34, 139, 230, 0.15);
-  color: #228be6;
+  background-color: var(--vomnibar-hover-bg);
+  color: var(--vomnibar-accent-color);
 }
 
-#vomnibar li .search-icon {
-  font-size: 16px;
+/* Theme Selector Styles */
+#vomnibar li.theme-item {
+  padding: 12px 16px;
 }
 
-#vomnibar .search-icon {
-  color: white;
-  height: 2rem;
-  width: 2rem;
-  display: flex;
-  font-size: 22px;
-  place-items: center;
-  justify-content: center;
+#vomnibar li.theme-item .theme-icon {
+  font-size: 20px;
+  width: 32px;
+  text-align: center;
 }
 
-#vomnibar input::selection {
-  /* This is the light grey color of the vomnibar border. */
-  /* background-color: #F1F1F1; */
-
-  /* This is the light blue color of the vomnibar selected item. */
-  /* background-color: #BBCEE9; */
-
-  /* This is a considerably lighter blue than Vimium blue, which seems softer
-   * on the eye for this purpose. */
-  background-color: #e6eefb;
+#vomnibar li.theme-item .theme-info {
+  flex: 1;
+  min-width: 0;
 }
 
+#vomnibar li.theme-item .theme-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--vomnibar-text-color);
+}
+
+#vomnibar li.theme-item .theme-description {
+  font-size: 12px;
+  color: var(--vomnibar-secondary-text);
+  margin-top: 2px;
+}
+
+#vomnibar li.theme-item .theme-active {
+  font-size: 11px;
+  color: var(--vomnibar-accent-color);
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(102, 81, 161, 0.2);
+}
+
+/* Search Fallback Item */
+#vomnibar li.search-fallback {
+  border-top: 1px solid var(--vomnibar-border-color);
+  margin-top: 8px;
+  padding-top: 12px;
+}
+
+/* No Insert Text Helper */
 .no-insert-text {
   visibility: hidden;
 }
 
-/* Dark Vomnibar */
+/* Bottom Half for additional info */
+#vomnibar li .bottom-half {
+  display: block;
+  font-size: 12px;
+  color: var(--vomnibar-secondary-text);
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-@media (prefers-color-scheme: dark) {
-  #vomnibar {
-    background-color: var(--vimium-background-color);
-    color: var(--vimium-background-text-color);
-    border-radius: 22px;
-    border: 1px solid var(--vimium-foreground-color);
+/* Theme Command Hint */
+#vomnibar .theme-hint {
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--vomnibar-secondary-text);
+  border-bottom: 1px solid var(--vomnibar-border-color);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Smooth theme transitions */
+#vomnibar,
+#vomnibar li,
+#vomnibar ul,
+#vomnibar-search-area {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.15s ease;
+}
+
+/* Disable transitions for input to prevent lag */
+#vomnibar input {
+  transition: none;
+}
+
+/* Animation for theme preview */
+@keyframes theme-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
   }
 
-  #vomnibar-search-area {
-    border-bottom: 1px solid var(--vimium-foreground-color);
+  50% {
+    opacity: 0.85;
   }
+}
 
+#vomnibar.theme-preview {
+  animation: theme-pulse 2s ease-in-out infinite;
+}
 
-  /* Ensure selected text is visible in dark mode. */
-  #vomnibar input::selection {
-    color: var(--vimium-foreground-color);
-    background-color: var(--vimium-foreground-text-color);
-  }
-
-  #vomnibar li.selected {
-    background-color: #37383a;
-  }
-
-  #vomnibar li .url {
-    white-space: nowrap;
-    color: #5ca1f7;
-  }
-
-  #vomnibar li em,
-  #vomnibar li .title {
-    color: white;
-  }
-
-  #vomnibar li .source {
-    color: #9aa0a6;
-  }
-
-  #vomnibar li .type-icon {
-    opacity: 0.8;
-  }
-
-  #vomnibar li .switch-tab-btn {
-    color: #9aa0a6;
-  }
-
-  #vomnibar li .switch-tab-btn:hover {
-    background-color: rgba(34, 139, 230, 0.25);
-    color: #74c0fc;
-  }
-
-  #vomnibar li.search-fallback:hover {
-    background-color: #37383a;
-  }
-
-  #vomnibar li .match {
-    color: white;
-  }
-
-  #vomnibar li em .match,
-  #vomnibar li .title .match {
-    color: white;
+/* Light theme auto-detection (when no theme is explicitly set) */
+@media (prefers-color-scheme: light) {
+  :root:not([data-vomnibar-theme]) {
+    --vomnibar-bg-color: rgba(255, 255, 255, 0.95);
+    --vomnibar-inner-bg: #ffffff;
+    --vomnibar-text-color: #24292f;
+    --vomnibar-secondary-text: #57606a;
+    --vomnibar-selected-bg: #ddf4ff;
+    --vomnibar-hover-bg: #f6f8fa;
+    --vomnibar-border-color: #d0d7de;
+    --vomnibar-accent-color: #0969da;
+    --vomnibar-url-color: #0550ae;
+    --vomnibar-match-color: #0969da;
+    --vomnibar-input-text: #24292f;
+    --vomnibar-icon-color: #57606a;
   }
 }
