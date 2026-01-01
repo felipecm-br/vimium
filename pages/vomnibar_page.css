@@ -37,7 +37,7 @@ ul {
   width: 90%;
   max-width: 600px;
   max-height: 80%;
-  top: 50%;
+  top: 34%;
   left: 50%;
   transform: translate(-50%, -50%);
   font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
@@ -54,24 +54,20 @@ ul {
 #vomnibar input {
   font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
   font-size: 18px;
-  height: 38px;
-  margin-bottom: 0;
-  padding: 8px 12px;
-  background-color: white;
-  color: black;
-  border-radius: 6px;
-  border: 1px solid #e8e8e8;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  height: 32px;
+  background-color: transparent;
+  color: white;
   width: 100%;
   outline: none;
   box-sizing: border-box;
+  border: none
 }
 
 #vomnibar-search-area {
-  display: block;
-  padding: 1rem;
+  display: flex;
+  padding: 0 1rem;
+  gap: 10px;
   border-radius: 4px 4px 0 0;
-  border-bottom: 1px solid #c6c9ce;
 }
 
 #vomnibar ul {
@@ -142,22 +138,22 @@ ul {
 
 
 #vomnibar li .type-icon {
-    z-index: 2159999999;
-    position: absolute;
-    left: 15px;
-    top: 12px;
-    font-size: 12px;
-    width: 12px;
-    height: 12px;
-    text-align: center;
-    flex-shrink: 0;
-    border-radius: 4rem;
-    color: white;
-    background-color: var(--vimium-background-color);
+  z-index: 2159999999;
+  position: absolute;
+  left: 15px;
+  top: 12px;
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+  text-align: center;
+  flex-shrink: 0;
+  border-radius: 4rem;
+  color: white;
+  background-color: var(--vimium-background-color);
 }
 
 #vomnibar li.selected .type-icon {
-    background-color: #37383a;
+  background-color: #37383a;
 }
 
 #vomnibar li .source {
@@ -167,6 +163,7 @@ ul {
 #vomnibar li .suggestion-content {
   flex: 1;
   min-width: 0;
+  max-width: 85%;
   overflow: hidden;
 }
 
@@ -211,6 +208,48 @@ ul {
   background-color: #bbcee9;
 }
 
+/* Switch tab button */
+#vomnibar li .switch-tab-btn {
+  font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+#vomnibar li:hover .switch-tab-btn,
+#vomnibar li.selected .switch-tab-btn {
+  opacity: 0.6;
+}
+
+#vomnibar li .switch-tab-btn:hover {
+  opacity: 1;
+  background-color: rgba(34, 139, 230, 0.15);
+  color: #228be6;
+}
+
+#vomnibar li .search-icon {
+  font-size: 16px;
+}
+
+#vomnibar .search-icon {
+  color: white;
+  height: 2rem;
+  width: 2rem;
+  display: flex;
+  font-size: 22px;
+  place-items: center;
+  justify-content: center;
+}
+
 #vomnibar input::selection {
   /* This is the light grey color of the vomnibar border. */
   /* background-color: #F1F1F1; */
@@ -241,11 +280,6 @@ ul {
     border-bottom: 1px solid var(--vimium-foreground-color);
   }
 
-  #vomnibar input {
-    background-color: var(--vimium-foreground-color);
-    color: var(--vimium-foreground-text-color);
-    border: none;
-  }
 
   /* Ensure selected text is visible in dark mode. */
   #vomnibar input::selection {
@@ -273,6 +307,19 @@ ul {
 
   #vomnibar li .type-icon {
     opacity: 0.8;
+  }
+
+  #vomnibar li .switch-tab-btn {
+    color: #9aa0a6;
+  }
+
+  #vomnibar li .switch-tab-btn:hover {
+    background-color: rgba(34, 139, 230, 0.25);
+    color: #74c0fc;
+  }
+
+  #vomnibar li.search-fallback:hover {
+    background-color: #37383a;
   }
 
   #vomnibar li .match {

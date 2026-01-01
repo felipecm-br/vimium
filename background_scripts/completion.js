@@ -100,6 +100,12 @@ export class Suggestion {
 
     const iconsHtml = `<span class="suggestion-icons">${faviconHtml}<span class="type-icon">${typeIcon}</span></span>`;
     const titleHtml = this.highlightQueryTerms(Utils.escapeHtml(this.title));
+    
+    // Add switch button for tabs
+    const switchButtonHtml = this.description === "tab" && this.tabId != null
+      ? `<button class="suggestion-icons switch-tab-btn" data-tab-id="${this.tabId}">󰓩<span class="type-icon"></span></button>`
+      : "";
+    
     this.html = `\
 ${iconsHtml}
 <div class="suggestion-content">
@@ -110,7 +116,8 @@ ${iconsHtml}
     }</span>
     ${relevancyHtml}
   </div>
-</div>`;
+</div>
+${switchButtonHtml}`;
     return this.html;
   }
 
@@ -772,6 +779,9 @@ export class OmniSearchCompleter {
 
     // Filter tabs and annotate with bookmark info (like omniSearchHandler)
     const filteredTabs = sortedTabs.filter((tab) => {
+      // Skip the current active tab - no need to show it as a suggestion
+      if (tab.active) return false;
+
       // Attach bookmark info to tab if URL matches
       if (bookmarksMap.has(tab.url)) {
         tab.bookmark = bookmarksMap.get(tab.url);

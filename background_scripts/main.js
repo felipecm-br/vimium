@@ -745,6 +745,12 @@ const sendRequestHandlers = {
   async closeTabFromVomnibar(request) {
     await chrome.tabs.remove(request.tabIdToBeRemoved);
   },
+
+  async switchTabFromVomnibar(request) {
+    await chrome.tabs.update(request.tabIdToSwitch, { active: true });
+    const tab = await chrome.tabs.get(request.tabIdToSwitch);
+    await chrome.windows.update(tab.windowId, { focused: true });
+  },
 };
 
 Utils.addChromeRuntimeOnMessageListener(

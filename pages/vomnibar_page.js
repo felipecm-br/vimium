@@ -366,8 +366,55 @@ class VomnibarUI {
   }
 
   renderCompletions(completions) {
-    this.completionList.innerHTML = completions.map((c) => `<li>${c.html}</li>`).join("");
+    const query = this.input.value.trim();
+    
+    // If no completions and user has typed something, show "Search with Google" option
+    if (completions.length === 0 && query.length > 0) {
+      const escapedQuery = Utils.escapeHtml(query);
+      this.completionList.innerHTML = `
+        <li data-search-query="${escapedQuery}">
+          <span class="search-icon"></span>
+          <div class="suggestion-content">
+            <div class="top-half">
+              <span class="title"><strong>${escapedQuery}</strong> - Search with Google</span>
+            </div>
+          </div>
+        </li>`;
+      this.completionList.style.display = "block";
+      // Add click handler for search fallback
+      const searchItem = this.completionList.querySelector(".search-fallback");
+      if (searchItem) {
+        searchItem.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.hide(() => {
+            chrome.runtime.sendMessage({
+              handler: "launchSearchQuery",
+              query: query,
+              openInNewTab: false,
+            });
+          });
+        });
+      }
+      return;
+    }
+    
+    this.completionList.innerHTML = completions.map((c, index) => 
+      `<li data-index="${index}">${c.html}</li>`
+    ).join("");
     this.completionList.style.display = completions.length > 0 ? "block" : "";
+    
+    // Add click handlers for switch tab buttons
+    this.completionList.querySelectorAll(".switch-tab-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const tabId = parseInt(btn.dataset.tabId, 10);
+        if (tabId) {
+          chrome.runtime.sendMessage({ handler: "switchTabFromVomnibar", tabIdToSwitch: tabId });
+          this.hide();
+        }
+      });
+    });
   }
 
   refreshCompletions() {
