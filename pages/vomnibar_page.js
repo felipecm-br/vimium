@@ -79,7 +79,7 @@ class VomnibarUI {
     this.allCompletions = []; // All completions from backend
     this.currentPage = 0;
     this.itemsPerPage = DEFAULT_ITEMS_PER_PAGE;
-    this.globalSelection = -1; // Selection index in allCompletions
+    this.globalSelection = 0; // Selection index in allCompletions
   }
 
   setQuery(query) {
@@ -159,7 +159,7 @@ class VomnibarUI {
     this.previousInputValue = null;
     this.activeUserSearchEngine = null;
     this.selection = this.initialSelectionValue;
-    this.globalSelection = -1;
+    this.globalSelection = 0;
     this.currentPage = 0;
     this.seenTabToOpenCompletionList = false;
     this.lastRequestId = null;
@@ -374,8 +374,8 @@ class VomnibarUI {
         if (this.allCompletions.length > 0) {
           this.selection = this.globalSelection % this.itemsPerPage;
         } else {
-          this.selection = -1;
-          this.globalSelection = -1;
+          this.selection = 0;
+          this.globalSelection = 0;
         }
         this.updateSelection();
       }
@@ -559,7 +559,7 @@ class VomnibarUI {
     
     // Set initial selection
     const autoSelect = this.allCompletions[0]?.autoSelect;
-    this.globalSelection = autoSelect ? 0 : -1;
+    this.globalSelection = 0;
     this.selection = autoSelect ? 0 : this.initialSelectionValue;
     
     this.renderCompletions(this.completions);
