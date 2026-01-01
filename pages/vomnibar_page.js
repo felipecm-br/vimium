@@ -54,6 +54,9 @@ export async function activate(options) {
 // Theme command prefix for triggering theme selection in OmniSearch
 const THEME_COMMAND_PREFIX = "theme";
 
+// Pagination settings
+const DEFAULT_ITEMS_PER_PAGE = 7;
+
 class VomnibarUI {
   constructor() {
     this.onKeyEvent = this.onKeyEvent.bind(this);
@@ -71,6 +74,12 @@ class VomnibarUI {
     this.themeCompletions = [];
     // Initialize theme manager
     themeManager.init();
+    
+    // Pagination state
+    this.allCompletions = []; // All completions from backend
+    this.currentPage = 0;
+    this.itemsPerPage = DEFAULT_ITEMS_PER_PAGE;
+    this.globalSelection = -1; // Selection index in allCompletions
   }
 
   setQuery(query) {
@@ -145,15 +154,19 @@ class VomnibarUI {
   reset() {
     this.input.value = "";
     this.completions = [];
+    this.allCompletions = [];
     this.renderCompletions(this.completions);
     this.previousInputValue = null;
     this.activeUserSearchEngine = null;
     this.selection = this.initialSelectionValue;
+    this.globalSelection = -1;
+    this.currentPage = 0;
     this.seenTabToOpenCompletionList = false;
     this.lastRequestId = null;
     this.isThemeMode = false;
     this.themeCompletions = [];
     this.box.classList.remove("theme-preview");
+    this.updatePositionIndicator();
   }
 
   updateSelection() {
@@ -178,6 +191,9 @@ class VomnibarUI {
       el.className = i == this.selection ? "selected" : "";
     }
 
+    // Update position indicator
+    this.updatePositionIndicator();
+
     // Preview theme when in theme mode and selection changes
     if (this.isThemeMode && this.selection >= 0) {
       const themeCompletion = this.themeCompletions[this.selection];
@@ -186,6 +202,42 @@ class VomnibarUI {
         this.box.classList.add("theme-preview");
       }
     }
+  }
+
+  updatePositionIndicator() {
+    if (!this.positionIndicator) return;
+    
+    const totalItems = this.allCompletions.length;
+    if (totalItems === 0 || this.globalSelection < 0) {
+      this.positionIndicator.textContent = "";
+      this.positionIndicator.classList.remove("visible");
+      return;
+    }
+    
+    this.positionIndicator.textContent = `${this.globalSelection + 1}/${totalItems}`;
+    this.positionIndicator.classList.add("visible");
+  }
+
+  updatePageAndSelection() {
+    // Calculate which page the global selection is on
+    const newPage = Math.floor(this.globalSelection / this.itemsPerPage);
+    
+    // If page changed, re-render
+    if (newPage !== this.currentPage) {
+      this.currentPage = newPage;
+      this.renderCurrentPage();
+    }
+    
+    // Calculate selection within current page
+    this.selection = this.globalSelection % this.itemsPerPage;
+    this.updateSelection();
+  }
+
+  renderCurrentPage() {
+    const start = this.currentPage * this.itemsPerPage;
+    const end = Math.min(start + this.itemsPerPage, this.allCompletions.length);
+    this.completions = this.allCompletions.slice(start, end);
+    this.renderCompletions(this.completions);
   }
 
   // Returns the user's action ("up", "down", "tab", etc, or null) based on their keypress. We
@@ -255,19 +307,23 @@ class VomnibarUI {
       ) {
         this.seenTabToOpenCompletionList = true;
         this.update();
-      } else if (this.completions.length > 0) {
-        this.selection += 1;
-        if (this.selection === this.completions.length) {
-          this.selection = this.initialSelectionValue;
+      } else if (this.allCompletions.length > 0) {
+        // Move global selection down with cycling
+        this.globalSelection += 1;
+        if (this.globalSelection >= this.allCompletions.length) {
+          this.globalSelection = 0; // Cycle back to first
         }
-        this.updateSelection();
+        this.updatePageAndSelection();
       }
     } else if (action === "up") {
-      this.selection -= 1;
-      if (this.selection < this.initialSelectionValue) {
-        this.selection = this.completions.length - 1;
+      if (this.allCompletions.length > 0) {
+        // Move global selection up with cycling
+        this.globalSelection -= 1;
+        if (this.globalSelection < 0) {
+          this.globalSelection = this.allCompletions.length - 1; // Cycle to last
+        }
+        this.updatePageAndSelection();
       }
-      this.updateSelection();
     } else if (action === "enter") {
       await this.handleEnterKey(event);
     } else if (action === "ctrl-enter") {
@@ -303,14 +359,24 @@ class VomnibarUI {
       if (completion.tabId != null) {
         // Close the tab
         chrome.runtime.sendMessage({ handler: "closeTabFromVomnibar", tabIdToBeRemoved: completion.tabId });
-        // Remove the completion from the list
-        this.completions.splice(this.selection, 1);
-        // Adjust selection if needed
-        if (this.selection >= this.completions.length) {
-          this.selection = this.completions.length - 1;
+        // Remove the completion from allCompletions (pagination source)
+        this.allCompletions.splice(this.globalSelection, 1);
+        
+        // Adjust global selection if needed
+        if (this.globalSelection >= this.allCompletions.length) {
+          this.globalSelection = this.allCompletions.length - 1;
         }
-        // Re-render completions
-        this.renderCompletions(this.completions);
+        
+        // Re-render current page
+        this.renderCurrentPage();
+        
+        // Recalculate selection within page
+        if (this.allCompletions.length > 0) {
+          this.selection = this.globalSelection % this.itemsPerPage;
+        } else {
+          this.selection = -1;
+          this.globalSelection = -1;
+        }
         this.updateSelection();
       }
       // Already prevented default at the top of the function, so just return
@@ -447,14 +513,17 @@ class VomnibarUI {
       const searchQuery = this.getThemeSearchQuery();
       this.themeCompletions = this.getThemeCompletions(searchQuery);
       
-      // Create fake completions for rendering
-      this.completions = this.themeCompletions.map((theme, index) => ({
+      // Create fake completions for rendering (use allCompletions for consistency)
+      this.allCompletions = this.themeCompletions.map((theme, index) => ({
         html: theme.html,
         isTheme: true,
         themeIndex: index
       }));
+      this.completions = this.allCompletions;
+      this.currentPage = 0;
       
-      this.selection = 0; // Auto-select first theme
+      this.globalSelection = 0; // Auto-select first theme
+      this.selection = 0;
       this.renderThemeCompletions();
       this.updateSelection();
       return;
@@ -481,8 +550,18 @@ class VomnibarUI {
     // Ensure that no new filter requests have gone out while waiting for this result.
     if (this.lastRequestId != requestId) return;
 
-    this.completions = results;
-    this.selection = this.completions[0]?.autoSelect ? 0 : this.initialSelectionValue;
+    // Store all completions for pagination
+    this.allCompletions = results;
+    this.currentPage = 0;
+    
+    // Get first page of completions
+    this.completions = this.allCompletions.slice(0, this.itemsPerPage);
+    
+    // Set initial selection
+    const autoSelect = this.allCompletions[0]?.autoSelect;
+    this.globalSelection = autoSelect ? 0 : -1;
+    this.selection = autoSelect ? 0 : this.initialSelectionValue;
+    
     this.renderCompletions(this.completions);
     this.selection = Math.min(
       this.completions.length - 1,
@@ -628,6 +707,7 @@ class VomnibarUI {
     this.input.addEventListener("keypress", this.onKeyEvent);
     this.completionList = this.box.querySelector("ul");
     this.completionList.style.display = "";
+    this.positionIndicator = document.getElementById("vomnibar-position-indicator");
 
     window.addEventListener("focus", () => this.input.focus());
     // A click in the vomnibar itself refocuses the input.
