@@ -282,6 +282,9 @@ class VomnibarUI {
       return "closeTab";
     } else if (KeyboardUtils.isBackspace(event)) {
       return "delete";
+    } else if ((key === "y") && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      // y = yank title, Y (shift+y) = yank URL
+      return event.shiftKey ? "yankUrl" : "yankTitle";
     }
 
     return null;
@@ -389,6 +392,20 @@ class VomnibarUI {
       }
       // Already prevented default at the top of the function, so just return
       return;
+    } else if ((action === "yankTitle" || action === "yankUrl") && (this.selection >= 0)) {
+      const completion = this.completions[this.selection];
+      if (completion) {
+        const textToYank = action === "yankUrl" ? completion.url : completion.title;
+        if (textToYank && textToYank.length > 0) {
+          await this.copyToClipboard(textToYank);
+          const truncated = textToYank.length > 40 ? textToYank.slice(0, 38) + "..." : textToYank;
+          const typeLabel = action === "yankUrl" ? "URL" : "title";
+          this.showYankNotification(`Yanked ${typeLabel}: ${truncated}`);
+        } else {
+          const typeLabel = action === "yankUrl" ? "URL" : "title";
+          this.showYankNotification(`No ${typeLabel} to yank.`);
+        }
+      }
     }
 
     event.stopImmediatePropagation();
@@ -704,6 +721,37 @@ class VomnibarUI {
       handler: openInNewTab ? "openUrlInNewTab" : "openUrlInCurrentTab",
       url,
     });
+  }
+
+  // Copy text to the clipboard
+  async copyToClipboard(text) {
+    try {
+      // Replace nbsp; characters with space
+      const value = text.replace(/\xa0/g, " ");
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch (e) {
+      console.error("Failed to copy to clipboard:", e);
+      return false;
+    }
+  }
+
+  // Show a temporary notification for yank operations
+  showYankNotification(message) {
+    // Remove any existing notification
+    const existing = document.getElementById("vomnibar-yank-notification");
+    if (existing) existing.remove();
+
+    const notification = document.createElement("div");
+    notification.id = "vomnibar-yank-notification";
+    notification.textContent = message;
+    this.box.appendChild(notification);
+
+    // Auto-remove after 2 seconds
+    setTimeout(() => {
+      notification.classList.add("fade-out");
+      setTimeout(() => notification.remove(), 200);
+    }, 1800);
   }
 
   initDom() {
