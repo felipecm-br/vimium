@@ -218,6 +218,43 @@ iframe.vomnibar-frame {
   z-index: 2147483647;
 }
 
+/* Vomnibar Glass Background Overlay */
+.vomnibar-glass-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  opacity: 0;
+  pointer-events: none;
+  display: none;
+}
+
+.vomnibar-glass-bg.vomnibar-glass-bg-visible {
+  display: block;
+}
+
+.vomnibar-glass-bg.vomnibar-glass-bg-fade-in {
+  animation: vomnibarGlassFadeIn 1ms ease-out forwards;
+  pointer-events: auto;
+}
+
+.vomnibar-glass-bg.vomnibar-glass-bg-fade-out {
+  animation: vomnibarGlassFadeOut 1ms ease-in forwards;
+  pointer-events: none;
+}
+
+@keyframes vomnibarGlassFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes vomnibarGlassFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
 div.vimium-flash {
   box-shadow: 0px 0px 4px 2px #4183c4;
   padding: 1px;

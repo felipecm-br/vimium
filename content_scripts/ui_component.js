@@ -49,7 +49,7 @@ class UIComponent {
 
     // Fetch "content_scripts/vimium.css" from chrome.storage.session; the background page caches
     // it there.
-    chrome.storage.session.get("vimiumCSSInChromeStorage")
+    this.stylesheetLoaded = chrome.storage.session.get("vimiumCSSInChromeStorage")
       .then((items) => styleSheet.innerHTML = items.vimiumCSSInChromeStorage);
 
     this.iframeElement.className = className;
@@ -59,6 +59,14 @@ class UIComponent {
     shadowWrapper.className = "vimium-reset";
     this.shadowDOM = shadowWrapper.attachShadow({ mode: "open" });
     this.shadowDOM.appendChild(styleSheet);
+
+    // Create glass background overlay for vomnibar
+    if (className === "vomnibar-frame") {
+      this.glassBackground = DomUtils.createElement("div");
+      this.glassBackground.className = "vomnibar-glass-bg";
+      this.shadowDOM.appendChild(this.glassBackground);
+    }
+
     this.shadowDOM.appendChild(this.iframeElement);
 
     // Load the iframe and pass it a port via window.postMessage so we can communicate privately
@@ -146,9 +154,28 @@ class UIComponent {
     if (visible) {
       classes.remove("vimium-ui-component-hidden");
       classes.add("vimium-ui-component-visible");
+      // Show glass background with fade-in animation (use setTimeout to ensure CSS is loaded)
+      if (this.glassBackground) {
+        setTimeout(() => {
+          this.glassBackground.classList.remove("vomnibar-glass-bg-fade-out");
+          this.glassBackground.classList.add("vomnibar-glass-bg-visible");
+          // Force reflow to restart animation
+          void this.glassBackground.offsetWidth;
+          this.glassBackground.classList.add("vomnibar-glass-bg-fade-in");
+        }, 10);
+      }
     } else {
       classes.add("vimium-ui-component-hidden");
       classes.remove("vimium-ui-component-visible");
+      // Hide glass background with fade-out animation
+      if (this.glassBackground) {
+        this.glassBackground.classList.remove("vomnibar-glass-bg-fade-in");
+        this.glassBackground.classList.add("vomnibar-glass-bg-fade-out");
+        // After animation, hide completely
+        setTimeout(() => {
+          this.glassBackground.classList.remove("vomnibar-glass-bg-visible");
+        }, 10);
+      }
     }
   }
 

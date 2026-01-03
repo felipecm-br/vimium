@@ -46,6 +46,8 @@ export async function activate(options) {
   ui.setForceNewTab(options.newTab);
   ui.setQuery(options.query);
   ui.setActiveUserSearchEngine(userSearchEngines.keywordToEngine[options.keyword]);
+  // Trigger slide-in animation on each activation
+  ui.showAnimations();
   // Use await here for vomnibar_test.js, so that this page doesn't get unloaded while a test is
   // running.
   await ui.update();
@@ -130,7 +132,11 @@ class VomnibarUI {
   //
   // This ensures that the vomnibar is actually hidden before any new tab is created, and avoids
   // flicker after opening a link in a new tab then returning to the original tab. See #1485.
-  hide(onHiddenCallback = null) {
+  async hide(onHiddenCallback = null) {
+    // Prevent multiple hide calls
+    if (this.isHiding) return;
+    this.isHiding = true;
+    
     this.onHiddenCallback = onHiddenCallback;
     this.input.blur();
     // Cancel theme preview if active
@@ -138,6 +144,8 @@ class VomnibarUI {
       themeManager.cancelPreview();
     }
     this.reset();
+    // Trigger slide-out animation before hiding
+    await this.hideAnimations();
     // Wait until this iframe's DOM has been rendered before hiding the iframe. This is to prevent
     // Chrome caching the previous visual state of the vomnibar iframe. See #4708.
     setTimeout(() => {
@@ -700,6 +708,7 @@ class VomnibarUI {
 
   initDom() {
     this.box = document.getElementById("vomnibar");
+    this.isHiding = false;
 
     this.input = this.box.querySelector("input");
     this.input.addEventListener("input", this.onInput);
@@ -711,12 +720,46 @@ class VomnibarUI {
 
     window.addEventListener("focus", () => this.input.focus());
     // A click in the vomnibar itself refocuses the input.
-    this.box.addEventListener("click", (event) => {
-      this.input.focus();
-      return event.stopImmediatePropagation();
+    this.box.addEventListener("mousedown", (event) => {
+      event.stopPropagation();
     });
     // A click anywhere else hides the vomnibar.
-    document.addEventListener("click", () => this.hide());
+    document.body.addEventListener("mousedown", (event) => {
+      // Only hide if the click is outside the vomnibar
+      if (!this.box.contains(event.target) && !this.isHiding) {
+        this.hide();
+      }
+    });
+  }
+
+  showAnimations() {
+    // Reset hiding flag when showing
+    this.isHiding = false;
+    // Reset any existing animation classes first
+    this.box.classList.remove("vomnibar-slide-out");
+    // Force reflow to restart animation
+    void this.box.offsetWidth;
+    this.box.classList.add("vomnibar-slide-in");
+    // Focus input after animation starts
+    this.input.focus();
+  }
+
+  hideAnimations() {
+    return new Promise((resolve) => {
+      // Hide vomnibar with slide-out
+      this.box.classList.remove("vomnibar-slide-in");
+      this.box.classList.add("vomnibar-slide-out");
+
+      // Wait for animation to complete
+      const handler = () => {
+        this.box.removeEventListener("animationend", handler);
+        resolve();
+      };
+      this.box.addEventListener("animationend", handler, { once: true });
+
+      // Fallback timeout in case animationend doesn't fire
+      setTimeout(resolve, 200);
+    });
   }
 }
 
