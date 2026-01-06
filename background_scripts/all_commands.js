@@ -230,6 +230,13 @@ const allCommands = [
   },
 
   {
+    name: "LinkHints.activateModeToCopyElementText",
+    desc: "Copy an element's text to the clipboard",
+    group: "navigation",
+    advanced: true,
+  },
+
+  {
     name: "goPrevious",
     desc: "Follow the link labeled previous or <",
     group: "navigation",

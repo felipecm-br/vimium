@@ -11,6 +11,110 @@
 // arbitrarily deep. Observe that @keyMapping["g"] is itself also a valid key mapping. At any point,
 // the key state (@keyState) consists of a (non-empty) list of such mappings.
 
+// Keystroke popup configuration - defines which prefix keys show a popup and their descriptions
+const KeystrokePopupConfig = {
+  // Map of prefix key -> { nextKey: description }
+  prefixes: {
+    "y": {
+      "y": "Copy page URL",
+      "f": "Copy link URL",
+      "c": "Copy element text",
+      "t": "Duplicate tab",
+    },
+    "g": {
+      "g": "Scroll to top",
+      "t": "Next tab",
+      "T": "Previous tab",
+      "0": "First tab",
+      "$": "Last tab",
+      "u": "Go up a directory",
+      "U": "Go to root",
+      "f": "Next frame",
+      "F": "Main frame",
+      "s": "View source",
+      "e": "Edit URL",
+      "E": "Edit URL (new tab)",
+      "o": "Go back",
+      "i": "Go forward",
+    },
+    "z": {
+      "i": "Zoom in",
+      "o": "Zoom out",
+      "0": "Reset zoom",
+      "H": "Scroll left",
+      "L": "Scroll right",
+    },
+    "<": {
+      "<": "Move tab left",
+    },
+    ">": {
+      ">": "Move tab right",
+    },
+  },
+};
+
+// Manages the keystroke popup UI element
+const KeystrokePopup = {
+  element: null,
+  hideTimeout: null,
+
+  show(prefixKey, options) {
+    this.hide(true); // Hide any existing popup immediately
+    
+    if (!document.body) return;
+    
+    const popup = document.createElement("div");
+    popup.id = "vimium-keystroke-popup";
+    popup.className = "vimium-reset";
+    
+    // Build the popup content
+    let html = `<span class="keystroke-prefix">${this.escapeHtml(prefixKey)} +</span>`;
+    
+    for (const [key, desc] of Object.entries(options)) {
+      html += `
+        <span class="keystroke-option">
+          <span class="keystroke-key">${this.escapeHtml(key)}</span>
+          <span class="keystroke-desc">${this.escapeHtml(desc)}</span>
+        </span>`;
+    }
+    
+    popup.innerHTML = html;
+    document.body.appendChild(popup);
+    this.element = popup;
+    
+    // Auto-hide after 3 seconds if no action
+    this.hideTimeout = setTimeout(() => this.hide(), 3000);
+  },
+  
+  hide(immediate = false) {
+    if (this.hideTimeout) {
+      clearTimeout(this.hideTimeout);
+      this.hideTimeout = null;
+    }
+    
+    if (!this.element) return;
+    
+    if (immediate) {
+      this.element.remove();
+      this.element = null;
+    } else {
+      this.element.classList.add("hiding");
+      setTimeout(() => {
+        if (this.element) {
+          this.element.remove();
+          this.element = null;
+        }
+      }, 100);
+    }
+  },
+  
+  escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+};
+
 class KeyHandlerMode extends Mode {
   setKeyMapping(keyMapping) {
     this.keyMapping = keyMapping;
@@ -31,6 +135,8 @@ class KeyHandlerMode extends Mode {
     if (countPrefix == null) countPrefix = 0;
     this.countPrefix = countPrefix;
     this.keyState = [this.keyMapping];
+    // Hide keystroke popup when resetting
+    KeystrokePopup.hide();
   }
 
   init(options) {
@@ -134,6 +240,7 @@ class KeyHandlerMode extends Mode {
     this.keyState = state;
 
     if (this.keyState[0].command != null) {
+      // Command is complete - execute it and hide popup
       const command = this.keyState[0];
       const count = this.countPrefix > 0 ? this.countPrefix : null;
       this.reset();
@@ -141,9 +248,17 @@ class KeyHandlerMode extends Mode {
       if ((this.options.count != null) && (--this.options.count <= 0)) {
         this.exit();
       }
+    } else {
+      // Command is not complete - show keystroke popup if this prefix has options defined
+      const popupOptions = KeystrokePopupConfig.prefixes[keyChar];
+      if (popupOptions && this.keyState.length === 2) {
+        // We're at a prefix key (keyState has 2 entries: the prefix mapping + the full keyMapping)
+        KeystrokePopup.show(keyChar, popupOptions);
+      }
     }
     return this.suppressEvent;
   }
 }
 
 globalThis.KeyHandlerMode = KeyHandlerMode;
+globalThis.KeystrokePopup = KeystrokePopup;

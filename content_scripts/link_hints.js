@@ -145,6 +145,22 @@ const FOCUS_LINK = {
     link.focus();
   },
 };
+const COPY_ELEMENT_TEXT = {
+  name: "copy-element-text",
+  indicator: "Copy element text to Clipboard",
+  linkActivator(element) {
+    // Get the text content of the element, trimmed
+    let text = element.innerText || element.textContent || "";
+    text = text.trim();
+    if (text.length > 0) {
+      HUD.copyToClipboard(text);
+      if (50 < text.length) text = text.slice(0, 48) + "...";
+      HUD.show(`Yanked: ${text}`, 2000);
+    } else {
+      HUD.show("No text to yank.", 2000);
+    }
+  },
+};
 
 const availableModes = [
   OPEN_IN_CURRENT_TAB,
@@ -157,6 +173,7 @@ const availableModes = [
   COPY_LINK_TEXT,
   HOVER_LINK,
   FOCUS_LINK,
+  COPY_ELEMENT_TEXT,
 ];
 
 const HintCoordinator = {
@@ -222,14 +239,16 @@ const HintCoordinator = {
   getHintDescriptors({ modeIndex, requestedByHelpDialog }, _sender) {
     if (!DomUtils.isReady() || DomUtils.windowIsTooSmall()) return [];
 
-    const requireHref = [COPY_LINK_URL, OPEN_INCOGNITO].includes(availableModes[modeIndex]);
+    const currentMode = availableModes[modeIndex];
+    const requireHref = [COPY_LINK_URL, OPEN_INCOGNITO].includes(currentMode);
+    const includeTextElements = currentMode === COPY_ELEMENT_TEXT;
     // If link hints is launched within the help dialog, then we only offer hints from that frame.
     // This improves the usability of the help dialog on the options page (particularly for
     // selecting command names).
     if (requestedByHelpDialog && !globalThis.isVimiumHelpDialog) {
       this.localHints = [];
     } else {
-      this.localHints = LocalHints.getLocalHints(requireHref);
+      this.localHints = LocalHints.getLocalHints(requireHref, includeTextElements);
     }
     this.localHintDescriptors = this.localHints.map(({ linkText }, localIndex) => (
       new HintDescriptor({
@@ -353,6 +372,9 @@ const LinkHints = {
   },
   activateModeToDownloadLink(count) {
     this.activateMode(count, { mode: DOWNLOAD_LINK_URL });
+  },
+  activateModeToCopyElementText(count) {
+    this.activateMode(count, { mode: COPY_ELEMENT_TEXT });
   },
 };
 
@@ -1322,9 +1344,16 @@ const LocalHints = {
   // rects for the whole element.
   // - requireHref: true if the hintable element must have an href, because an href is required for
   //   commands like "LinkHints.activateModeToCopyLinkUrl".
-  getLocalHints(requireHref) {
+  // - includeTextElements: true if we should include text-containing elements like spans, paragraphs,
+  //   headings, etc. for commands like "LinkHints.activateModeToCopyElementText".
+  getLocalHints(requireHref, includeTextElements = false) {
     // We need documentElement to be ready in order to find links.
     if (!document.documentElement) return [];
+
+    // If we're looking for text elements, use a different approach
+    if (includeTextElements) {
+      return this.getTextElementHints();
+    }
 
     // Find all elements, recursing into shadow DOM if present.
     const getAllElements = (root, elements) => {
@@ -1440,6 +1469,71 @@ const LocalHints = {
       }
     }
     return nonOverlappingHints;
+  },
+
+  // Text element selectors for copy element text mode
+  textElementSelectors: [
+    "p", "span", "div", "li", "td", "th", "dd", "dt",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "a", "button", "label",
+    "strong", "em", "b", "i", "u", "mark",
+    "code", "pre", "blockquote", "q", "cite",
+    "figcaption", "caption", "summary", "legend",
+    "article", "section", "header", "footer", "aside", "nav",
+    "time", "address", "small",
+  ],
+
+  // Get hints for text-containing elements (for copy element text mode)
+  getTextElementHints() {
+    const selector = this.textElementSelectors.join(", ");
+    const elements = document.querySelectorAll(selector);
+    const hints = [];
+    const seenRects = new Set();
+
+    for (const element of elements) {
+      // Skip elements with no meaningful text content
+      const text = (element.innerText || element.textContent || "").trim();
+      if (text.length === 0) continue;
+      // Skip very long text (likely a container)
+      if (text.length > 500) continue;
+
+      // Get visible rect
+      const clientRect = DomUtils.getVisibleClientRect(element, true);
+      if (clientRect === null) continue;
+
+      // Skip tiny elements
+      if (clientRect.width < 5 || clientRect.height < 5) continue;
+
+      // Create a simple key to avoid duplicate rects at the same position
+      const rectKey = `${Math.round(clientRect.left)},${Math.round(clientRect.top)}`;
+      if (seenRects.has(rectKey)) continue;
+      seenRects.add(rectKey);
+
+      const hint = new LocalHint({
+        element,
+        rect: clientRect,
+        secondClassCitizen: false,
+        possibleFalsePositive: false,
+        reason: null,
+      });
+      hints.push(hint);
+    }
+
+    // Position the rects within the window
+    const { top, left } = DomUtils.getViewportTopLeft();
+    for (const hint of hints) {
+      hint.rect.top += top;
+      hint.rect.left += left;
+    }
+
+    // Generate link text for filter hints
+    if (Settings.get("filterLinkHints")) {
+      for (const hint of hints) {
+        Object.assign(hint, this.generateLinkText(hint));
+      }
+    }
+
+    return hints;
   },
 
   generateLinkText(hint) {

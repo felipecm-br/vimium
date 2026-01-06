@@ -441,6 +441,7 @@ const defaultKeyMappings = {
   "F": "LinkHints.activateModeToOpenInNewTab",
   "<a-f>": "LinkHints.activateModeWithQueue",
   "yf": "LinkHints.activateModeToCopyLinkUrl",
+  "yc": "LinkHints.activateModeToCopyElementText",
 
   // Using find
   "/": "enterFindMode",
@@ -452,7 +453,8 @@ const defaultKeyMappings = {
   // Vomnibar
   "o": "Vomnibar.activate",
   "O": "Vomnibar.activateInNewTab",
-  "T": "Vomnibar.activateTabSelection",
+  "t": "Vomnibar.activateOmniSearch",
+  "T": "Vomnibar.activateOmniSearchInNewTab",
   "b": "Vomnibar.activateBookmarks",
   "B": "Vomnibar.activateBookmarksInNewTab",
   "ge": "Vomnibar.activateEditUrl",
@@ -473,7 +475,6 @@ const defaultKeyMappings = {
   "g0": "firstTab",
   "g$": "lastTab",
   "W": "moveTabToNewWindow",
-  "t": "createTab",
   "yt": "duplicateTab",
   "x": "removeTab",
   "X": "restoreTab",
