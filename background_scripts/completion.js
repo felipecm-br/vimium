@@ -79,16 +79,17 @@ export class Suggestion {
     }
 
     // Type icons for different suggestion sources
+    // Uses Google Material Symbols ligatures - requires Material Symbols font
+    // See: https://developers.google.com/fonts/docs/material_symbols
     const typeIcons = {
-      tab: "󰓩",        // Window/tab icon
-      bookmark: "",   // Star for bookmarks
-      history: "",    // Clock for history
-      domain: "◉",     // Globe/domain icon
-      topSite: "󱞒",    // Top/trending icon
-      search: "",     // Search icon
+      tab: "tab",              // Tab icon
+      bookmark: "star",    // Bookmark icon
+      history: "history_2",      // Clock/history icon
+      domain: "public",        // Globe/domain icon
+      topSite: "whatshot",  // Top/trending icon
+      search: "search",        // Search icon
     };
-    const typeIcon = typeIcons[this.description] || (this.isCustomSearch ? "⚲" : "○");
-
+    const typeIcon = typeIcons[this.description] || (this.isCustomSearch ? "search" : "circle");
     // Generate favicon HTML (works for all types in Chrome, not just tabs)
     let faviconHtml = "";
     if (this.url && !bgUtils.isFirefox()) {
@@ -98,12 +99,12 @@ export class Suggestion {
       faviconHtml = `<img class="favicon" src="${faviconUrl.toString()}" loading="lazy" decoding="async" />`;
     }
 
-    const iconsHtml = `<span class="suggestion-icons">${faviconHtml}<span class="type-icon">${typeIcon}</span></span>`;
+    const iconsHtml = `<span class="suggestion-icons">${faviconHtml}<span class="type-icon material-symbols-outlined">${typeIcon}</span></span>`;
     const titleHtml = this.highlightQueryTerms(Utils.escapeHtml(this.title));
     
     // Add switch button for tabs
     const switchButtonHtml = this.description === "tab" && this.tabId != null
-      ? `<button class="suggestion-icons switch-tab-btn" data-tab-id="${this.tabId}">󰓩<span class="type-icon"></span></button>`
+      ? `<button class="suggestion-icons switch-tab-btn" data-tab-id="${this.tabId}"><span class="action-icon material-symbols-outlined">tab_move</span></button>`
       : "";
     
     this.html = `\
