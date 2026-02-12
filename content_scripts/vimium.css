@@ -100,6 +100,103 @@ tbody.vimium-reset {
 
 div#vimium-hint-marker-container {
   pointer-events: none;
+
+  --vimium-hint-bg-start: #fff785;
+  --vimium-hint-bg-end: #ffc542;
+  --vimium-hint-border: #c38a22;
+  --vimium-hint-text: #302505;
+  --vimium-hint-match: #d4ac3a;
+  --vimium-hint-active-text: #a07555;
+}
+
+div#vimium-hint-marker-container.vimium-theme-default {
+  --vimium-hint-bg-start: #7b5cff;
+  --vimium-hint-bg-end: #2f6bff;
+  --vimium-hint-border: #6651a1;
+  --vimium-hint-text: #f5f7ff;
+  --vimium-hint-match: #9cc4ff;
+  --vimium-hint-active-text: #ffffff;
+}
+
+div#vimium-hint-marker-container.vimium-theme-midnight-glass {
+  --vimium-hint-bg-start: #1f6feb;
+  --vimium-hint-bg-end: #388bfd;
+  --vimium-hint-border: #30363d;
+  --vimium-hint-text: #e6edf3;
+  --vimium-hint-match: #79c0ff;
+  --vimium-hint-active-text: #ffffff;
+}
+
+div#vimium-hint-marker-container.vimium-theme-paper-light {
+  --vimium-hint-bg-start: #b6dbff;
+  --vimium-hint-bg-end: #ddf4ff;
+  --vimium-hint-border: #d0d7de;
+  --vimium-hint-text: #0a3069;
+  --vimium-hint-match: #0969da;
+  --vimium-hint-active-text: #0550ae;
+}
+
+div#vimium-hint-marker-container.vimium-theme-ocean-depth {
+  --vimium-hint-bg-start: #023e8a;
+  --vimium-hint-bg-end: #0096c7;
+  --vimium-hint-border: #1e3a4c;
+  --vimium-hint-text: #e2fbff;
+  --vimium-hint-match: #90e0ef;
+  --vimium-hint-active-text: #ffffff;
+}
+
+div#vimium-hint-marker-container.vimium-theme-forest {
+  --vimium-hint-bg-start: #1b5e20;
+  --vimium-hint-bg-end: #4caf50;
+  --vimium-hint-border: #2d4a32;
+  --vimium-hint-text: #effff0;
+  --vimium-hint-match: #a5d6a7;
+  --vimium-hint-active-text: #ffffff;
+}
+
+div#vimium-hint-marker-container.vimium-theme-sunset {
+  --vimium-hint-bg-start: #b71c1c;
+  --vimium-hint-bg-end: #f44336;
+  --vimium-hint-border: #4a2030;
+  --vimium-hint-text: #fff4f4;
+  --vimium-hint-match: #ffcdd2;
+  --vimium-hint-active-text: #ffffff;
+}
+
+div#vimium-hint-marker-container.vimium-theme-purple-haze {
+  --vimium-hint-bg-start: #4a148c;
+  --vimium-hint-bg-end: #9c27b0;
+  --vimium-hint-border: #3d2050;
+  --vimium-hint-text: #f7edff;
+  --vimium-hint-match: #e1bee7;
+  --vimium-hint-active-text: #ffffff;
+}
+
+div#vimium-hint-marker-container.vimium-theme-dracula {
+  --vimium-hint-bg-start: #44475a;
+  --vimium-hint-bg-end: #bd93f9;
+  --vimium-hint-border: #6272a4;
+  --vimium-hint-text: #f8f8f2;
+  --vimium-hint-match: #50fa7b;
+  --vimium-hint-active-text: #ffffff;
+}
+
+div#vimium-hint-marker-container.vimium-theme-nord {
+  --vimium-hint-bg-start: #5e81ac;
+  --vimium-hint-bg-end: #88c0d0;
+  --vimium-hint-border: #3b4252;
+  --vimium-hint-text: #eceff4;
+  --vimium-hint-match: #a3be8c;
+  --vimium-hint-active-text: #ffffff;
+}
+
+div#vimium-hint-marker-container.vimium-theme-monokai {
+  --vimium-hint-bg-start: #75715e;
+  --vimium-hint-bg-end: #66d9ef;
+  --vimium-hint-border: #49483e;
+  --vimium-hint-text: #f8f8f2;
+  --vimium-hint-match: #f92672;
+  --vimium-hint-active-text: #ffffff;
 }
 
 div.internal-vimium-hint-marker {
@@ -111,15 +208,19 @@ div.internal-vimium-hint-marker {
   overflow: hidden;
   font-size: 11px;
   padding: 1px 3px 0px 3px;
-  background: linear-gradient(to bottom, #fff785 0%, #ffc542 100%);
-  border: solid 1px #c38a22;
+  background: linear-gradient(
+    to bottom,
+    var(--vimium-hint-bg-start) 0%,
+    var(--vimium-hint-bg-end) 100%
+  );
+  border: solid 1px var(--vimium-hint-border);
   border-radius: 3px;
   box-shadow: 0px 3px 7px 0px rgba(0, 0, 0, 0.3);
   z-index: 2147483647;
 }
 
 div.internal-vimium-hint-marker span {
-  color: #302505;
+  color: var(--vimium-hint-text);
   font-family: Helvetica, Arial, sans-serif;
   font-weight: bold;
   font-size: 11px;
@@ -127,11 +228,11 @@ div.internal-vimium-hint-marker span {
 }
 
 div.internal-vimium-hint-marker > .matchingCharacter {
-  color: #d4ac3a;
+  color: var(--vimium-hint-match);
 }
 
 div > .vimiumActiveHintMarker span {
-  color: #a07555 !important;
+  color: var(--vimium-hint-active-text) !important;
 }
 
 /* Input hints CSS */

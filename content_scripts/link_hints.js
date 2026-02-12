@@ -440,6 +440,14 @@ class LinkHintsMode {
       document.documentElement.appendChild(div);
     }
 
+    const themeName = Settings.get("vomnibarTheme") || "Default";
+    const themeClass = `vimium-theme-${themeName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+    const themeClasses = Array.from(this.containerEl.classList).filter((className) =>
+      className.startsWith("vimium-theme-")
+    );
+    this.containerEl.classList.remove(...themeClasses);
+    this.containerEl.classList.add(themeClass);
+
     // Append these markers as top level children instead of as child nodes to the link itself,
     // because some clickable elements cannot contain children, e.g. submit buttons.
     const markerEls = this.hintMarkers.filter((m) => m.isLocalMarker()).map((m) => m.element);

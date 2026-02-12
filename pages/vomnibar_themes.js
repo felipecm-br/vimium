@@ -8,6 +8,8 @@
 // Storage key for persisting theme preference
 const THEME_STORAGE_KEY = "vimium.vomnibarTheme";
 
+import "../lib/settings.js";
+
 /**
  * Theme definitions using CSS custom properties.
  * Each theme overrides the :root variables defined in vomnibar_page.css.
@@ -271,6 +273,12 @@ export class ThemeManager {
     document.documentElement.setAttribute("data-vomnibar-theme", themeName);
 
     this.currentTheme = themeName;
+
+    // Sync the selected theme so content scripts (e.g. link hints) can theme consistently.
+    if (!this.isPreviewMode && Settings.isLoaded()) {
+      // Fire-and-forget to avoid blocking UI updates.
+      Settings.set("vomnibarTheme", themeName).catch(() => {});
+    }
 
     // Persist theme choice if requested
     if (save && !this.isPreviewMode) {
