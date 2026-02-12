@@ -267,6 +267,9 @@ export class ThemeManager {
       });
     }
 
+    // Set data attribute for per-theme CSS selectors (e.g. Google badge colors)
+    document.documentElement.setAttribute("data-vomnibar-theme", themeName);
+
     this.currentTheme = themeName;
 
     // Persist theme choice if requested

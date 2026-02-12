@@ -65,7 +65,9 @@ ul {
    ========================================================================== */
 
 .vomnibar-slide-in {
-  animation: vomnibarSlideIn 180ms ease-out forwards;
+  animation:
+    vomnibarSlideIn 180ms ease-out forwards,
+    vomnibar-entrance-shake 0.4s ease-in-out 180ms;
 }
 
 .vomnibar-slide-out {
@@ -108,19 +110,48 @@ ul {
   transform: translateX(-50%);
 
   font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
-  background: var(--vomnibar-inner-bg);
   color: var(--vomnibar-text-color);
 
   text-align: left;
   border-radius: var(--vomnibar-border-radius);
+
+  /* Default animated gradient border (1px thin) */
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--vomnibar-inner-bg), var(--vomnibar-inner-bg)) padding-box,
+    linear-gradient(270deg,
+      var(--vomnibar-gradient-1),
+      var(--vomnibar-gradient-2),
+      var(--vomnibar-gradient-3),
+      var(--vomnibar-gradient-1)
+    ) border-box;
+  background-size: 100% 100%, 300% 100%;
+  animation: border-flow 6s linear infinite;
+
   box-shadow:
     0 25px 50px -12px rgba(0, 0, 0, 0.5),
-    0 0 0 1px var(--vomnibar-border-color);
+    0 0 6px 0px color-mix(in srgb, var(--vomnibar-gradient-1) 30%, transparent);
 
   /* Ensure vomnibar is below hint markers and help dialog */
   z-index: 2139999999;
 
   overflow: hidden;
+}
+
+/* Animated gradient border flow */
+@keyframes border-flow {
+  0%   { background-position: 0 0, 0% 0; }
+  100% { background-position: 0 0, 300% 0; }
+}
+
+/* Option to disable animated border */
+#vomnibar.no-animated-border {
+  border: 1px solid var(--vomnibar-border-color);
+  background: var(--vomnibar-inner-bg);
+  animation: none;
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px var(--vomnibar-border-color);
 }
 
 /* Search Area */
@@ -493,31 +524,89 @@ ul {
 }
 
 /* ==========================================================================
+   Default Vomnibar entrance shake (subtle)
+   Uncomment the option you want to test. Only one should be active.
+   ========================================================================== */
+
+/* --- OPTION A: Very subtle wobble (recommended default) --- */
+@keyframes vomnibar-entrance-shake {
+  0%, 100% { transform: translateX(-50%) rotate(0deg); }
+  25%      { transform: translateX(-50%) rotate(-0.3deg) scale(1.003); }
+  50%      { transform: translateX(-50%) rotate(0.3deg) scale(1.005); }
+  75%      { transform: translateX(-50%) rotate(-0.15deg); }
+}
+
+/* --- OPTION B: Gentle bounce (uncomment to test) ---
+@keyframes vomnibar-entrance-shake {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  20%      { transform: translateX(-50%) translateY(-3px); }
+  40%      { transform: translateX(-50%) translateY(1px); }
+  60%      { transform: translateX(-50%) translateY(-1px); }
+}
+*/
+
+/* --- OPTION C: Micro-jitter (uncomment to test) ---
+@keyframes vomnibar-entrance-shake {
+  0%, 100% { transform: translateX(-50%) translate(0, 0); }
+  10%      { transform: translateX(-50%) translate(-1px, 0); }
+  20%      { transform: translateX(-50%) translate(1px, -1px); }
+  30%      { transform: translateX(-50%) translate(0, 1px); }
+  40%      { transform: translateX(-50%) translate(1px, 0); }
+  50%      { transform: translateX(-50%) translate(-1px, 0); }
+}
+*/
+
+/* --- OPTION D: Soft scale pulse (uncomment to test) ---
+@keyframes vomnibar-entrance-shake {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  30%      { transform: translateX(-50%) scale(1.008); }
+  60%      { transform: translateX(-50%) scale(0.998); }
+}
+*/
+
+/* --- OPTION E: No shake at all (uncomment to test) ---
+@keyframes vomnibar-entrance-shake {
+  0%, 100% { transform: translateX(-50%); }
+}
+*/
+
+/* ==========================================================================
    Ctrl-hold Google Search Mode — nutty visual effect
    ========================================================================== */
 
-/* Animated rainbow border + glow */
+/* Google mode: animated border uses Google brand colors */
 #vomnibar.google-search-mode {
-  animation: google-mode-shake 0.35s ease-in-out,
-             google-mode-glow 1.2s ease-in-out infinite alternate;
-  box-shadow:
-    0 0 12px 2px #4285F4,
-    0 0 24px 4px #EA4335,
-    0 0 36px 6px #FBBC05,
-    0 0 48px 8px #34A853;
-  border: 2px solid transparent;
-  background-image:
-    linear-gradient(var(--vomnibar-inner-bg), var(--vomnibar-inner-bg)),
-    linear-gradient(270deg, #4285F4, #EA4335, #FBBC05, #34A853, #4285F4);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(var(--vomnibar-inner-bg), var(--vomnibar-inner-bg)) padding-box,
+    linear-gradient(270deg, #4285F4, #EA4335, #FBBC05, #34A853, #4285F4) border-box;
   background-size: 100% 100%, 400% 100%;
+  animation:
+    google-mode-shake 0.35s ease-in-out,
+    google-mode-glow 1.2s ease-in-out infinite alternate;
+  box-shadow:
+    0 0 8px 1px rgba(66, 133, 244, 0.4),
+    0 0 16px 2px rgba(234, 67, 53, 0.2),
+    0 0 24px 3px rgba(251, 188, 5, 0.1),
+    0 0 32px 4px rgba(52, 168, 83, 0.08);
 }
 
+/* Hide the results list when Google search mode is active */
+#vomnibar.google-search-mode ul {
+  display: none !important;
+}
+
+/* Google mode search area */
 #vomnibar.google-search-mode #vomnibar-search-area {
   position: relative;
 }
 
+/* Hide position indicator in Google mode */
+#vomnibar.google-search-mode #vomnibar-position-indicator {
+  display: none;
+}
+
+/* Google Search badge — uses theme accent by default, can be overridden per theme */
 #vomnibar.google-search-mode #vomnibar-search-area::after {
   content: "⚡ Google Search";
   position: absolute;
@@ -529,37 +618,84 @@ ul {
   letter-spacing: 0.5px;
   padding: 3px 10px;
   border-radius: 6px;
+  /* Default: Google brand gradient */
   background: linear-gradient(135deg, #4285F4, #34A853);
   color: #fff;
   pointer-events: none;
   animation: google-badge-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
+/* ---- Per-theme Google badge overrides ---- */
+
+/* Midnight Glass */
+[data-vomnibar-theme="Midnight Glass"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #388bfd, #1f6feb);
+}
+
+/* Paper Light */
+[data-vomnibar-theme="Paper Light"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #0969da, #54aeff);
+  color: #fff;
+}
+
+/* Ocean Depth */
+[data-vomnibar-theme="Ocean Depth"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #0096c7, #48cae4);
+}
+
+/* Forest */
+[data-vomnibar-theme="Forest"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #4caf50, #81c784);
+}
+
+/* Sunset */
+[data-vomnibar-theme="Sunset"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #f44336, #ff8a80);
+}
+
+/* Purple Haze */
+[data-vomnibar-theme="Purple Haze"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #9c27b0, #ce93d8);
+}
+
+/* Dracula */
+[data-vomnibar-theme="Dracula"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #bd93f9, #ff79c6);
+}
+
+/* Nord */
+[data-vomnibar-theme="Nord"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #88c0d0, #5e81ac);
+}
+
+/* Monokai */
+[data-vomnibar-theme="Monokai"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #66d9ef, #ae81ff);
+}
+
+/* Google mode shake — less aggressive version */
 @keyframes google-mode-shake {
   0%, 100% { transform: translateX(-50%) rotate(0deg); }
-  15%      { transform: translateX(-50%) rotate(-1.5deg) scale(1.01); }
-  30%      { transform: translateX(-50%) rotate(1.5deg) scale(1.02); }
-  45%      { transform: translateX(-50%) rotate(-1deg) scale(1.01); }
-  60%      { transform: translateX(-50%) rotate(1deg); }
-  75%      { transform: translateX(-50%) rotate(-0.5deg); }
+  20%      { transform: translateX(-50%) rotate(-0.6deg) scale(1.005); }
+  40%      { transform: translateX(-50%) rotate(0.6deg) scale(1.008); }
+  60%      { transform: translateX(-50%) rotate(-0.3deg) scale(1.003); }
+  80%      { transform: translateX(-50%) rotate(0.3deg); }
 }
 
 @keyframes google-mode-glow {
   0% {
     box-shadow:
-      0 0 12px 2px #4285F4,
-      0 0 24px 4px #EA433566,
-      0 0 36px 6px #FBBC0533,
-      0 0 48px 8px #34A85322;
+      0 0 8px 1px rgba(66, 133, 244, 0.4),
+      0 0 16px 2px rgba(234, 67, 53, 0.15),
+      0 0 24px 3px rgba(251, 188, 5, 0.08);
     background-size: 100% 100%, 400% 100%;
     background-position: 0 0, 0% 0;
   }
   100% {
     box-shadow:
-      0 0 16px 4px #34A853,
-      0 0 28px 6px #FBBC0566,
-      0 0 40px 8px #EA433533,
-      0 0 52px 10px #4285F422;
+      0 0 10px 2px rgba(52, 168, 83, 0.4),
+      0 0 18px 3px rgba(251, 188, 5, 0.15),
+      0 0 26px 4px rgba(234, 67, 53, 0.08);
     background-size: 100% 100%, 400% 100%;
     background-position: 0 0, 100% 0;
   }

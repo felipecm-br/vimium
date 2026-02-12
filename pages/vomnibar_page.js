@@ -91,6 +91,30 @@ class VomnibarUI {
     window.addEventListener("keyup", this._onCtrlUp, true);
     // Also deactivate if the window loses focus while Ctrl is held
     window.addEventListener("blur", () => this._deactivateGoogleMode());
+
+    // Animated border preference (persisted in localStorage)
+    this._loadAnimatedBorderPref();
+  }
+
+  // --- Animated border preference ---
+  _loadAnimatedBorderPref() {
+    try {
+      const disabled = localStorage.getItem("vimium.vomnibarAnimatedBorder") === "disabled";
+      if (disabled) {
+        this.box.classList.add("no-animated-border");
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  setAnimatedBorder(enabled) {
+    try {
+      localStorage.setItem("vimium.vomnibarAnimatedBorder", enabled ? "enabled" : "disabled");
+    } catch (e) { /* ignore */ }
+    if (enabled) {
+      this.box.classList.remove("no-animated-border");
+    } else {
+      this.box.classList.add("no-animated-border");
+    }
   }
 
   // --- Ctrl-hold Google Search Mode ---
@@ -109,6 +133,8 @@ class VomnibarUI {
   _activateGoogleMode() {
     this.isGoogleSearchMode = true;
     this.box.classList.add("google-search-mode");
+    // Hide the results list immediately
+    this.completionList.style.display = "none";
     this._spawnParticles();
   }
 
@@ -116,6 +142,10 @@ class VomnibarUI {
     if (!this.isGoogleSearchMode) return;
     this.isGoogleSearchMode = false;
     this.box.classList.remove("google-search-mode");
+    // Restore results list visibility
+    if (this.completions.length > 0) {
+      this.completionList.style.display = "block";
+    }
   }
 
   _spawnParticles() {
