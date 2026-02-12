@@ -83,14 +83,18 @@ class VomnibarUI {
     this.itemsPerPage = DEFAULT_ITEMS_PER_PAGE;
     this.globalSelection = 0; // Selection index in allCompletions
 
-    // Ctrl-hold Google Search mode
+    // Shift-hold Google Search mode
     this.isGoogleSearchMode = false;
-    this._onCtrlDown = this._onCtrlDown.bind(this);
-    this._onCtrlUp = this._onCtrlUp.bind(this);
-    window.addEventListener("keydown", this._onCtrlDown, true);
-    window.addEventListener("keyup", this._onCtrlUp, true);
-    // Also deactivate if the window loses focus while Ctrl is held
-    window.addEventListener("blur", () => this._deactivateGoogleMode());
+    this.isGoogleModeModifierPressed = false;
+    this._onGoogleModeModifierDown = this._onGoogleModeModifierDown.bind(this);
+    this._onGoogleModeModifierUp = this._onGoogleModeModifierUp.bind(this);
+    window.addEventListener("keydown", this._onGoogleModeModifierDown, true);
+    window.addEventListener("keyup", this._onGoogleModeModifierUp, true);
+    // Also deactivate if the window loses focus while modifier is held
+    window.addEventListener("blur", () => {
+      this.isGoogleModeModifierPressed = false;
+      this._deactivateGoogleMode();
+    });
 
     // Animated border preference (persisted in localStorage)
     this._loadAnimatedBorderPref();
@@ -117,25 +121,36 @@ class VomnibarUI {
     }
   }
 
-  // --- Ctrl-hold Google Search Mode ---
-  _onCtrlDown(event) {
-    if (event.key === "Control" && !this.isGoogleSearchMode) {
-      this._activateGoogleMode();
+  // --- Shift-hold Google Search Mode ---
+  _onGoogleModeModifierDown(event) {
+    if (event.key === "Shift") {
+      this.isGoogleModeModifierPressed = true;
+      this._updateGoogleModeState();
     }
   }
 
-  _onCtrlUp(event) {
-    if (event.key === "Control" && this.isGoogleSearchMode) {
+  _onGoogleModeModifierUp(event) {
+    if (event.key === "Shift") {
+      this.isGoogleModeModifierPressed = false;
+      this._updateGoogleModeState();
+    }
+  }
+
+  _updateGoogleModeState() {
+    const hasInputValue = this.input.value.trim().length > 0;
+    if (this.isGoogleModeModifierPressed && hasInputValue) {
+      this._activateGoogleMode();
+    } else {
       this._deactivateGoogleMode();
     }
   }
 
   _activateGoogleMode() {
+    if (this.isGoogleSearchMode) return;
     this.isGoogleSearchMode = true;
     this.box.classList.add("google-search-mode");
     // Hide the results list immediately
     this.completionList.style.display = "none";
-    this._spawnParticles();
   }
 
   _deactivateGoogleMode() {
@@ -145,27 +160,6 @@ class VomnibarUI {
     // Restore results list visibility
     if (this.completions.length > 0) {
       this.completionList.style.display = "block";
-    }
-  }
-
-  _spawnParticles() {
-    const container = this.box;
-    const colors = ["#4285F4", "#EA4335", "#FBBC05", "#34A853", "#ff00c1", "#04d9ff"];
-    for (let i = 0; i < 24; i++) {
-      const particle = document.createElement("span");
-      particle.className = "google-mode-particle";
-      const color = colors[Math.floor(Math.random() * colors.length)];
-      const x = Math.random() * 100;
-      const delay = Math.random() * 0.3;
-      const size = 4 + Math.random() * 6;
-      particle.style.cssText = `
-        left: ${x}%; bottom: 0;
-        width: ${size}px; height: ${size}px;
-        background: ${color};
-        animation-delay: ${delay}s;
-      `;
-      container.appendChild(particle);
-      particle.addEventListener("animationend", () => particle.remove());
     }
   }
 
@@ -342,7 +336,7 @@ class VomnibarUI {
     // Handle <Enter> on "keypress", and other events on "keydown". This avoids interence with CJK
     // translation (see #2915 and #2934).
     if ((event.type === "keypress") && (key !== "enter")) return null;
-    if ((event.type === "keydown") && (key === "enter")) return null;
+    if ((event.type === "keydown") && (key === "enter") && !this.isGoogleSearchMode) return null;
     if (KeyboardUtils.isEscape(event)) {
       return "dismiss";
     } else if (
@@ -421,6 +415,12 @@ class VomnibarUI {
     } else if (action === "enter") {
       await this.handleEnterKey(event);
     } else if (action === "ctrl-enter") {
+      if (this.isGoogleSearchMode) {
+        await this.handleEnterKey(event);
+        event.stopImmediatePropagation();
+        event.preventDefault();
+        return;
+      }
       // Populate the vomnibar with the current selection's URL.
       if (!this.isUserSearchEngineActive() && (this.selection >= 0)) {
         if (this.previousInputValue == null) {
@@ -482,7 +482,7 @@ class VomnibarUI {
   }
 
   async handleEnterKey(event) {
-    // Handle Ctrl-hold Google Search mode: search with Google immediately
+    // Handle Shift-hold Google Search mode: search with Google immediately
     if (this.isGoogleSearchMode) {
       const query = this.input.value.trim();
       if (query.length === 0) return;
@@ -764,6 +764,8 @@ class VomnibarUI {
       this.previousInputValue = null;
       this.selection = -1;
     }
+
+    this._updateGoogleModeState();
     this.update();
   }
 
