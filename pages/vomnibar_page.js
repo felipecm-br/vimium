@@ -82,6 +82,61 @@ class VomnibarUI {
     this.currentPage = 0;
     this.itemsPerPage = DEFAULT_ITEMS_PER_PAGE;
     this.globalSelection = 0; // Selection index in allCompletions
+
+    // Ctrl-hold Google Search mode
+    this.isGoogleSearchMode = false;
+    this._onCtrlDown = this._onCtrlDown.bind(this);
+    this._onCtrlUp = this._onCtrlUp.bind(this);
+    window.addEventListener("keydown", this._onCtrlDown, true);
+    window.addEventListener("keyup", this._onCtrlUp, true);
+    // Also deactivate if the window loses focus while Ctrl is held
+    window.addEventListener("blur", () => this._deactivateGoogleMode());
+  }
+
+  // --- Ctrl-hold Google Search Mode ---
+  _onCtrlDown(event) {
+    if (event.key === "Control" && !this.isGoogleSearchMode) {
+      this._activateGoogleMode();
+    }
+  }
+
+  _onCtrlUp(event) {
+    if (event.key === "Control" && this.isGoogleSearchMode) {
+      this._deactivateGoogleMode();
+    }
+  }
+
+  _activateGoogleMode() {
+    this.isGoogleSearchMode = true;
+    this.box.classList.add("google-search-mode");
+    this._spawnParticles();
+  }
+
+  _deactivateGoogleMode() {
+    if (!this.isGoogleSearchMode) return;
+    this.isGoogleSearchMode = false;
+    this.box.classList.remove("google-search-mode");
+  }
+
+  _spawnParticles() {
+    const container = this.box;
+    const colors = ["#4285F4", "#EA4335", "#FBBC05", "#34A853", "#ff00c1", "#04d9ff"];
+    for (let i = 0; i < 24; i++) {
+      const particle = document.createElement("span");
+      particle.className = "google-mode-particle";
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const x = Math.random() * 100;
+      const delay = Math.random() * 0.3;
+      const size = 4 + Math.random() * 6;
+      particle.style.cssText = `
+        left: ${x}%; bottom: 0;
+        width: ${size}px; height: ${size}px;
+        background: ${color};
+        animation-delay: ${delay}s;
+      `;
+      container.appendChild(particle);
+      particle.addEventListener("animationend", () => particle.remove());
+    }
   }
 
   setQuery(query) {
@@ -174,6 +229,7 @@ class VomnibarUI {
     this.isThemeMode = false;
     this.themeCompletions = [];
     this.box.classList.remove("theme-preview");
+    this._deactivateGoogleMode();
     this.updatePositionIndicator();
   }
 
@@ -396,6 +452,21 @@ class VomnibarUI {
   }
 
   async handleEnterKey(event) {
+    // Handle Ctrl-hold Google Search mode: search with Google immediately
+    if (this.isGoogleSearchMode) {
+      const query = this.input.value.trim();
+      if (query.length === 0) return;
+      this._deactivateGoogleMode();
+      this.hide(() => {
+        chrome.runtime.sendMessage({
+          handler: "launchSearchQuery",
+          query,
+          openInNewTab: false,
+        });
+      });
+      return;
+    }
+
     // Handle theme selection mode
     if (this.isThemeMode && this.selection >= 0) {
       const themeCompletion = this.themeCompletions[this.selection];
