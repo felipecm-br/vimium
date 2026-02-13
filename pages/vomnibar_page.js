@@ -222,14 +222,15 @@ class VomnibarUI {
     if (this.isThemeMode && themeManager.isInPreviewMode()) {
       themeManager.cancelPreview();
     }
-    this.reset();
-    // Trigger slide-out animation before hiding
+    // Trigger slide-out animation BEFORE resetting DOM, so the animation plays smoothly
+    // without jank from DOM manipulation.
     await this.hideAnimations();
+    // Reset DOM state only after the slide-out animation has finished, so the user never
+    // sees the list disappear before the vomnibar slides away.
+    this.reset();
     // Wait until this iframe's DOM has been rendered before hiding the iframe. This is to prevent
     // Chrome caching the previous visual state of the vomnibar iframe. See #4708.
-    setTimeout(() => {
-      UIComponentMessenger.postMessage({ name: "hide" });
-    }, 0);
+    UIComponentMessenger.postMessage({ name: "hide" });
   }
 
   onHidden() {
@@ -853,15 +854,17 @@ class VomnibarUI {
       this.box.classList.remove("vomnibar-slide-in");
       this.box.classList.add("vomnibar-slide-out");
 
-      // Wait for animation to complete
-      const handler = () => {
-        this.box.removeEventListener("animationend", handler);
+      // Resolve once, regardless of which fires first: animationend or the fallback.
+      let resolved = false;
+      const done = () => {
+        if (resolved) return;
+        resolved = true;
         resolve();
       };
-      this.box.addEventListener("animationend", handler, { once: true });
 
-      // Fallback timeout in case animationend doesn't fire
-      setTimeout(resolve, 200);
+      this.box.addEventListener("animationend", done, { once: true });
+      // Tight fallback (matches the 140ms slide-out duration + small buffer)
+      setTimeout(done, 160);
     });
   }
 }

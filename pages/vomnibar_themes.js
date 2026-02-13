@@ -327,6 +327,10 @@ export class ThemeManager {
       } catch (e) {
         // Ignore storage errors
       }
+      // Sync to chrome.storage so content scripts (e.g. link hints) pick up the new theme.
+      if (Settings.isLoaded()) {
+        Settings.set("vomnibarTheme", this.currentTheme).catch(() => {});
+      }
       this.previousTheme = null;
     }
   }

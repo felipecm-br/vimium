@@ -167,14 +167,14 @@ class UIComponent {
     } else {
       classes.add("vimium-ui-component-hidden");
       classes.remove("vimium-ui-component-visible");
-      // Hide glass background with fade-out animation
+      // Hide glass background: remove immediately to avoid expensive backdrop-filter
+      // lingering during or after the vomnibar slide-out animation.
       if (this.glassBackground) {
-        this.glassBackground.classList.remove("vomnibar-glass-bg-fade-in");
-        this.glassBackground.classList.add("vomnibar-glass-bg-fade-out");
-        // After animation, hide completely
-        setTimeout(() => {
-          this.glassBackground.classList.remove("vomnibar-glass-bg-visible");
-        }, 10);
+        this.glassBackground.classList.remove(
+          "vomnibar-glass-bg-fade-in",
+          "vomnibar-glass-bg-visible",
+          "vomnibar-glass-bg-fade-out",
+        );
       }
     }
   }

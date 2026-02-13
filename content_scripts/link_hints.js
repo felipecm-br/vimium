@@ -264,7 +264,7 @@ const HintCoordinator = {
   // descriptors. We also propagate the key state between frames. Therefore, the hint-selection
   // process proceeds in lock step in every frame, and this.linkHintsMode is in the same state in
   // every frame.
-  activateMode({ frameId, frameIdToHintDescriptors, modeIndex, originatingFrameId }) {
+  async activateMode({ frameId, frameIdToHintDescriptors, modeIndex, originatingFrameId }) {
     // We do not receive the frame's own hint descritors back from the background page. Instead, we
     // merge them with the hint descriptors from other frames here. Note that
     // this.localHintDescriptors can be null if "getHintDescriptors" failed in this frame when it
@@ -282,6 +282,9 @@ const HintCoordinator = {
     if (frameId !== originatingFrameId) {
       this.onExit = [];
     }
+    // Force-refresh Settings from chrome.storage.sync so the latest vomnibarTheme
+    // (and other settings) is available when rendering hint markers.
+    await Settings.load();
     this.linkHintsMode = new LinkHintsMode(hintDescriptors, availableModes[modeIndex]);
     // Replay keydown events which we missed (but for filtered hints only).
     if (Settings.get("filterLinkHints" && this.cacheAllKeydownEvents)) {

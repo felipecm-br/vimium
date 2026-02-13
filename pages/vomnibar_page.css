@@ -40,6 +40,13 @@
   --vomnibar-item-radius: 8px;
 }
 
+/* GPU-friendly animated border angle */
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
 /* Reset */
 * {
   box-sizing: border-box;
@@ -68,10 +75,12 @@ ul {
   animation:
     vomnibarSlideIn 180ms ease-out forwards,
     vomnibar-entrance-shake 0.4s ease-in-out 180ms;
+  will-change: transform, opacity;
 }
 
 .vomnibar-slide-out {
   animation: vomnibarSlideOut 140ms ease-in forwards;
+  will-change: transform, opacity;
 }
 
 @keyframes vomnibarSlideIn {
@@ -115,18 +124,17 @@ ul {
   text-align: left;
   border-radius: var(--vomnibar-border-radius);
 
-  /* Default animated gradient border (1px thin) */
+  /* Animated gradient border using @property for GPU-efficient rotation */
   border: 1px solid transparent;
   background:
     linear-gradient(var(--vomnibar-inner-bg), var(--vomnibar-inner-bg)) padding-box,
-    linear-gradient(270deg,
+    conic-gradient(from var(--border-angle),
       var(--vomnibar-gradient-1),
       var(--vomnibar-gradient-2),
       var(--vomnibar-gradient-3),
       var(--vomnibar-gradient-1)
     ) border-box;
-  background-size: 100% 100%, 300% 100%;
-  animation: border-flow 6s linear infinite;
+  animation: border-rotate 4s linear infinite;
 
   box-shadow:
     0 25px 50px -12px rgba(0, 0, 0, 0.5),
@@ -138,10 +146,10 @@ ul {
   overflow: hidden;
 }
 
-/* Animated gradient border flow */
-@keyframes border-flow {
-  0%   { background-position: 0 0, 0% 0; }
-  100% { background-position: 0 0, 300% 0; }
+/* Animated gradient border rotation — animates a registered @property custom property.
+   This is significantly cheaper than background-position animation on an oversized texture. */
+@keyframes border-rotate {
+  to { --border-angle: 360deg; }
 }
 
 /* Option to disable animated border */
@@ -574,7 +582,7 @@ ul {
    Ctrl-hold Google Search Mode — nutty visual effect
    ========================================================================== */
 
-e/* Google mode: preserve existing theme border colors */
+/* Google mode: preserve existing theme border colors */
 #vomnibar.google-search-mode {
   animation:
     google-mode-shake 0.35s ease-in-out,
