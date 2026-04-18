@@ -1,0 +1,19 @@
+/* Vimium dark mode styles */
+:root[data-theme="dark"] {
+  --bg: #1e1e2e;
+  --fg: #cdd6f4;
+  --border: #313244;
+  --highlight: #89b4fa;
+  --dimmed: #585b70;
+}
+
+#vimiumHUD {
+  background-color: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+
+.vimiumReset .vomnibarSearchArea {
+  background: var(--bg);
+  color: var(--fg);
+}
