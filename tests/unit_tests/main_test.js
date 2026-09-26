@@ -93,6 +93,58 @@ context("createTab command", () => {
   });
 });
 
+context("goToTab command", () => {
+  let updatedTabId, updateArgs;
+  const mockTabs = [
+    { id: 100, active: true },
+    { id: 101, active: false },
+    { id: 102, active: false },
+  ];
+
+  setup(() => {
+    updatedTabId = null;
+    updateArgs = null;
+    stub(chrome.tabs, "query", (_args, callback) => {
+      callback(mockTabs.map((t) => Object.assign({}, t)));
+    });
+    stub(chrome.tabs, "update", (tabId, args) => {
+      updatedTabId = tabId;
+      updateArgs = args;
+    });
+  });
+
+  should("switch to tab by index option", () => {
+    const request = {
+      registryEntry: new RegistryEntry({ options: { index: "1" } }),
+      tab: mockTabs[0],
+      count: 1,
+    };
+    BackgroundCommands.goToTab(request);
+    assert.equal(101, updatedTabId);
+    assert.equal(true, updateArgs.active);
+  });
+
+  should("not switch if tab is already active", () => {
+    const request = {
+      registryEntry: new RegistryEntry({ options: { index: "0" } }),
+      tab: mockTabs[0],
+      count: 1,
+    };
+    BackgroundCommands.goToTab(request);
+    assert.equal(null, updatedTabId);
+  });
+
+  should("not switch if index is out of bounds", () => {
+    const request = {
+      registryEntry: new RegistryEntry({ options: { index: "5" } }),
+      tab: mockTabs[0],
+      count: 1,
+    };
+    BackgroundCommands.goToTab(request);
+    assert.equal(null, updatedTabId);
+  });
+});
+
 context("Next zoom level", () => {
   // All these tests use the Chrome zoom levels, which are the default.
   should("Zoom in 0 times", async () => {

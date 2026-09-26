@@ -325,6 +325,9 @@ const BackgroundCommands = {
   lastTab(request) {
     return selectTab("last", request);
   },
+  goToTab(request) {
+    return goToTab(request);
+  },
   async removeTab({ count, tab }) {
     await forCountTabs(count, tab, (tab) => {
       // In Firefox, Ctrl-W will not close a pinned tab, but on Chrome, it will. We try to be
@@ -484,6 +487,26 @@ function selectTab(direction, { count, tab }) {
         }
       })();
       chrome.tabs.update(tabs[toSelect].id, { active: true });
+    }
+  });
+}
+
+function goToTab({ registryEntry, count }) {
+  chrome.tabs.query(visibleTabsQueryArgs, function (tabs) {
+    if (tabs.length > 0) {
+      let index;
+      if (registryEntry?.options?.index != null) {
+        index = parseInt(registryEntry.options.index, 10);
+      } else if (count != null) {
+        index = count;
+      } else {
+        index = 0;
+      }
+      if (!isNaN(index) && index >= 0 && index < tabs.length) {
+        if (!tabs[index].active) {
+          chrome.tabs.update(tabs[index].id, { active: true });
+        }
+      }
     }
   });
 }

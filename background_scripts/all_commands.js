@@ -501,6 +501,16 @@ const allCommands = [
   },
 
   {
+    name: "goToTab",
+    desc: "Go to tab by index",
+    options: {
+      index: "The 0-based tab index to go to.",
+    },
+    group: "tabs",
+    background: true,
+  },
+
+  {
     name: "duplicateTab",
     desc: "Duplicate current tab",
     group: "tabs",
