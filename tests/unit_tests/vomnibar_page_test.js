@@ -53,6 +53,9 @@ context("vomnibar page", () => {
     // hiding the dialog. It would be better to check more directly that the dialog was hidden, but
     // jacking into the channels for this are not worthwhile for this test.
     await ui.onKeyEvent(newKeyEvent({ key: "Escape" }));
+    // The dialog resets after its slide-out animation (hideAnimations: animationend, or a 160ms
+    // fallback), not synchronously.
+    await new Promise((resolve) => setTimeout(resolve, 200));
     assert.equal("", ui.input.value);
   });
 
