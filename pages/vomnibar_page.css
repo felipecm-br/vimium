@@ -270,6 +270,9 @@ ul {
   gap: 12px;
   border-bottom: 1px solid var(--vomnibar-border-color);
   background: var(--vomnibar-inner-bg);
+  /* Follow the inner curve of the 1px ring, or the square corners cover the ring at the top. */
+  border-radius: calc(var(--vomnibar-border-radius) - 1px) calc(var(--vomnibar-border-radius) - 1px)
+    0 0;
 }
 
 /* Position Indicator */
