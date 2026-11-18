@@ -60,6 +60,9 @@ export class Suggestion {
   searchUrl;
   // The full folder path for bookmarked tabs. Populated by OmniSearchCompleter.
   bookmarkPath;
+  // For OmniSearchCompleter's "search the web" row: the query to hand to the browser's default
+  // search engine.
+  webSearchQuery;
 
   constructor(options) {
     Object.seal(this);
@@ -101,6 +104,18 @@ export class Suggestion {
       faviconUrl.searchParams.set("size", "16");
       faviconHtml =
         `<img class="favicon" src="${faviconUrl.toString()}" alt="" loading="lazy" decoding="async" />`;
+    }
+
+    if (this.webSearchQuery != null) {
+      this.html = `\
+<span class="suggestion-icons" aria-hidden="true"><span class="type-icon material-symbols-outlined">search</span></span>
+<div class="suggestion-content">
+  <div class="top-half">
+    <span class="title">${Utils.escapeHtml(this.webSearchQuery)}</span>
+    <span class="url">Search the web</span>
+  </div>
+</div>`;
+      return this.html;
     }
 
     if (this.command) {
@@ -862,6 +877,65 @@ export class TopK {
   }
 }
 
+// Words that open a question (English and Portuguese). A query starting with one is a question for
+// the web, not the name of a page.
+const QUESTION_WORDS = new Set([
+  "how",
+  "what",
+  "why",
+  "when",
+  "where",
+  "who",
+  "which",
+  "como",
+  "qual",
+  "quais",
+  "quando",
+  "onde",
+  "quem",
+  "porque",
+  "por",
+]);
+
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Whether every query term starts a word in the suggestion's title or hostname: "rust" in "The Rust
+// Book" or "rust-lang.org", but not in "trustpilot.com". A suggestion matched only inside words is
+// a weak match, likely not the page the user means.
+export function isStrongMatch(queryTerms, suggestion) {
+  let hostname = "";
+  try {
+    hostname = new URL(suggestion.url).hostname;
+  } catch {
+    // Not a URL (e.g. a bookmarklet); the title alone decides.
+  }
+  const text = `${suggestion.title ?? ""} ${hostname}`;
+  return queryTerms.every((term) =>
+    new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(term)}`, "iu").test(text)
+  );
+}
+
+// Whether the user more likely wants to search the web than open one of `suggestions`: nothing
+// matches, the query reads as a question, or no suggestion is a strong match. A query that looks like
+// a URL never is.
+export function looksLikeWebSearch(queryTerms, suggestions) {
+  if (queryTerms.length === 0) return false;
+  if (queryTerms.length === 1 && /[.:/]/.test(queryTerms[0])) return false;
+  if (suggestions.length === 0) return true;
+  if (queryTerms.at(-1).endsWith("?") || QUESTION_WORDS.has(queryTerms[0].toLowerCase())) {
+    return true;
+  }
+  return !suggestions.some((suggestion) => isStrongMatch(queryTerms, suggestion));
+}
+
+// Puts the "search the web" row first when that is the likely intent (so it is what Enter opens), and
+// last otherwise (one Up from the first result reaches it, since the selection wraps).
+export function placeWebSearch(queryTerms, suggestions, webSearch) {
+  return looksLikeWebSearch(queryTerms, suggestions)
+    ? [webSearch, ...suggestions]
+    : [...suggestions, webSearch];
+}
+
 export class OmniSearchCompleter {
   constructor() {
     this.bookmarksCache = null;
@@ -1148,13 +1222,26 @@ export class OmniSearchCompleter {
     // Get history (excluding URLs already shown)
     const historySuggestions = this.getHistory(queryTerms, shownUrls);
 
-    // Generate HTML for all suggestions
-    const allSuggestions = [
+    // A "search the web" row for any typed query, first when the results look like a miss.
+    const query = (request.query ?? queryTerms.join(" ")).trim();
+    let allSuggestions = [
       ...tabSuggestions,
       ...topSiteSuggestions,
       ...bookmarkSuggestions,
       ...historySuggestions,
-    ].slice(0, omniSearchMaxResults);
+    ].slice(0, query ? omniSearchMaxResults - 1 : omniSearchMaxResults);
+    if (query) {
+      const webSearch = new Suggestion({
+        queryTerms,
+        description: "search",
+        url: "",
+        title: query,
+        webSearchQuery: query,
+        relevancy: 1,
+        deDuplicate: false,
+      });
+      allSuggestions = placeWebSearch(queryTerms, allSuggestions, webSearch);
+    }
 
     for (const s of allSuggestions) {
       s.computeRelevancy();

@@ -478,7 +478,7 @@ class VomnibarUI {
       // Populate the vomnibar with the current selection's URL.
       if (
         !this.isUserSearchEngineActive() && this.completerName != "commands" &&
-        (this.selection >= 0)
+        (this.selection >= 0) && this.completions[this.selection]?.url
       ) {
         if (this.previousInputValue == null) {
           this.previousInputValue = this.input.value;
@@ -630,6 +630,11 @@ class VomnibarUI {
           );
         }
       }
+    } else if (completion.webSearchQuery != null) {
+      // OmniSearch's "search the web" row: the browser's default engine, with the query as typed.
+      this.hide(() =>
+        chrome.runtime.sendMessage({ handler: "launchSearchQuery", query, openInNewTab })
+      );
     } else if (isPrimarySearchSuggestion(completion)) {
       query = UrlUtils.createSearchUrl(query, completion.searchUrl);
       this.hide(() => this.launchUrl(query, openInNewTab));

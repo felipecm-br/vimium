@@ -11,8 +11,11 @@ import {
   DomainCompleter,
   HistoryCache,
   HistoryCompleter,
+  isStrongMatch,
+  looksLikeWebSearch,
   MultiCompleter,
   OmniSearchCompleter,
+  placeWebSearch,
   queryExtends,
   SearchEngineCompleter,
   Suggestion,
@@ -124,6 +127,58 @@ context("topK", () => {
 
   should("return everything when there are fewer than k items", () => {
     assert.equal([2, 1], topK([1, 2], 5, (x) => x).map(({ item }) => item));
+  });
+});
+
+context("OmniSearch web search intent", () => {
+  const page = (title, url) => ({ title, url });
+  const terms = (q) => q.split(" ");
+
+  should("treat a match at a word start in the title or hostname as strong", () => {
+    assert.isTrue(isStrongMatch(["rust"], page("The Rust Book", "https://doc.example.com")));
+    assert.isTrue(isStrongMatch(["rust"], page("Docs", "https://www.rust-lang.org/learn")));
+    assert.isTrue(isStrongMatch(["git", "vim"], page("philc/vimium", "https://github.com")));
+    assert.isFalse(isStrongMatch(["rust"], page("Reviews", "https://trustpilot.com/rust")));
+  });
+
+  should("search the web when nothing matches, or only weakly", () => {
+    assert.isTrue(looksLikeWebSearch(terms("zzqq"), []));
+    assert.isTrue(looksLikeWebSearch(["rust"], [page("Reviews", "https://trustpilot.com")]));
+    assert.isFalse(looksLikeWebSearch(["rust"], [page("The Rust Book", "https://a.com")]));
+  });
+
+  should("search the web for questions, whatever matches", () => {
+    const rustBook = [page("The Rust Book", "https://a.com")];
+    assert.isTrue(looksLikeWebSearch(terms("how rust ownership works"), rustBook));
+    assert.isTrue(looksLikeWebSearch(terms("como usar rust"), rustBook));
+    assert.isTrue(looksLikeWebSearch(terms("rust?"), rustBook));
+  });
+
+  should("never search the web for a URL-like query or an empty one", () => {
+    assert.isFalse(looksLikeWebSearch(["github.com"], []));
+    assert.isFalse(looksLikeWebSearch(["localhost:8080"], []));
+    assert.isFalse(looksLikeWebSearch([], []));
+  });
+
+  should("put the web search first on a likely miss and last otherwise", () => {
+    const web = { webSearchQuery: "rust" };
+    const strong = page("The Rust Book", "https://a.com");
+    const weak = page("Reviews", "https://trustpilot.com");
+    assert.equal([web, weak], placeWebSearch(["rust"], [weak], web));
+    assert.equal([strong, web], placeWebSearch(["rust"], [strong], web));
+  });
+
+  should("render the web search row with the query, escaped", () => {
+    const html = new Suggestion({
+      queryTerms: [],
+      description: "search",
+      url: "",
+      title: "<b>q",
+      webSearchQuery: "<b>q",
+      relevancy: 1,
+    }).generateHtml({});
+    assert.isTrue(html.includes("&lt;b&gt;q"));
+    assert.isTrue(html.includes("Search the web"));
   });
 });
 

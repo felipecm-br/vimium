@@ -243,6 +243,29 @@ context("vomnibar page", () => {
     assert.equal("zzqq no match", message?.query);
   });
 
+  should("launch a web search for the query as typed from the web search row", async () => {
+    ui.setCompleterName("omniSearch");
+    ui.setQuery("rust ownership");
+    ui.allCompletions = ui.completions = [
+      new Suggestion({
+        queryTerms: [],
+        description: "search",
+        url: "",
+        title: "rust",
+        webSearchQuery: "rust",
+        relevancy: 1,
+      }),
+    ];
+    ui.selection = 0;
+    let message = null;
+    stub(chrome.runtime, "sendMessage", withPromise((m) => (message = m)));
+    await ui.onKeyEvent(newKeyEvent({ type: "keypress", key: "Enter" }));
+    ui.onHidden();
+    assert.equal("launchSearchQuery", message?.handler);
+    // The input, not the possibly older query of the row.
+    assert.equal("rust ownership", message?.query);
+  });
+
   should("open a result when it is clicked, in a new tab with ctrl", async () => {
     const opened = [];
     stub(
