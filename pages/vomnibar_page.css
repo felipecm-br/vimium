@@ -560,29 +560,8 @@ ul {
   transition: none;
 }
 
-/* Animation for theme preview */
-@keyframes theme-pulse {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.85;
-  }
-}
-
-/* Keep the border rotating while previewing, so speed and angle changes show live. */
-#vomnibar.theme-preview {
-  animation:
-    border-rotate var(--vomnibar-border-duration) linear infinite,
-    theme-pulse 2s ease-in-out infinite;
-}
-
-#vomnibar.theme-preview.static-border {
-  animation: theme-pulse 2s ease-in-out infinite;
-}
+/* Theme preview uses the normal border animation (no opacity pulse), so the colors, speed and
+   angle being previewed are shown as they will look. */
 
 /* ==========================================================================
    Default Vomnibar entrance shake (subtle)
