@@ -60,6 +60,9 @@ export class Suggestion {
   searchUrl;
   // The full folder path for bookmarked tabs. Populated by OmniSearchCompleter.
   bookmarkPath;
+  // The page's own title when `title` shows something else (a bookmark's folder path). Used to judge
+  // how well the query matches the page itself.
+  pageTitle;
   // For OmniSearchCompleter's "search the web" row: the query to hand to the browser's default
   // search engine.
   webSearchQuery;
@@ -911,12 +914,14 @@ const hostnameOf = (url) => {
   }
 };
 
-// Whether every query term starts a word in the suggestion's title or site name: "rust" in "The Rust
-// Book" or "rust-lang.org", but not in "trustpilot.com". A suggestion matched only inside words is
+// Whether every query term starts a word in the page's title or site name: "rust" in "The Rust Book"
+// or "rust-lang.org", but not in "trustpilot.com". Bookmark folders don't count ("book" must not
+// match every bookmark under "Bookmarks bar"). A suggestion matched only inside words is
 // a weak match, likely not the page the user means. A term of one or two letters starts a word in
 // almost any title, so it has to be the whole word ("c" in "Rust and C", not in "clone").
 export function isStrongMatch(queryTerms, suggestion) {
-  const text = `${suggestion.title ?? ""} ${siteName(hostnameOf(suggestion.url))}`;
+  const title = suggestion.pageTitle ?? suggestion.title ?? "";
+  const text = `${title} ${siteName(hostnameOf(suggestion.url))}`;
   return queryTerms.every((term) => {
     const wordEnd = term.length <= 2 ? "(?=$|[^\\p{L}\\p{N}])" : "";
     return new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(term)}${wordEnd}`, "iu").test(text);
@@ -1120,6 +1125,7 @@ export class OmniSearchCompleter {
       description: "bookmark",
       url: bookmark.url,
       title: bookmark.fullPathTitle, // Show full path as title
+      pageTitle: bookmark.title,
       relevancyFunction: (s) => ranking.wordRelevancy(s.queryTerms, s.url, s.title),
     });
   }

@@ -173,6 +173,18 @@ context("OmniSearch web search intent", () => {
     assert.isTrue(isStrongMatch(["rust", "clo"], lazygit));
   });
 
+  should("match a bookmark by its own title, not its folders", () => {
+    const bookmark = {
+      title: "Bookmarks bar/dev/github/lazygitrs: lazygit in rust",
+      pageTitle: "lazygitrs: lazygit in rust",
+      url: "https://github.com/x/lazygitrs",
+      description: "bookmark",
+    };
+    assert.isFalse(isStrongMatch(["rust", "book"], bookmark));
+    assert.isFalse(isStrongMatch(["dev"], bookmark));
+    assert.isTrue(isStrongMatch(["lazygit"], bookmark));
+  });
+
   should("not count the top-level domain or www as words", () => {
     const results = page("rust book - Pesquisa Google", "https://www.google.com/x");
     assert.isFalse(isStrongMatch(["rust", "c"], results));
