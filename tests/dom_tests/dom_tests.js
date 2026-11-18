@@ -101,6 +101,30 @@ const createGeneralHintTests = (isFilteredMode) => {
 createGeneralHintTests(false);
 createGeneralHintTests(true);
 
+context("Filtered link hints: keys typed while hints load", () => {
+  setup(() => {
+    initializeModeState();
+    document.getElementById("test-div").innerHTML = "<a>test</a><a>tress</a><a>trait</a>";
+    stubSettings("filterLinkHints", true);
+    stubSettings("linkHintNumbers", "0123456789");
+    stub(globalThis, "windowIsFocused", () => true);
+  });
+
+  teardown(() => {
+    HintCoordinator.linkHintsMode?.deactivateMode();
+    document.getElementById("test-div").innerHTML = "";
+  });
+
+  should("apply the keys typed before the hints appeared", () => {
+    // What prepareToActivateMode installs while the frames collect their hints.
+    HintCoordinator.cacheAllKeydownEvents = new CacheAllKeydownEvents({ name: "test-cache" });
+    sendKeyboardEvent("t");
+    sendKeyboardEvent("r");
+    const mode = activateLinkHintsMode();
+    assert.equal(["none", "", ""], mode.hintMarkers.map((m) => m.element.style.display));
+  });
+});
+
 context("False positives in link-hint", () => {
   setup(() => {
     const testContent = '<span class="buttonWrapper">false positive<a>clickable</a></span>' +

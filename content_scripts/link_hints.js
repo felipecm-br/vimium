@@ -287,7 +287,7 @@ const HintCoordinator = {
     // exiting cacheAllKeydownEvents above and creating the hints mode.
     this.linkHintsMode = new LinkHintsMode(hintDescriptors, availableModes[modeIndex]);
     // Replay keydown events which we missed (but for filtered hints only).
-    if (Settings.get("filterLinkHints" && this.cacheAllKeydownEvents)) {
+    if (Settings.get("filterLinkHints") && this.cacheAllKeydownEvents) {
       this.cacheAllKeydownEvents.replayKeydownEvents();
     }
     this.cacheAllKeydownEvents = null;

@@ -316,7 +316,8 @@ class CacheAllKeydownEvents extends SuppressAllKeyboardEvents {
       },
     };
     super(Object.assign(defaults, options));
-    this.keydownEvents = [];
+    // The same array the keydown handler above fills (a fresh one here would replay nothing).
+    this.keydownEvents = keydownEvents;
   }
 
   replayKeydownEvents() {
