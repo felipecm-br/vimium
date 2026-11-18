@@ -200,6 +200,222 @@ div#vimium-hint-marker-container.vimium-theme-monokai {
   --vimium-hint-active-text: #ffffff;
 }
 
+div#vimium-hint-marker-container.vimium-theme-tokyo-night {
+  --vimium-hint-bg-start: #7aa2f7;
+  --vimium-hint-bg-end: #9b9ef7;
+  --vimium-hint-border: #4a5f8f;
+  --vimium-hint-text: #15161e;
+  --vimium-hint-match: #3d4e75;
+  --vimium-hint-active-text: #15161e;
+}
+
+div#vimium-hint-marker-container.vimium-theme-catppuccin-mocha {
+  --vimium-hint-bg-start: #89b4fa;
+  --vimium-hint-bg-end: #aaadf9;
+  --vimium-hint-border: #546994;
+  --vimium-hint-text: #1e1e2e;
+  --vimium-hint-match: #495a80;
+  --vimium-hint-active-text: #1e1e2e;
+}
+
+div#vimium-hint-marker-container.vimium-theme-catppuccin-latte {
+  --vimium-hint-bg-start: #1e66f5;
+  --vimium-hint-bg-end: #5350f2;
+  --vimium-hint-border: #87acf5;
+  --vimium-hint-text: #ffffff;
+  --vimium-hint-match: #a5c2fb;
+  --vimium-hint-active-text: #ffffff;
+}
+
+div#vimium-hint-marker-container.vimium-theme-gruvbox {
+  --vimium-hint-bg-start: #d65d0e;
+  --vimium-hint-bg-end: #c4604a;
+  --vimium-hint-border: #7f431b;
+  --vimium-hint-text: #000000;
+  --vimium-hint-match: #562506;
+  --vimium-hint-active-text: #000000;
+}
+
+div#vimium-hint-marker-container.vimium-theme-ros-pine {
+  --vimium-hint-bg-start: #eb6f92;
+  --vimium-hint-bg-end: #d88bbd;
+  --vimium-hint-border: #82435b;
+  --vimium-hint-text: #191724;
+  --vimium-hint-match: #6d3a50;
+  --vimium-hint-active-text: #191724;
+}
+
+div#vimium-hint-marker-container.vimium-theme-one-dark {
+  --vimium-hint-bg-start: #61afef;
+  --vimium-hint-bg-end: #9494e6;
+  --vimium-hint-border: #416a8d;
+  --vimium-hint-text: #21252b;
+  --vimium-hint-match: #3b5c79;
+  --vimium-hint-active-text: #21252b;
+}
+
+div#vimium-hint-marker-container.vimium-theme-one-light {
+  --vimium-hint-bg-start: #3a6cdb;
+  --vimium-hint-bg-end: #6847b7;
+  --vimium-hint-border: #9ab3eb;
+  --vimium-hint-text: #ffffff;
+  --vimium-hint-match: #b0c4f1;
+  --vimium-hint-active-text: #ffffff;
+}
+
+div#vimium-hint-marker-container.vimium-theme-solarized-dark {
+  --vimium-hint-bg-start: #268bd2;
+  --vimium-hint-bg-end: #497ecb;
+  --vimium-hint-border: #135b84;
+  --vimium-hint-text: #000000;
+  --vimium-hint-match: #0f3854;
+  --vimium-hint-active-text: #000000;
+}
+
+div#vimium-hint-marker-container.vimium-theme-solarized-light {
+  --vimium-hint-bg-start: #268bd2;
+  --vimium-hint-bg-end: #497ecb;
+  --vimium-hint-border: #92c1db;
+  --vimium-hint-text: #000000;
+  --vimium-hint-match: #0f3854;
+  --vimium-hint-active-text: #000000;
+}
+
+div#vimium-hint-marker-container.vimium-theme-github-light {
+  --vimium-hint-bg-start: #0969da;
+  --vimium-hint-bg-end: #465ddd;
+  --vimium-hint-border: #84b4ed;
+  --vimium-hint-text: #ffffff;
+  --vimium-hint-match: #9dc3f0;
+  --vimium-hint-active-text: #ffffff;
+}
+
+div#vimium-hint-marker-container.vimium-theme-kanagawa {
+  --vimium-hint-bg-start: #7e9cd8;
+  --vimium-hint-bg-end: #8a8ec8;
+  --vimium-hint-border: #4f5e80;
+  --vimium-hint-text: #1f1f28;
+  --vimium-hint-match: #45516e;
+  --vimium-hint-active-text: #1f1f28;
+}
+
+div#vimium-hint-marker-container.vimium-theme-everforest {
+  --vimium-hint-bg-start: #a7c080;
+  --vimium-hint-bg-end: #93be9a;
+  --vimium-hint-border: #697a5d;
+  --vimium-hint-text: #2b3339;
+  --vimium-hint-match: #5d6b55;
+  --vimium-hint-active-text: #2b3339;
+}
+
+div#vimium-hint-marker-container.vimium-theme-synthwave-84 {
+  --vimium-hint-bg-start: #ff358b;
+  --vimium-hint-bg-end: #c836b8;
+  --vimium-hint-border: #88205a;
+  --vimium-hint-text: #000000;
+  --vimium-hint-match: #661538;
+  --vimium-hint-active-text: #000000;
+}
+
+div#vimium-hint-marker-container.vimium-theme-outrun {
+  --vimium-hint-bg-start: #ff4b73;
+  --vimium-hint-bg-end: #c3469c;
+  --vimium-hint-border: #86274a;
+  --vimium-hint-text: #000000;
+  --vimium-hint-match: #661e2e;
+  --vimium-hint-active-text: #000000;
+}
+
+div#vimium-hint-marker-container.vimium-theme-cyber-ronin {
+  --vimium-hint-bg-start: #e32851;
+  --vimium-hint-bg-end: #ec6635;
+  --vimium-hint-border: #7b1d33;
+  --vimium-hint-text: #000000;
+  --vimium-hint-match: #5b1020;
+  --vimium-hint-active-text: #000000;
+}
+
+div#vimium-hint-marker-container.vimium-theme-matrix {
+  --vimium-hint-bg-start: #10b981;
+  --vimium-hint-bg-end: #0ba875;
+  --vimium-hint-border: #0b6846;
+  --vimium-hint-text: #022c22;
+  --vimium-hint-match: #086448;
+  --vimium-hint-active-text: #022c22;
+}
+
+div#vimium-hint-marker-container.vimium-theme-firewatch {
+  --vimium-hint-bg-start: #e8608a;
+  --vimium-hint-bg-end: #c25da0;
+  --vimium-hint-border: #81355c;
+  --vimium-hint-text: #1a0a2e;
+  --vimium-hint-match: #6c2c53;
+  --vimium-hint-active-text: #1a0a2e;
+}
+
+div#vimium-hint-marker-container.vimium-theme-dune {
+  --vimium-hint-bg-start: #ea580c;
+  --vimium-hint-bg-end: #e26809;
+  --vimium-hint-border: #85350d;
+  --vimium-hint-text: #000000;
+  --vimium-hint-match: #5e2305;
+  --vimium-hint-active-text: #000000;
+}
+
+div#vimium-hint-marker-container.vimium-theme-sakura {
+  --vimium-hint-bg-start: #f472b6;
+  --vimium-hint-bg-end: #da7bd9;
+  --vimium-hint-border: #8a456d;
+  --vimium-hint-text: #201824;
+  --vimium-hint-match: #753c5e;
+  --vimium-hint-active-text: #201824;
+}
+
+div#vimium-hint-marker-container.vimium-theme-matcha {
+  --vimium-hint-bg-start: #65a30d;
+  --vimium-hint-bg-end: #59900e;
+  --vimium-hint-border: #3d6212;
+  --vimium-hint-text: #000000;
+  --vimium-hint-match: #284105;
+  --vimium-hint-active-text: #000000;
+}
+
+div#vimium-hint-marker-container.vimium-theme-klimt-gold {
+  --vimium-hint-bg-start: #907120;
+  --vimium-hint-bg-end: #a67f1c;
+  --vimium-hint-border: #554214;
+  --vimium-hint-text: #000000;
+  --vimium-hint-match: #3a2d0d;
+  --vimium-hint-active-text: #000000;
+}
+
+div#vimium-hint-marker-container.vimium-theme-starry-night {
+  --vimium-hint-bg-start: #1c4f91;
+  --vimium-hint-bg-end: #255f93;
+  --vimium-hint-border: #143666;
+  --vimium-hint-text: #ffffff;
+  --vimium-hint-match: #a4b9d3;
+  --vimium-hint-active-text: #ffffff;
+}
+
+div#vimium-hint-marker-container.vimium-theme-espresso {
+  --vimium-hint-bg-start: #b45309;
+  --vimium-hint-bg-end: #96440c;
+  --vimium-hint-border: #66330d;
+  --vimium-hint-text: #ffffff;
+  --vimium-hint-match: #e1ba9d;
+  --vimium-hint-active-text: #ffffff;
+}
+
+div#vimium-hint-marker-container.vimium-theme-omarchy {
+  --vimium-hint-bg-start: #00d7d7;
+  --vimium-hint-bg-end: #30ebd7;
+  --vimium-hint-border: #097575;
+  --vimium-hint-text: #121212;
+  --vimium-hint-match: #0b6161;
+  --vimium-hint-active-text: #121212;
+}
+
 div.internal-vimium-hint-marker {
   position: absolute;
   display: block;

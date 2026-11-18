@@ -10,6 +10,7 @@ import * as vomnibarPage from "../../pages/vomnibar_page.js";
 import * as userSearchEngines from "../../background_scripts/user_search_engines.js";
 import { Commands } from "../../background_scripts/commands.js";
 import { filterCompleter } from "./completion/completers_test.js";
+import { themeDefinitions, themeManager } from "../../pages/vomnibar_themes.js";
 
 function newKeyEvent(properties) {
   return Object.assign(
@@ -52,6 +53,22 @@ context("vomnibar page", () => {
     // jacking into the channels for this are not worthwhile for this test.
     await ui.onKeyEvent(newKeyEvent({ key: "Escape" }));
     assert.equal("", ui.input.value);
+  });
+
+  should("preview the selected theme on later pages of the theme list", async () => {
+    ui.setCompleterName("omniSearch");
+    ui.setQuery("theme");
+    await ui.update();
+    // Move past the first page so the index within the page differs from the index in the list.
+    const target = ui.itemsPerPage + 2;
+    assert.isTrue(themeDefinitions.length > target);
+    for (let i = 0; i < target; i++) {
+      await ui.onKeyEvent(newKeyEvent({ key: "down" }));
+    }
+    assert.equal(themeDefinitions[target].name, themeManager.getCurrentTheme());
+    const selected = ui.completionList.querySelector("li.selected");
+    assert.isTrue(selected.classList.contains("theme-item"));
+    assert.isTrue(selected.textContent.includes(themeDefinitions[target].name));
   });
 
   should("edit a completion's URL when ctrl-enter is pressed", async () => {

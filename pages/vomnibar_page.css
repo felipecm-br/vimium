@@ -677,6 +677,150 @@ ul {
   background: linear-gradient(135deg, #66d9ef, #ae81ff);
 }
 
+/* Tokyo Night */
+[data-vomnibar-theme="Tokyo Night"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #7aa2f7, #9b9ef7);
+  color: #15161e;
+}
+
+/* Catppuccin Mocha */
+[data-vomnibar-theme="Catppuccin Mocha"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #89b4fa, #aaadf9);
+  color: #1e1e2e;
+}
+
+/* Catppuccin Latte */
+[data-vomnibar-theme="Catppuccin Latte"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #1e66f5, #5350f2);
+  color: #ffffff;
+}
+
+/* Gruvbox */
+[data-vomnibar-theme="Gruvbox"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #d65d0e, #c4604a);
+  color: #000000;
+}
+
+/* Rosé Pine */
+[data-vomnibar-theme="Rosé Pine"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #eb6f92, #d88bbd);
+  color: #191724;
+}
+
+/* One Dark */
+[data-vomnibar-theme="One Dark"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #61afef, #9494e6);
+  color: #21252b;
+}
+
+/* One Light */
+[data-vomnibar-theme="One Light"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #3a6cdb, #6847b7);
+  color: #ffffff;
+}
+
+/* Solarized Dark */
+[data-vomnibar-theme="Solarized Dark"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #268bd2, #497ecb);
+  color: #000000;
+}
+
+/* Solarized Light */
+[data-vomnibar-theme="Solarized Light"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #268bd2, #497ecb);
+  color: #000000;
+}
+
+/* GitHub Light */
+[data-vomnibar-theme="GitHub Light"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #0969da, #465ddd);
+  color: #ffffff;
+}
+
+/* Kanagawa */
+[data-vomnibar-theme="Kanagawa"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #7e9cd8, #8a8ec8);
+  color: #1f1f28;
+}
+
+/* Everforest */
+[data-vomnibar-theme="Everforest"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #a7c080, #93be9a);
+  color: #2b3339;
+}
+
+/* Synthwave 84 */
+[data-vomnibar-theme="Synthwave 84"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #ff358b, #c836b8);
+  color: #000000;
+}
+
+/* Outrun */
+[data-vomnibar-theme="Outrun"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #ff4b73, #c3469c);
+  color: #000000;
+}
+
+/* Cyber Ronin */
+[data-vomnibar-theme="Cyber Ronin"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #e32851, #ec6635);
+  color: #000000;
+}
+
+/* Matrix */
+[data-vomnibar-theme="Matrix"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #10b981, #0ba875);
+  color: #022c22;
+}
+
+/* Firewatch */
+[data-vomnibar-theme="Firewatch"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #e8608a, #c25da0);
+  color: #1a0a2e;
+}
+
+/* Dune */
+[data-vomnibar-theme="Dune"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #ea580c, #e26809);
+  color: #000000;
+}
+
+/* Sakura */
+[data-vomnibar-theme="Sakura"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #f472b6, #da7bd9);
+  color: #201824;
+}
+
+/* Matcha */
+[data-vomnibar-theme="Matcha"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #65a30d, #59900e);
+  color: #000000;
+}
+
+/* Klimt Gold */
+[data-vomnibar-theme="Klimt Gold"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #907120, #a67f1c);
+  color: #000000;
+}
+
+/* Starry Night */
+[data-vomnibar-theme="Starry Night"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #1c4f91, #255f93);
+  color: #ffffff;
+}
+
+/* Espresso */
+[data-vomnibar-theme="Espresso"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #b45309, #96440c);
+  color: #ffffff;
+}
+
+/* Omarchy */
+[data-vomnibar-theme="Omarchy"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  background: linear-gradient(135deg, #00d7d7, #30ebd7);
+  color: #121212;
+}
+
 /* Google mode shake — less aggressive version */
 @keyframes google-mode-shake {
   0%, 100% { transform: translateX(-50%) rotate(0deg); }

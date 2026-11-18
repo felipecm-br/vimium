@@ -292,7 +292,8 @@ class VomnibarUI {
 
     // Highlight the selected entry.
     for (const [i, el] of Object.entries(this.completionList.children)) {
-      el.className = i == this.selection ? "selected" : "";
+      // Toggle only "selected" so other classes (e.g. "theme-item") survive.
+      el.classList.toggle("selected", i == this.selection);
     }
 
     // Update position indicator
@@ -300,7 +301,7 @@ class VomnibarUI {
 
     // Preview theme when in theme mode and selection changes
     if (this.isThemeMode && this.selection >= 0) {
-      const themeCompletion = this.themeCompletions[this.selection];
+      const themeCompletion = this.themeCompletions[this.globalSelection];
       if (themeCompletion) {
         themeManager.previewTheme(themeCompletion.name);
         this.box.classList.add("theme-preview");
@@ -341,6 +342,10 @@ class VomnibarUI {
     const start = this.currentPage * this.itemsPerPage;
     const end = Math.min(start + this.itemsPerPage, this.allCompletions.length);
     this.completions = this.allCompletions.slice(start, end);
+    if (this.isThemeMode) {
+      this.renderThemeCompletions();
+      return;
+    }
     this.renderCompletions(this.completions);
   }
 
@@ -518,7 +523,7 @@ class VomnibarUI {
 
     // Handle theme selection mode
     if (this.isThemeMode && this.selection >= 0) {
-      const themeCompletion = this.themeCompletions[this.selection];
+      const themeCompletion = this.themeCompletions[this.globalSelection];
       if (themeCompletion) {
         themeManager.confirmPreview();
         this.box.classList.remove("theme-preview");
@@ -648,9 +653,12 @@ class VomnibarUI {
   }
 
   // Render theme completions
+  // Render the theme completions of the current page.
   renderThemeCompletions() {
-    this.completionList.innerHTML = this.themeCompletions.map((theme, index) => 
-      `<li class="theme-item" data-index="${index}">${theme.html}</li>`
+    const start = this.currentPage * this.itemsPerPage;
+    const pageThemes = this.themeCompletions.slice(start, start + this.itemsPerPage);
+    this.completionList.innerHTML = pageThemes.map((theme, index) =>
+      `<li class="theme-item" data-index="${start + index}">${theme.html}</li>`
     ).join("");
     this.completionList.style.display = this.themeCompletions.length > 0 ? "block" : "";
   }
@@ -668,8 +676,8 @@ class VomnibarUI {
         isTheme: true,
         themeIndex: index
       }));
-      this.completions = this.allCompletions;
       this.currentPage = 0;
+      this.completions = this.allCompletions.slice(0, this.itemsPerPage);
       
       this.globalSelection = 0; // Auto-select first theme
       this.selection = 0;
