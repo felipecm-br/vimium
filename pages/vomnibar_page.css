@@ -543,6 +543,17 @@ ul {
   color: var(--vomnibar-accent-color);
 }
 
+/* Key that runs a row from anywhere (Alt+Enter on the web search row). */
+#vomnibar li .shortcut-hint {
+  flex-shrink: 0;
+  font-family: inherit;
+  font-size: 10px;
+  padding: 1px 6px;
+  border: 1px solid var(--vomnibar-border-color);
+  border-radius: 4px;
+  color: var(--vomnibar-secondary-text);
+}
+
 /* Theme Selector Styles */
 #vomnibar li.theme-item {
   padding: 12px 16px;

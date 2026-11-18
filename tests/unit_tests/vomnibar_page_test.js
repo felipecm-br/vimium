@@ -59,52 +59,76 @@ context("vomnibar page", () => {
     assert.equal("", ui.input.value);
   });
 
-  const shiftDown = () =>
-    ui._onGoogleModeModifierDown(newKeyEvent({ key: "Shift", shiftKey: true }));
-  const shiftUp = () => ui._onGoogleModeModifierUp(newKeyEvent({ type: "keyup", key: "Shift" }));
+  const altDown = () => ui._onGoogleModeModifierDown(newKeyEvent({ key: "Alt", altKey: true }));
+  const altUp = () => ui._onGoogleModeModifierUp(newKeyEvent({ type: "keyup", key: "Alt" }));
   const waitPastHold = () =>
     new Promise((resolve) => setTimeout(resolve, vomnibarPage.GOOGLE_MODE_HOLD_MS + 50));
 
   should(
-    "enter Google mode only while Shift is held on its own, and leave it on release",
+    "show Google mode only while Alt is held on its own, and leave it on release",
     async () => {
       ui.setQuery("vimium");
-      shiftDown();
+      altDown();
       assert.isFalse(ui.isGoogleSearchMode);
       await waitPastHold();
       assert.isTrue(ui.isGoogleSearchMode);
       assert.isTrue(ui.box.classList.contains("google-search-mode"));
-      shiftUp();
+      altUp();
       assert.isFalse(ui.isGoogleSearchMode);
     },
   );
 
-  should(
-    "not enter Google mode when Shift is tapped or used to type a capital letter",
-    async () => {
-      ui.setQuery("vimium");
-      shiftDown();
-      shiftUp();
-      await waitPastHold();
-      assert.isFalse(ui.isGoogleSearchMode);
-
-      shiftDown();
-      ui._onGoogleModeModifierDown(newKeyEvent({ key: "V", shiftKey: true }));
-      ui.setQuery("vimiumV");
-      ui.onInput();
-      await waitPastHold();
-      assert.isFalse(ui.isGoogleSearchMode);
-      shiftUp();
-    },
-  );
-
-  should("leave Google mode when a key arrives without Shift (a missed keyup)", async () => {
+  should("not show Google mode for an Alt tap or chord, nor while typing capitals", async () => {
     ui.setQuery("vimium");
-    shiftDown();
+    altDown();
+    altUp();
+    await waitPastHold();
+    assert.isFalse(ui.isGoogleSearchMode);
+
+    altDown();
+    ui._onGoogleModeModifierDown(newKeyEvent({ key: "Tab", altKey: true }));
+    await waitPastHold();
+    assert.isFalse(ui.isGoogleSearchMode);
+    altUp();
+
+    ui._onGoogleModeModifierDown(newKeyEvent({ key: "Shift", shiftKey: true }));
+    await waitPastHold();
+    assert.isFalse(ui.isGoogleSearchMode);
+  });
+
+  should("leave Google mode when a key arrives without Alt (a missed keyup)", async () => {
+    ui.setQuery("vimium");
+    altDown();
     await waitPastHold();
     assert.isTrue(ui.isGoogleSearchMode);
-    ui._onGoogleModeModifierDown(newKeyEvent({ key: "a", shiftKey: false }));
+    ui._onGoogleModeModifierDown(newKeyEvent({ key: "a", altKey: false }));
     assert.isFalse(ui.isGoogleSearchMode);
+  });
+
+  should("search the web on Alt+Enter right away, whatever is selected", async () => {
+    ui.setCompleterName("omniSearch");
+    ui.setQuery("rust book");
+    ui.allCompletions = ui.completions = [
+      new Suggestion({ queryTerms: [], description: "tab", url: "https://a.example", tabId: 1 }),
+    ];
+    ui.selection = 0;
+    let message = null;
+    stub(chrome.runtime, "sendMessage", withPromise((m) => (message = m)));
+    await ui.onKeyEvent(newKeyEvent({ type: "keydown", key: "Enter", altKey: true }));
+    ui.onHidden();
+    assert.equal(
+      { handler: "launchSearchQuery", query: "rust book", openInNewTab: false },
+      message,
+    );
+  });
+
+  should("open in a new tab on Shift+Enter, not search the web", async () => {
+    ui.setQuery("www.example.com");
+    let message = null;
+    stub(chrome.runtime, "sendMessage", withPromise((m) => (message = m)));
+    await ui.onKeyEvent(newKeyEvent({ type: "keypress", key: "Enter", shiftKey: true }));
+    ui.onHidden();
+    assert.equal("openUrlInNewTab", message?.handler);
   });
 
   should("preview the selected theme on later pages of the theme list", async () => {

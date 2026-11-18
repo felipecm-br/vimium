@@ -117,7 +117,8 @@ export class Suggestion {
     <span class="title">${Utils.escapeHtml(this.webSearchQuery)}</span>
     <span class="url">Search the web</span>
   </div>
-</div>`;
+</div>
+<kbd class="shortcut-hint" aria-hidden="true">Alt ↵</kbd>`;
       return this.html;
     }
 

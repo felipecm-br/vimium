@@ -73,7 +73,8 @@ export function webSearchCompletion(query) {
     <span class="title">${Utils.escapeHtml(query)}</span>
     <span class="url">Search the web</span>
   </div>
-</div>`,
+</div>
+<kbd class="shortcut-hint" aria-hidden="true">Alt ↵</kbd>`,
   };
 }
 
@@ -82,8 +83,11 @@ const THEME_COMMAND_PREFIX = "theme";
 
 // Pagination settings
 const DEFAULT_ITEMS_PER_PAGE = 7;
-// How long Shift must be held on its own to switch to Google search mode.
-export const GOOGLE_MODE_HOLD_MS = 300;
+// The key that searches the web: Alt+Enter does it at once, and holding Alt for GOOGLE_MODE_HOLD_MS
+// shows Google mode (the badge and glow) so the next Enter is clearly a web search. Alt types no
+// characters, unlike Shift, so the hold can be short.
+const GOOGLE_MODE_KEY = "Alt";
+export const GOOGLE_MODE_HOLD_MS = 150;
 
 class VomnibarUI {
   constructor() {
@@ -109,7 +113,7 @@ class VomnibarUI {
     this.itemsPerPage = DEFAULT_ITEMS_PER_PAGE;
     this.globalSelection = 0; // Selection index in allCompletions
 
-    // Shift-hold Google Search mode
+    // Alt-hold Google Search mode
     this.isGoogleSearchMode = false;
     this.isGoogleModeModifierPressed = false;
     this.googleModeArmed = false;
@@ -126,11 +130,11 @@ class VomnibarUI {
     this.themeFooter = document.getElementById("vomnibar-theme-footer");
   }
 
-  // --- Shift-hold Google Search Mode ---
-  // Holding Shift on its own for GOOGLE_MODE_HOLD_MS arms the mode, and releasing it ends it.
-  // Shift used to type a capital letter or a chord never arms it.
+  // --- Alt-hold Google Search Mode ---
+  // Holding Alt on its own for GOOGLE_MODE_HOLD_MS arms the mode, and releasing it ends it. Alt as
+  // part of a chord (Alt+Tab) never arms it.
   _onGoogleModeModifierDown(event) {
-    if (event.key === "Shift") {
+    if (event.key === GOOGLE_MODE_KEY) {
       if (event.repeat || this.isGoogleModeModifierPressed) return;
       this.isGoogleModeModifierPressed = true;
       this.googleModeArmed = false;
@@ -140,18 +144,18 @@ class VomnibarUI {
         this.googleModeArmed = true;
         this._updateGoogleModeState();
       }, GOOGLE_MODE_HOLD_MS);
-    } else if (!event.shiftKey) {
-      // Shift is up even though we missed its keyup (it was released outside this frame).
+    } else if (!event.altKey) {
+      // Alt is up even though we missed its keyup (it was released outside this frame).
       this._releaseGoogleModeModifier();
     } else {
-      // Another key before the hold delay passed: Shift is part of typing, not a hold.
+      // Another key before the hold delay passed: Alt is part of a chord, not a hold.
       clearTimeout(this.googleModeHoldTimer);
       this.googleModeHoldTimer = null;
     }
   }
 
   _onGoogleModeModifierUp(event) {
-    if (event.key === "Shift") this._releaseGoogleModeModifier();
+    if (event.key === GOOGLE_MODE_KEY) this._releaseGoogleModeModifier();
   }
 
   _releaseGoogleModeModifier() {
@@ -392,6 +396,11 @@ class VomnibarUI {
   // complexity.
   actionFromKeyEvent(event) {
     const key = KeyboardUtils.getKeyChar(event);
+    // Alt+Enter searches the web, with or without Google mode showing. Handled on keydown, since
+    // Alt+Enter may not produce a keypress.
+    if ((event.key === "Enter") && event.altKey) {
+      return event.type === "keydown" ? "web-search" : null;
+    }
     // Handle <Enter> on "keypress", and other events on "keydown". This avoids interence with CJK
     // translation (see #2915 and #2934).
     if ((event.type === "keypress") && (key !== "enter")) return null;
@@ -486,6 +495,8 @@ class VomnibarUI {
         }
         this.updatePageAndSelection();
       }
+    } else if (action === "web-search") {
+      this.searchTheWeb(this.forceNewTab || event.shiftKey || event.ctrlKey || event.metaKey);
     } else if (action === "enter") {
       await this.handleEnterKey(event);
     } else if (action === "ctrl-enter") {
@@ -566,8 +577,18 @@ class VomnibarUI {
     this.updateSelection();
   }
 
+  // Searches the web for what was typed, with the browser's default engine.
+  searchTheWeb(openInNewTab) {
+    const query = this.input.value.trim();
+    if (query.length === 0) return;
+    this._deactivateGoogleMode();
+    this.hide(() =>
+      chrome.runtime.sendMessage({ handler: "launchSearchQuery", query, openInNewTab })
+    );
+  }
+
   async handleEnterKey(event) {
-    // Handle Shift-hold Google Search mode: search with Google immediately
+    // Alt-hold Google Search mode: search the web at once
     if (this.isGoogleSearchMode) {
       const query = this.input.value.trim();
       if (query.length === 0) return;
@@ -603,8 +624,8 @@ class VomnibarUI {
     const waitingOnCompletions = this.completions.length == 0;
     const completion = this.completions[this.selection];
 
-    const openInNewTab = this.forceNewTab || event.shiftKey || event.ctrlKey || event.altKey ||
-      event.metaKey;
+    // Alt is not here: Alt+Enter searches the web.
+    const openInNewTab = this.forceNewTab || event.shiftKey || event.ctrlKey || event.metaKey;
 
     // If the user types something and hits enter without selecting a completion from the list,
     // then:

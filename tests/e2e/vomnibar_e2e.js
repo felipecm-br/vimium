@@ -152,6 +152,21 @@ test("t: a results page or a bookmark's folder never outranks the web search", a
   await resultsTab.close();
 });
 
+test("t: Alt+Enter searches the web even when a page is selected", async (ctx) => {
+  const { page, base, browser } = ctx;
+  const rustTab = await browser.newPage();
+  await rustTab.goto(base + "/rust.html");
+  await page.bringToFront();
+  await page.goto(base + "/");
+  const frame = await openVomnibar(page, "t", "rust");
+  assertEqual("page", (await rows(frame))[0].kind, "a page is selected");
+  await page.keyboard.down("Alt");
+  await Promise.all([page.waitForNavigation(), page.keyboard.press("Enter")]);
+  await page.keyboard.up("Alt");
+  assertEqual("rust", new URL(page.url()).searchParams.get("q"));
+  await rustTab.close();
+});
+
 test("t: shift-delete forgets a visited page", async ({ page, base, worker }) => {
   await page.goto(base + "/");
   const frame = await openVomnibar(page, "t", "react hooks");
