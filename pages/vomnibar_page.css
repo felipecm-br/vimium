@@ -98,14 +98,15 @@ ul {
    Vomnibar Slide Animations
    ========================================================================== */
 
-.vomnibar-slide-in {
+/* #vomnibar in the selector so these beat the box's own `animation: none`. */
+#vomnibar.vomnibar-slide-in {
   animation:
     vomnibarSlideIn 180ms ease-out forwards,
     vomnibar-entrance-shake 0.4s ease-in-out 180ms;
   will-change: transform, opacity;
 }
 
-.vomnibar-slide-out {
+#vomnibar.vomnibar-slide-out {
   animation: vomnibarSlideOut 140ms ease-in forwards;
   will-change: transform, opacity;
 }
@@ -117,14 +118,12 @@ ul {
   }
 
   to {
-    opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
 }
 
 @keyframes vomnibarSlideOut {
   from {
-    opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
 
@@ -160,8 +159,7 @@ ul {
      the 1px padding is the visible ring. See the rules after this one. */
   padding: 1px;
   background: none;
-  /* Explicit, so the box's own animations stay as they were (the border used to be animated here,
-     which also overrode the .vomnibar-slide-* classes). */
+  /* The border animates on ::before; the box itself only animates when sliding in or out. */
   animation: none;
 
   box-shadow:
@@ -171,13 +169,15 @@ ul {
   /* Ensure vomnibar is below hint markers and help dialog */
   z-index: 2139999999;
 
-  overflow: hidden;
+  /* clip, not hidden: the rotating ::before square overflows the box, and a hidden overflow is
+     still a scroll container, so focus or scrollIntoView could scroll the content out of place. */
+  overflow: clip;
 }
 
 /* Rotating border. A square, larger than the box's diagonal, holds the conic gradient and turns
    with the `rotate` property, which the compositor animates on its own: no style recalc, paint or
    raster per frame. (Animating a registered custom property inside the gradient, as before,
-   repainted the whole Vomnibar 60 times a second while it was open.) The box's overflow: hidden and
+   repainted the whole Vomnibar 60 times a second while it was open.) The box's overflow: clip and
    border-radius clip the square to the rounded rectangle; ::after covers all but the 1px ring.
    The box is at most 70vh tall, so a side of 100% + 70vh covers its diagonal at any angle. */
 #vomnibar::before,

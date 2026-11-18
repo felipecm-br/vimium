@@ -932,10 +932,15 @@ class VomnibarUI {
       const done = () => {
         if (resolved) return;
         resolved = true;
+        this.box.removeEventListener("animationend", onEnd);
         resolve();
       };
 
-      this.box.addEventListener("animationend", done, { once: true });
+      // Only the slide-out itself: animations of children (the Google badge) bubble up here too.
+      const onEnd = (event) => {
+        if (event.animationName === "vomnibarSlideOut") done();
+      };
+      this.box.addEventListener("animationend", onEnd);
       // Tight fallback (matches the 140ms slide-out duration + small buffer)
       setTimeout(done, 160);
     });
