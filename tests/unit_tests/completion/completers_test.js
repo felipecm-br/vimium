@@ -7,6 +7,7 @@ import "../../../background_scripts/completion/search_wrapper.js";
 import * as userSearchEngines from "../../../background_scripts/user_search_engines.js";
 import {
   BookmarkCompleter,
+  bookmarkFolder,
   CommandCompleter,
   DomainCompleter,
   HistoryCache,
@@ -237,6 +238,26 @@ context("OmniSearch web search intent", () => {
     }).generateHtml({});
     assert.isTrue(html.includes("&lt;b&gt;q"));
     assert.isTrue(html.includes("Search the web"));
+  });
+});
+
+context("OmniSearch bookmark rows", () => {
+  should("name a bookmark's folders without the root folder", () => {
+    const folderOf = (fullPathTitle, title) => bookmarkFolder({ fullPathTitle, title });
+    assert.equal("dev/github", folderOf("Bookmarks bar/dev/github/lazygitrs", "lazygitrs"));
+    assert.equal("", folderOf("Bookmarks bar/lazygitrs", "lazygitrs"));
+    assert.equal("", folderOf("lazygitrs", "lazygitrs"));
+  });
+
+  should("show the bookmark's name first and its folder after it", () => {
+    stub(chrome.runtime, "getURL", returns("https://test/"));
+    const html = new OmniSearchCompleter().createBookmarkSuggestion({
+      url: "https://github.com/x/lazygitrs",
+      title: "lazygitrs",
+      fullPathTitle: "Bookmarks bar/dev/github/lazygitrs",
+    }, []).generateHtml({});
+    assert.isTrue(html.includes('<span class="title">lazygitrs</span>'));
+    assert.isTrue(html.includes('<span class="folder">dev/github</span>'));
   });
 });
 

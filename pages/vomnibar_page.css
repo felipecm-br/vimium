@@ -99,10 +99,10 @@ ul {
    ========================================================================== */
 
 /* #vomnibar in the selector so these beat the box's own `animation: none`. */
+/* Opening only slides in: a launcher opened dozens of times a day shouldn't wobble each time. The
+   shake is kept for entering Google mode, where it marks the switch. */
 #vomnibar.vomnibar-slide-in {
-  animation:
-    vomnibarSlideIn 180ms ease-out forwards,
-    vomnibar-entrance-shake 0.4s ease-in-out 180ms;
+  animation: vomnibarSlideIn 180ms ease-out forwards;
   will-change: transform, opacity;
 }
 
@@ -380,6 +380,8 @@ ul {
 
 #vomnibar li.selected {
   background-color: var(--vomnibar-selected-bg);
+  /* An accent bar on the left, so the selection reads in themes with a faint selected background. */
+  box-shadow: inset 3px 0 0 var(--vomnibar-accent-color);
 }
 
 /* Suggestion Icons Container */
@@ -456,6 +458,9 @@ ul {
 }
 
 #vomnibar li .title {
+  /* Page titles are prose: the system UI font fits more of them and reads faster than the monospace
+     kept for URLs, keys and the input. */
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 14px;
   font-weight: 500;
   color: var(--vomnibar-text-color);
@@ -463,6 +468,17 @@ ul {
   overflow: hidden;
   text-overflow: ellipsis;
   flex-shrink: 1;
+  min-width: 0;
+}
+
+/* A bookmark's folder, between its name and URL. */
+#vomnibar li .folder {
+  font-size: 12px;
+  color: var(--vomnibar-secondary-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 3;
   min-width: 0;
 }
 
@@ -474,6 +490,8 @@ ul {
   text-overflow: ellipsis;
   flex-shrink: 2;
   min-width: 0;
+  /* The title is what people scan: a long URL (search results, tracking parameters) gives way. */
+  max-width: 40%;
   opacity: 0.85;
 }
 
@@ -635,63 +653,7 @@ ul {
    angle being previewed are shown as they will look. */
 
 /* ==========================================================================
-   Default Vomnibar entrance shake (subtle)
-   Uncomment the option you want to test. Only one should be active.
-   ========================================================================== */
-
-/* --- OPTION A: Very subtle wobble (recommended default) --- */
-@keyframes vomnibar-entrance-shake {
-  0%,
-  100% {
-    transform: translateX(-50%) rotate(0deg);
-  }
-  25% {
-    transform: translateX(-50%) rotate(-0.3deg) scale(1.003);
-  }
-  50% {
-    transform: translateX(-50%) rotate(0.3deg) scale(1.005);
-  }
-  75% {
-    transform: translateX(-50%) rotate(-0.15deg);
-  }
-}
-
-/* --- OPTION B: Gentle bounce (uncomment to test) ---
-@keyframes vomnibar-entrance-shake {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  20%      { transform: translateX(-50%) translateY(-3px); }
-  40%      { transform: translateX(-50%) translateY(1px); }
-  60%      { transform: translateX(-50%) translateY(-1px); }
-}
-*/
-
-/* --- OPTION C: Micro-jitter (uncomment to test) ---
-@keyframes vomnibar-entrance-shake {
-  0%, 100% { transform: translateX(-50%) translate(0, 0); }
-  10%      { transform: translateX(-50%) translate(-1px, 0); }
-  20%      { transform: translateX(-50%) translate(1px, -1px); }
-  30%      { transform: translateX(-50%) translate(0, 1px); }
-  40%      { transform: translateX(-50%) translate(1px, 0); }
-  50%      { transform: translateX(-50%) translate(-1px, 0); }
-}
-*/
-
-/* --- OPTION D: Soft scale pulse (uncomment to test) ---
-@keyframes vomnibar-entrance-shake {
-  0%, 100% { transform: translateX(-50%) scale(1); }
-  30%      { transform: translateX(-50%) scale(1.008); }
-  60%      { transform: translateX(-50%) scale(0.998); }
-}
-*/
-
-/* --- OPTION E: No shake at all (uncomment to test) ---
-@keyframes vomnibar-entrance-shake {
-  0%, 100% { transform: translateX(-50%); }
-}
-*/
-
-/* ==========================================================================
-   Ctrl-hold Google Search Mode — nutty visual effect
+   Alt-hold Google Search Mode — nutty visual effect
    ========================================================================== */
 
 /* Google mode: preserve existing theme border colors */
@@ -997,7 +959,7 @@ ul {
     --vomnibar-icon-color: #57606a;
   }
 }
-/* Reduced motion: no rotating border, entrance shake, slide, glow or badge pop. The border keeps
+/* Reduced motion: no rotating border, slide, Google mode shake, glow or badge pop. The border keeps
    its gradient at the chosen angle, as with speed "Off". */
 @media (prefers-reduced-motion: reduce) {
   #vomnibar,

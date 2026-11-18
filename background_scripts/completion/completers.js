@@ -63,6 +63,8 @@ export class Suggestion {
   // The page's own title when `title` shows something else (a bookmark's folder path). Used to judge
   // how well the query matches the page itself.
   pageTitle;
+  // A bookmark's folders, without the root folder ("dev/github" for "Bookmarks bar/dev/github").
+  folder;
   // For OmniSearchCompleter's "search the web" row: the query to hand to the browser's default
   // search engine.
   webSearchQuery;
@@ -146,7 +148,12 @@ export class Suggestion {
 
     const iconsHtml =
       `<span class="suggestion-icons" aria-hidden="true">${faviconHtml}${badgeHtml}</span>`;
-    const titleHtml = this.highlightQueryTerms(Utils.escapeHtml(this.title));
+    // Bookmarks show their own name first and their folder after it, muted.
+    const shownTitle = (this.folder != null && this.pageTitle) ? this.pageTitle : this.title;
+    const titleHtml = this.highlightQueryTerms(Utils.escapeHtml(shownTitle));
+    const folderHtml = this.folder
+      ? `<span class="folder">${this.highlightQueryTerms(Utils.escapeHtml(this.folder))}</span>`
+      : "";
 
     // Add switch button for tabs
     const switchButtonHtml = this.description === "tab" && this.tabId != null
@@ -157,7 +164,7 @@ export class Suggestion {
 ${iconsHtml}
 <div class="suggestion-content">
   <div class="top-half">
-    <span class="title">${titleHtml}</span>
+    <span class="title">${titleHtml}</span>${folderHtml}
     <span class="url">${this.highlightQueryTerms(Utils.escapeHtml(this.shortenUrl()))}</span>
     ${relevancyHtml}
   </div>
@@ -1025,6 +1032,15 @@ export function rankOmniSearch(queryTerms, suggestions) {
     .map(({ suggestion }) => suggestion);
 }
 
+// The folders a bookmark sits in, shown after its name. The root folder ("Bookmarks bar", "Other
+// bookmarks") is left out: every bookmark has one, so it tells nothing.
+export function bookmarkFolder(bookmark) {
+  const path = bookmark.fullPathTitle ?? "";
+  const title = bookmark.title ?? "";
+  const parent = path.endsWith(title) ? path.slice(0, path.length - title.length - 1) : "";
+  return parent.split("/").slice(1).join("/");
+}
+
 export class OmniSearchCompleter {
   constructor() {
     this.bookmarksCache = null;
@@ -1174,8 +1190,9 @@ export class OmniSearchCompleter {
       queryTerms,
       description: "bookmark",
       url: bookmark.url,
-      title: bookmark.fullPathTitle, // Show full path as title
+      title: bookmark.fullPathTitle, // Full path: what the query is matched against
       pageTitle: bookmark.title,
+      folder: bookmarkFolder(bookmark),
       relevancyFunction: (s) => ranking.wordRelevancy(s.queryTerms, s.url, s.title),
     });
   }
