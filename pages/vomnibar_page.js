@@ -62,6 +62,8 @@ const THEME_COMMAND_PREFIX = "theme";
 
 // Pagination settings
 const DEFAULT_ITEMS_PER_PAGE = 7;
+// How long Shift must be held on its own to switch to Google search mode.
+export const GOOGLE_MODE_HOLD_MS = 300;
 
 class VomnibarUI {
   constructor() {
@@ -90,15 +92,14 @@ class VomnibarUI {
     // Shift-hold Google Search mode
     this.isGoogleSearchMode = false;
     this.isGoogleModeModifierPressed = false;
+    this.googleModeArmed = false;
+    this.googleModeHoldTimer = null;
     this._onGoogleModeModifierDown = this._onGoogleModeModifierDown.bind(this);
     this._onGoogleModeModifierUp = this._onGoogleModeModifierUp.bind(this);
     globalThis.addEventListener("keydown", this._onGoogleModeModifierDown, true);
     globalThis.addEventListener("keyup", this._onGoogleModeModifierUp, true);
     // Also deactivate if the window loses focus while modifier is held
-    globalThis.addEventListener("blur", () => {
-      this.isGoogleModeModifierPressed = false;
-      this._deactivateGoogleMode();
-    });
+    globalThis.addEventListener("blur", () => this._releaseGoogleModeModifier());
 
     // Border rotation speed and angle, adjustable in theme mode.
     borderMotion.init(this.box);
@@ -106,23 +107,45 @@ class VomnibarUI {
   }
 
   // --- Shift-hold Google Search Mode ---
+  // Holding Shift on its own for GOOGLE_MODE_HOLD_MS arms the mode, and releasing it ends it.
+  // Shift used to type a capital letter or a chord never arms it.
   _onGoogleModeModifierDown(event) {
     if (event.key === "Shift") {
+      if (event.repeat || this.isGoogleModeModifierPressed) return;
       this.isGoogleModeModifierPressed = true;
-      this._updateGoogleModeState();
+      this.googleModeArmed = false;
+      clearTimeout(this.googleModeHoldTimer);
+      this.googleModeHoldTimer = setTimeout(() => {
+        this.googleModeHoldTimer = null;
+        this.googleModeArmed = true;
+        this._updateGoogleModeState();
+      }, GOOGLE_MODE_HOLD_MS);
+    } else if (!event.shiftKey) {
+      // Shift is up even though we missed its keyup (it was released outside this frame).
+      this._releaseGoogleModeModifier();
+    } else {
+      // Another key before the hold delay passed: Shift is part of typing, not a hold.
+      clearTimeout(this.googleModeHoldTimer);
+      this.googleModeHoldTimer = null;
     }
   }
 
   _onGoogleModeModifierUp(event) {
-    if (event.key === "Shift") {
-      this.isGoogleModeModifierPressed = false;
-      this._updateGoogleModeState();
-    }
+    if (event.key === "Shift") this._releaseGoogleModeModifier();
   }
 
+  _releaseGoogleModeModifier() {
+    clearTimeout(this.googleModeHoldTimer);
+    this.googleModeHoldTimer = null;
+    this.isGoogleModeModifierPressed = false;
+    this.googleModeArmed = false;
+    this._deactivateGoogleMode();
+  }
+
+  // The mode needs a query to search for, so input changes turn it on or off while armed.
   _updateGoogleModeState() {
     const hasInputValue = this.input.value.trim().length > 0;
-    if (this.isGoogleModeModifierPressed && hasInputValue) {
+    if (this.googleModeArmed && hasInputValue) {
       this._activateGoogleMode();
     } else {
       this._deactivateGoogleMode();
@@ -237,6 +260,7 @@ class VomnibarUI {
   }
 
   reset() {
+    this._releaseGoogleModeModifier();
     this.input.value = "";
     this.completions = [];
     this.allCompletions = [];

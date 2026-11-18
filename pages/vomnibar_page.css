@@ -269,10 +269,9 @@ ul {
   padding: 12px 16px;
   gap: 12px;
   border-bottom: 1px solid var(--vomnibar-border-color);
-  background: var(--vomnibar-inner-bg);
-  /* Follow the inner curve of the 1px ring, or the square corners cover the ring at the top. */
-  border-radius: calc(var(--vomnibar-border-radius) - 1px) calc(var(--vomnibar-border-radius) - 1px)
-    0 0;
+  /* No background of its own: the #vomnibar::after plate behind it is the same color, and an
+     opaque square box here covers the border ring at the corners (top, and bottom too when the
+     results are hidden, as in Google mode). */
 }
 
 /* Position Indicator */
@@ -702,6 +701,8 @@ ul {
 /* Google mode search area */
 #vomnibar.google-search-mode #vomnibar-search-area {
   position: relative;
+  /* The results are hidden, so the divider would sit right on top of the bottom border ring. */
+  border-bottom-color: transparent;
 }
 
 /* Hide position indicator in Google mode */

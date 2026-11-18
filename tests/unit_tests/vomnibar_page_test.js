@@ -59,6 +59,54 @@ context("vomnibar page", () => {
     assert.equal("", ui.input.value);
   });
 
+  const shiftDown = () =>
+    ui._onGoogleModeModifierDown(newKeyEvent({ key: "Shift", shiftKey: true }));
+  const shiftUp = () => ui._onGoogleModeModifierUp(newKeyEvent({ type: "keyup", key: "Shift" }));
+  const waitPastHold = () =>
+    new Promise((resolve) => setTimeout(resolve, vomnibarPage.GOOGLE_MODE_HOLD_MS + 50));
+
+  should(
+    "enter Google mode only while Shift is held on its own, and leave it on release",
+    async () => {
+      ui.setQuery("vimium");
+      shiftDown();
+      assert.isFalse(ui.isGoogleSearchMode);
+      await waitPastHold();
+      assert.isTrue(ui.isGoogleSearchMode);
+      assert.isTrue(ui.box.classList.contains("google-search-mode"));
+      shiftUp();
+      assert.isFalse(ui.isGoogleSearchMode);
+    },
+  );
+
+  should(
+    "not enter Google mode when Shift is tapped or used to type a capital letter",
+    async () => {
+      ui.setQuery("vimium");
+      shiftDown();
+      shiftUp();
+      await waitPastHold();
+      assert.isFalse(ui.isGoogleSearchMode);
+
+      shiftDown();
+      ui._onGoogleModeModifierDown(newKeyEvent({ key: "V", shiftKey: true }));
+      ui.setQuery("vimiumV");
+      ui.onInput();
+      await waitPastHold();
+      assert.isFalse(ui.isGoogleSearchMode);
+      shiftUp();
+    },
+  );
+
+  should("leave Google mode when a key arrives without Shift (a missed keyup)", async () => {
+    ui.setQuery("vimium");
+    shiftDown();
+    await waitPastHold();
+    assert.isTrue(ui.isGoogleSearchMode);
+    ui._onGoogleModeModifierDown(newKeyEvent({ key: "a", shiftKey: false }));
+    assert.isFalse(ui.isGoogleSearchMode);
+  });
+
   should("preview the selected theme on later pages of the theme list", async () => {
     ui.setCompleterName("omniSearch");
     ui.setQuery("theme");
