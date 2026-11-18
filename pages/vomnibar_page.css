@@ -579,13 +579,6 @@ ul {
   background: rgba(102, 81, 161, 0.2);
 }
 
-/* Search Fallback Item */
-#vomnibar li.search-fallback {
-  border-top: 1px solid var(--vomnibar-border-color);
-  margin-top: 8px;
-  padding-top: 12px;
-}
-
 /* No Insert Text Helper */
 .no-insert-text {
   visibility: hidden;

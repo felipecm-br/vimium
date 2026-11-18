@@ -57,6 +57,26 @@ export async function activate(options) {
   await ui.update();
 }
 
+// The "search the web" row, built here when the background page has nothing to offer. It has the
+// shape of OmniSearchCompleter's row (completers.js), which handleEnterKey recognizes by
+// `webSearchQuery`.
+export function webSearchCompletion(query) {
+  return {
+    webSearchQuery: query,
+    description: "search",
+    url: "",
+    title: query,
+    html: `\
+<span class="suggestion-icons" aria-hidden="true"><span class="type-icon material-symbols-outlined">search</span></span>
+<div class="suggestion-content">
+  <div class="top-half">
+    <span class="title">${Utils.escapeHtml(query)}</span>
+    <span class="url">Search the web</span>
+  </div>
+</div>`,
+  };
+}
+
 // Theme command prefix for triggering theme selection in OmniSearch
 const THEME_COMMAND_PREFIX = "theme";
 
@@ -503,8 +523,19 @@ class VomnibarUI {
         return; // Do not suppress event.
       }
     } else if ((action === "remove") && (this.selection >= 0)) {
+      // Shift-Delete forgets a visited page (it leaves Chrome's history), or closes an open tab.
+      // Bookmarks are kept: deleting one is not what "forget this result" means.
       const completion = this.completions[this.selection];
-      console.log(completion);
+      if (completion?.tabId != null) {
+        chrome.runtime.sendMessage({
+          handler: "closeTabFromVomnibar",
+          tabIdToBeRemoved: completion.tabId,
+        });
+        this.removeSelectedCompletion();
+      } else if (["history", "topSite", "domain"].includes(completion?.description)) {
+        chrome.runtime.sendMessage({ handler: "removeHistoryEntry", url: completion.url });
+        this.removeSelectedCompletion();
+      }
     } else if ((action === "closeTab") && (this.selection >= 0)) {
       const completion = this.completions[this.selection];
       if (completion.tabId != null) {
@@ -513,25 +544,7 @@ class VomnibarUI {
           handler: "closeTabFromVomnibar",
           tabIdToBeRemoved: completion.tabId,
         });
-        // Remove the completion from allCompletions (pagination source)
-        this.allCompletions.splice(this.globalSelection, 1);
-
-        // Adjust global selection if needed
-        if (this.globalSelection >= this.allCompletions.length) {
-          this.globalSelection = this.allCompletions.length - 1;
-        }
-
-        // Re-render current page
-        this.renderCurrentPage();
-
-        // Recalculate selection within page
-        if (this.allCompletions.length > 0) {
-          this.selection = this.globalSelection % this.itemsPerPage;
-        } else {
-          this.selection = 0;
-          this.globalSelection = 0;
-        }
-        this.updateSelection();
+        this.removeSelectedCompletion();
       }
       // Already prevented default at the top of the function, so just return
       return;
@@ -539,6 +552,18 @@ class VomnibarUI {
 
     event.stopImmediatePropagation();
     event.preventDefault();
+  }
+
+  // Drops the selected completion from the list and keeps the selection on the next one.
+  removeSelectedCompletion() {
+    this.allCompletions.splice(this.globalSelection, 1);
+    if (this.globalSelection >= this.allCompletions.length) {
+      this.globalSelection = Math.max(0, this.allCompletions.length - 1);
+    }
+    this.currentPage = Math.floor(this.globalSelection / this.itemsPerPage);
+    this.renderCurrentPage();
+    this.selection = this.allCompletions.length > 0 ? this.globalSelection % this.itemsPerPage : -1;
+    this.updateSelection();
   }
 
   async handleEnterKey(event) {
@@ -752,7 +777,7 @@ class VomnibarUI {
     const query = this.getInputValueAsQuery();
     const queryTerms = query.trim().split(/\s+/).filter((s) => s.length > 0);
 
-    const results = await chrome.runtime.sendMessage({
+    let results = await chrome.runtime.sendMessage({
       handler: "filterCompletions",
       completerName: this.completerName,
       queryTerms,
@@ -762,6 +787,13 @@ class VomnibarUI {
 
     // Ensure that no new filter requests have gone out while waiting for this result.
     if (this.lastRequestId != requestId) return;
+
+    // Nothing matched: offer to search the web for the query, as a regular result so the arrows,
+    // Enter and a click all reach it.
+    const typed = this.input.value.trim();
+    if (results.length === 0 && typed.length > 0 && !this.isThemeMode) {
+      results = [webSearchCompletion(typed)];
+    }
 
     // Store all completions for pagination
     this.allCompletions = results;
@@ -785,36 +817,6 @@ class VomnibarUI {
 
   renderCompletions(completions) {
     const query = this.input.value.trim();
-
-    // If no completions and user has typed something, show "Search with Google" option
-    if (completions.length === 0 && query.length > 0) {
-      const escapedQuery = Utils.escapeHtml(query);
-      this.completionList.innerHTML = `
-        <li class="search-fallback" data-search-query="${escapedQuery}">
-          <span class="search-icon"></span>
-          <div class="suggestion-content">
-            <div class="top-half">
-              <span class="title"><strong>${escapedQuery}</strong> - Search with Google</span>
-            </div>
-          </div>
-        </li>`;
-      this.completionList.style.display = "block";
-      // Add click handler for search fallback
-      const searchItem = this.completionList.querySelector(".search-fallback");
-      if (searchItem) {
-        searchItem.addEventListener("click", (e) => {
-          e.stopPropagation();
-          this.hide(() => {
-            chrome.runtime.sendMessage({
-              handler: "launchSearchQuery",
-              query: query,
-              openInNewTab: false,
-            });
-          });
-        });
-      }
-      return;
-    }
 
     this.completionList.innerHTML = completions.map((c, index) =>
       `<li data-index="${index}">${c.html}</li>`

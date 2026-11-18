@@ -774,6 +774,11 @@ const sendRequestHandlers = {
     completer.cancel();
   },
 
+  // Shift-Delete in the Vomnibar. HistoryCache follows through chrome.history.onVisitRemoved.
+  async removeHistoryEntry(request) {
+    await chrome.history.deleteUrl({ url: request.url });
+  },
+
   async closeTabFromVomnibar(request) {
     await chrome.tabs.remove(request.tabIdToBeRemoved);
   },

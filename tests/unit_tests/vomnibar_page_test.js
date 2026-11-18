@@ -266,6 +266,59 @@ context("vomnibar page", () => {
     assert.equal("rust ownership", message?.query);
   });
 
+  const fakeSuggestion = (description, url, extra = {}) =>
+    new Suggestion({
+      queryTerms: [],
+      description,
+      url,
+      title: url,
+      relevancyFunction: () => 1,
+      ...extra,
+    });
+
+  should("forget a visited page on shift-delete, close a tab, and keep a bookmark", async () => {
+    const sent = [];
+    stub(chrome.runtime, "sendMessage", withPromise((m) => sent.push(m)));
+    ui.allCompletions = [
+      fakeSuggestion("history", "https://a.example"),
+      fakeSuggestion("tab", "https://b.example", { tabId: 7 }),
+      fakeSuggestion("bookmark", "https://c.example"),
+    ];
+    ui.currentPage = 0;
+    ui.renderCurrentPage();
+    ui.globalSelection = 0;
+    ui.updatePageAndSelection();
+    const shiftDelete = () => ui.onKeyEvent(newKeyEvent({ key: "Delete", shiftKey: true }));
+
+    await shiftDelete();
+    await shiftDelete();
+    await shiftDelete();
+    assert.equal(
+      [
+        { handler: "removeHistoryEntry", url: "https://a.example" },
+        { handler: "closeTabFromVomnibar", tabIdToBeRemoved: 7 },
+      ],
+      sent,
+    );
+    assert.equal(["https://c.example"], ui.allCompletions.map((c) => c.url));
+  });
+
+  should("offer a web search as a selectable result when nothing matches", async () => {
+    ui.setQuery("zzqq nothing");
+    await ui.update();
+    assert.equal(1, ui.allCompletions.length);
+    assert.equal("zzqq nothing", ui.allCompletions[0].webSearchQuery);
+    // In omni the selection starts empty; Down selects the web search.
+    await ui.onKeyEvent(newKeyEvent({ key: "ArrowDown" }));
+    assert.equal(0, ui.selection);
+    let message = null;
+    stub(chrome.runtime, "sendMessage", withPromise((m) => (message = m)));
+    await ui.onKeyEvent(newKeyEvent({ type: "keypress", key: "Enter" }));
+    ui.onHidden();
+    assert.equal("launchSearchQuery", message?.handler);
+    assert.equal("zzqq nothing", message?.query);
+  });
+
   should("open a result when it is clicked, in a new tab with ctrl", async () => {
     const opened = [];
     stub(
