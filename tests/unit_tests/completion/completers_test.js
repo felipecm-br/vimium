@@ -13,9 +13,11 @@ import {
   HistoryCompleter,
   MultiCompleter,
   OmniSearchCompleter,
+  queryExtends,
   SearchEngineCompleter,
   Suggestion,
   TabCompleter,
+  topK,
 } from "../../../background_scripts/completion/completers.js";
 import "../../../lib/url_utils.js";
 import { Commands, RegistryEntry } from "../../../background_scripts/commands.js";
@@ -109,6 +111,69 @@ context("OmniSearch bookmark traversal", () => {
       assert.equal("Work/b", bookmarksMap.get("http://b.com").fullPathTitle);
     },
   );
+});
+
+context("topK", () => {
+  should("keep the k best, best first, with ties in input order like a stable sort", () => {
+    const items = [["a", 1], ["b", 3], ["c", 3], ["d", 2], ["e", 3], ["f", null]];
+    const best = topK(items, 3, ([, score]) => score).map(({ item }) => item[0]);
+    const sorted = items.filter(([, s]) => s != null).sort((x, y) => y[1] - x[1]).slice(0, 3);
+    assert.equal(sorted.map((x) => x[0]), best);
+    assert.equal(["b", "c", "e"], best);
+  });
+
+  should("return everything when there are fewer than k items", () => {
+    assert.equal([2, 1], topK([1, 2], 5, (x) => x).map(({ item }) => item));
+  });
+});
+
+context("queryExtends", () => {
+  should("accept queries that only narrow the previous one", () => {
+    assert.isTrue(queryExtends(["git"], ["gi"]));
+    assert.isTrue(queryExtends(["git", "vim"], ["git"]));
+    assert.isTrue(queryExtends(["Git"], ["Gi"]));
+    assert.isTrue(queryExtends(["giT"], ["gi"]));
+  });
+
+  should("reject queries that could match entries the previous one didn't", () => {
+    assert.isFalse(queryExtends(["gi"], ["git"]));
+    assert.isFalse(queryExtends(["git"], ["git", "vim"]));
+    assert.isFalse(queryExtends(["hub"], ["git"]));
+    // "gi" (case-insensitive) is not a substring of "Git", so no reuse.
+    assert.isFalse(queryExtends(["Git"], ["gi"]));
+    assert.isFalse(queryExtends(["vim", "git"], ["git"]));
+  });
+});
+
+context("OmniSearch history narrowing", () => {
+  let completer;
+  setup(() => {
+    HistoryCache.history = [
+      { url: "http://github.com/a", title: "Repo A", lastVisitTime: 3 },
+      { url: "http://gitlab.com/b", title: "Repo B", lastVisitTime: 2 },
+    ];
+    HistoryCache.version = 0;
+    completer = new OmniSearchCompleter();
+  });
+
+  teardown(() => {
+    HistoryCache.history = null;
+  });
+
+  should("find entries added to the history after the previous keystroke", () => {
+    const urls = (terms) =>
+      completer.topMatchingHistory(terms, new Set(), 4).map(({ item }) => item.url);
+    assert.equal(["http://github.com/a"], urls(["gith"]));
+    HistoryCache.onVisited({ url: "http://github.io/c", title: "Pages", lastVisitTime: 4 });
+    assert.equal(2, urls(["githu"]).length);
+  });
+
+  should("list the most recent entries for an empty query, and follow history changes", () => {
+    const recent = () => completer.getHistory([], new Set()).map((s) => s.url);
+    assert.equal(["http://github.com/a", "http://gitlab.com/b"], recent());
+    HistoryCache.onVisited({ url: "http://gitlab.com/b", title: "Repo B", lastVisitTime: 9 });
+    assert.equal(["http://gitlab.com/b", "http://github.com/a"], recent());
+  });
 });
 
 context("HistoryCache", () => {

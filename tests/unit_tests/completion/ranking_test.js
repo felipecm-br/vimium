@@ -151,3 +151,36 @@ context("RegexpCache", () => {
     assert.isTrue("hound dog".search(RegexpCache.get("do", "\\b", "\\b")) === -1);
   });
 });
+
+context("RegexpCache.countMatches", () => {
+  should("count non-overlapping occurrences, smartcase", () => {
+    assert.equal(3, RegexpCache.countMatches("ab", "ab AB xab"));
+    assert.equal(1, RegexpCache.countMatches("AB", "ab AB xab"));
+    assert.equal(2, RegexpCache.countMatches("aa", "aaaa"));
+    assert.equal(0, RegexpCache.countMatches("zz", "ab"));
+  });
+
+  should("treat regexp metacharacters literally", () => {
+    assert.equal(2, RegexpCache.countMatches("a.b", "a.b axb a.b"));
+  });
+
+  should("give the same relevancy as counting with split", () => {
+    // wordRelevancy uses countMatches; the matched-character count must equal what the split-based
+    // arithmetic gave: occurrences * term length.
+    const text = "github.com/philc/vimium Vimium GitHub vim";
+    for (const term of ["vim", "Vim", "git", "hub", "m", "zz"]) {
+      const nonMatching = text.split(RegexpCache.get(term));
+      const splitCount = nonMatching.reduce((p, c) => p - c.length, text.length);
+      assert.equal(splitCount, RegexpCache.countMatches(term, text) * term.length);
+    }
+  });
+});
+
+context("RegexpCache.get", () => {
+  should("return the same cached regexp for the same arguments", () => {
+    assert.isTrue(RegexpCache.get("abc", "\\b") === RegexpCache.get("abc", "\\b"));
+    assert.isFalse(RegexpCache.get("abc", "\\b") === RegexpCache.get("abc"));
+    assert.equal("i", RegexpCache.get("abc").flags);
+    assert.equal("", RegexpCache.get("Abc").flags);
+  });
+});

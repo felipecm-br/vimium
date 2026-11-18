@@ -8,8 +8,10 @@ export function matches(queryTerms, ...things) {
     const regexp = RegexpCache.get(term);
     let matchedTerm = false;
     for (const thing of things) {
+      // test(), not match(): no match array is allocated. These regexps have no "g" flag, so
+      // test() is stateless.
       if (!matchedTerm) {
-        matchedTerm = thing.match(regexp);
+        matchedTerm = regexp.test(thing);
       }
     }
     if (!matchedTerm) return false;
@@ -39,11 +41,24 @@ const matchWeights = {
 function scoreTerm(term, string) {
   let score = 0;
   let count = 0;
-  const nonMatching = string.split(RegexpCache.get(term));
-  if (nonMatching.length > 1) {
+  // Count the non-overlapping occurrences without allocating (this used string.split(), which
+  // built an array per call; it runs for every history entry on every keystroke). The regexp is an
+  // escaped literal without the "u" flag, so every match is exactly term.length code units long and
+  // the matched character count is occurrences * term.length, as the split arithmetic gave.
+  // An empty term would match the empty string forever, so it keeps the original arithmetic.
+  let matched;
+  if (term.length === 0) {
+    const nonMatching = string.split(RegexpCache.get(term));
+    matched = nonMatching.length > 1;
+    count = nonMatching.reduce((p, c) => p - c.length, string.length);
+  } else {
+    const occurrences = RegexpCache.countMatches(term, string);
+    matched = occurrences > 0;
+    count = occurrences * term.length;
+  }
+  if (matched) {
     // Have match.
     score = matchWeights.matchAnywhere;
-    count = nonMatching.reduce((p, c) => p - c.length, string.length);
     if (RegexpCache.get(term, "\\b").test(string)) {
       // Have match at start of word.
       score += matchWeights.matchStartOfWord;
@@ -136,6 +151,7 @@ export const RegexpCache = {
 
   clear() {
     this.cache = {};
+    this.byArguments = {};
   },
 
   // Get rexexp for `string` from cache, creating it if necessary.
@@ -152,6 +168,16 @@ export const RegexpCache = {
     if (prefix == null) prefix = "";
     if (suffix == null) suffix = "";
     if (!this.initialized) this.init();
+    // Fast path keyed by the raw arguments: this runs for every history entry on every keystroke,
+    // and escaping the term and building the regexp source each time cost more than the match
+    // itself. "\0" can't appear in a query term.
+    const rawKey = prefix + "\0" + string + "\0" + suffix;
+    const cached = this.byArguments[rawKey];
+    if (cached) return cached;
+    return (this.byArguments[rawKey] = this.build(string, prefix, suffix));
+  },
+
+  build(string, prefix, suffix) {
     let regexpString = Utils.escapeRegexSpecialCharacters(string);
     // Avoid cost of constructing new strings if prefix/suffix are empty (which is expected to be a
     // common case).
@@ -161,5 +187,22 @@ export const RegexpCache = {
     // `string`, not `regexpString`).
     return this.cache[regexpString] ||
       (this.cache[regexpString] = new RegExp(regexpString, Utils.hasUpperCase(string) ? "" : "i"));
+  },
+
+  // The number of non-overlapping occurrences of `string` (escaped, smartcase as in get()) in
+  // `text`. Uses a cached global regexp; lastIndex is reset on every call.
+  countMatches(string, text) {
+    if (!this.initialized) this.init();
+    const key = "\0g" + string;
+    const regexp = this.cache[key] ||
+      (this.cache[key] = new RegExp(
+        Utils.escapeRegexSpecialCharacters(string),
+        Utils.hasUpperCase(string) ? "g" : "gi",
+      ));
+    if (string.length === 0) throw new Error("countMatches needs a non-empty string.");
+    regexp.lastIndex = 0;
+    let n = 0;
+    while (regexp.test(text)) n++;
+    return n;
   },
 };

@@ -821,6 +821,51 @@ export class MultiCompleter {
 const omniSearchMaxResultsPerCategory = 4;
 const omniSearchMaxResults = 10;
 
+// The `k` highest-scoring items for which `score` returns a number (null skips the item), best
+// first, in one pass and without sorting everything: the OmniSearch shows 4 results per category
+// out of up to 20,000 history entries. Equal scores keep their input order, as the stable
+// Array.prototype.sort this replaces did.
+// Whether every entry matching `queryTerms` must also match `previousTerms`, so the previous matches
+// can be filtered instead of everything. True when each previous term is a plain substring of the
+// term at the same position (more terms only narrow further). Smartcase stays sound: a lowercase
+// previous term matches case-insensitively, and a previous term with a capital is contained
+// verbatim in the new term, which then has that capital too and is case-sensitive as well.
+export function queryExtends(queryTerms, previousTerms) {
+  if (previousTerms.length > queryTerms.length) return false;
+  return previousTerms.every((term, i) => queryTerms[i].includes(term));
+}
+
+export function topK(items, k, score) {
+  const best = new TopK(k);
+  for (const item of items) {
+    const s = score(item);
+    if (s != null) best.add(item, s);
+  }
+  return best.items;
+}
+
+// Accumulates the k highest-scoring items; see topK.
+export class TopK {
+  constructor(k) {
+    this.k = k;
+    this.items = []; // [{ item, score }], highest score first.
+  }
+
+  // Whether an item with this score would be kept; lets callers skip computing what it needs.
+  admits(score) {
+    return this.items.length < this.k || score > this.items[this.k - 1].score;
+  }
+
+  add(item, score) {
+    if (!this.admits(score)) return;
+    const best = this.items;
+    let i = best.length;
+    while (i > 0 && best[i - 1].score < score) i--;
+    best.splice(i, 0, { item, score });
+    if (best.length > this.k) best.pop();
+  }
+}
+
 export class OmniSearchCompleter {
   constructor() {
     this.bookmarksCache = null;
@@ -947,27 +992,17 @@ export class OmniSearchCompleter {
         .map((bookmark) => this.createBookmarkSuggestion(bookmark, queryTerms));
     }
 
-    // Filter bookmarks by matching query terms against title, URL, and full path
-    const matches = this.bookmarksCache.filter((bookmark) => {
-      if (excludeUrls.has(bookmark.url)) return false;
-      return ranking.matches(queryTerms, bookmark.url, bookmark.title, bookmark.fullPathTitle);
+    // Match the query terms against title, URL and full path; rank by relevancy of the full path.
+    const scored = topK(this.bookmarksCache, omniSearchMaxResultsPerCategory, (bookmark) => {
+      if (excludeUrls.has(bookmark.url)) return null;
+      if (!ranking.matches(queryTerms, bookmark.url, bookmark.title, bookmark.fullPathTitle)) {
+        return null;
+      }
+      return ranking.wordRelevancy(queryTerms, bookmark.url, bookmark.fullPathTitle);
     });
 
-    // Sort by relevancy
-    const scored = matches.map((bookmark) => ({
-      bookmark,
-      score: ranking.wordRelevancy(
-        queryTerms,
-        bookmark.url,
-        bookmark.fullPathTitle, // Use full path for ranking
-      ),
-    }));
-
-    scored.sort((a, b) => b.score - a.score);
-
     return scored
-      .slice(0, omniSearchMaxResultsPerCategory)
-      .map(({ bookmark, score }) => {
+      .map(({ item: bookmark, score }) => {
         const suggestion = this.createBookmarkSuggestion(bookmark, queryTerms);
         suggestion.relevancy = score;
         return suggestion;
@@ -984,29 +1019,72 @@ export class OmniSearchCompleter {
     });
   }
 
+  // Whether a cache built from HistoryCache.history is still current.
+  isHistoryCacheCurrent(cache) {
+    return cache != null && cache.history === HistoryCache.history &&
+      cache.version === HistoryCache.version;
+  }
+
+  // History sorted by most recent visit (stable, so ties keep history order), rebuilt only when the
+  // history changes rather than on every keystroke.
+  historyByRecency() {
+    if (!this.isHistoryCacheCurrent(this.recencyIndex)) {
+      const sorted = HistoryCache.history.slice();
+      sorted.sort((a, b) => (b.lastVisitTime || 0) - (a.lastVisitTime || 0));
+      this.recencyIndex = {
+        history: HistoryCache.history,
+        version: HistoryCache.version,
+        sorted,
+      };
+    }
+    return this.recencyIndex.sorted;
+  }
+
+  // The k most relevant history entries matching every query term, in one pass. The matches (in
+  // history order) are kept for the next keystroke: while typing, each query usually extends the
+  // previous one ("g", "gi", "git"), and then only the previous matches can match, so they are the
+  // only candidates scanned instead of the whole history.
+  topMatchingHistory(queryTerms, excludeUrls, k) {
+    const previous = this.lastHistoryMatch;
+    const candidates = this.isHistoryCacheCurrent(previous) &&
+        queryExtends(queryTerms, previous.queryTerms)
+      ? previous.entries
+      : HistoryCache.history;
+    const entries = [];
+    const best = new TopK(k);
+    for (const entry of candidates) {
+      if (!ranking.matches(queryTerms, entry.url, entry.title)) continue;
+      entries.push(entry);
+      if (excludeUrls.has(entry.url)) continue;
+      best.add(entry, ranking.wordRelevancy(queryTerms, entry.url, entry.title));
+    }
+    this.lastHistoryMatch = {
+      history: HistoryCache.history,
+      version: HistoryCache.version,
+      queryTerms: queryTerms.slice(),
+      entries,
+    };
+    return best.items;
+  }
+
   // Get history entries
   getHistory(queryTerms, excludeUrls = new Set()) {
+    const k = omniSearchMaxResultsPerCategory;
     let results;
     if (queryTerms.length > 0) {
-      results = HistoryCache.history.filter((entry) => {
-        if (excludeUrls.has(entry.url)) return false;
-        return ranking.matches(queryTerms, entry.url, entry.title);
-      });
-
-      // Sort by relevancy
-      results = results.map((entry) => ({
-        entry,
-        score: ranking.wordRelevancy(queryTerms, entry.url, entry.title),
-      }));
-      results.sort((a, b) => b.score - a.score);
-      results = results.map((r) => r.entry);
+      // Most relevant matches.
+      results = this.topMatchingHistory(queryTerms, excludeUrls, k);
     } else {
-      // Return recent history when no query
-      results = HistoryCache.history.filter((entry) => !excludeUrls.has(entry.url));
-      results.sort((a, b) => (b.lastVisitTime || 0) - (a.lastVisitTime || 0));
+      // No query: the most recently visited entries that aren't shown elsewhere.
+      results = [];
+      for (const entry of this.historyByRecency()) {
+        if (excludeUrls.has(entry.url)) continue;
+        results.push({ item: entry });
+        if (results.length === k) break;
+      }
     }
 
-    return results.slice(0, omniSearchMaxResultsPerCategory).map((entry) => {
+    return results.map(({ item: entry }) => {
       const suggestion = new Suggestion({
         queryTerms,
         description: "history",
@@ -1097,6 +1175,8 @@ export const HistoryCache = {
   size: 20000,
   // An array of History items returned from Chrome.
   history: null,
+  // Incremented whenever `history` changes in place, so caches derived from it know when to rebuild.
+  version: 0,
 
   reset() {
     this.history = null;
@@ -1151,6 +1231,7 @@ export const HistoryCache = {
     } else {
       this.history.splice(i, 0, newPage);
     }
+    this.version++;
   },
 
   // When a page is removed from the chrome history, remove it from the vimium history too.
@@ -1165,6 +1246,7 @@ export const HistoryCache = {
         }
       }
     }
+    this.version++;
   },
 };
 
