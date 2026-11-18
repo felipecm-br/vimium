@@ -85,18 +85,14 @@ export class Suggestion {
       this.title = this.insertText;
     }
 
-    // Type icons for different suggestion sources
-    // Uses Google Material Symbols ligatures - requires Material Symbols font
-    // See: https://developers.google.com/fonts/docs/material_symbols
-    const typeIcons = {
-      tab: "tab", // Tab icon
-      bookmark: "star", // Bookmark icon
-      history: "history_2", // Clock/history icon
-      domain: "public", // Globe/domain icon
-      topSite: "whatshot", // Top/trending icon
-      search: "search", // Search icon
-    };
-    const typeIcon = typeIcons[this.description] || (this.isCustomSearch ? "search" : "circle");
+    // Source badge on the favicon (Material Symbols ligatures, from the bundled font subset). Only
+    // for sources that change what Enter does or that the user chose to keep; history, domains and
+    // top sites, the common case, get none, so the badges that do show stand out.
+    const badgeIcons = { tab: "tab", bookmark: "star", search: "search" };
+    const badgeIcon = badgeIcons[this.description] || (this.isCustomSearch ? "search" : null);
+    const badgeHtml = badgeIcon
+      ? `<span class="type-badge material-symbols-outlined">${badgeIcon}</span>`
+      : "";
     // Generate favicon HTML (works for all types in Chrome, not just tabs)
     let faviconHtml = "";
     if (this.url && !bgUtils.isFirefox()) {
@@ -130,7 +126,7 @@ export class Suggestion {
     }
 
     const iconsHtml =
-      `<span class="suggestion-icons" aria-hidden="true">${faviconHtml}<span class="type-icon material-symbols-outlined">${typeIcon}</span></span>`;
+      `<span class="suggestion-icons" aria-hidden="true">${faviconHtml}${badgeHtml}</span>`;
     const titleHtml = this.highlightQueryTerms(Utils.escapeHtml(this.title));
 
     // Add switch button for tabs
@@ -142,7 +138,7 @@ export class Suggestion {
 ${iconsHtml}
 <div class="suggestion-content">
   <div class="top-half">
-    <span class="title">${titleHtml}</span> - 
+    <span class="title">${titleHtml}</span>
     <span class="url">${this.highlightQueryTerms(Utils.escapeHtml(this.shortenUrl()))}</span>
     ${relevancyHtml}
   </div>

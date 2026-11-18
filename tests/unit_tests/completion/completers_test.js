@@ -578,6 +578,22 @@ context("suggestions", () => {
     assert.isTrue(suggestion.generateHtml({}).indexOf("title &lt;span&gt;") >= 0);
   });
 
+  should("badge only tabs, bookmarks and searches with their source", () => {
+    const badgeFor = (description) =>
+      new Suggestion({
+        queryTerms: [],
+        description,
+        url: "https://example.com",
+        title: "Example",
+        relevancyFunction: returns(1),
+      }).generateHtml({}).match(/class="type-badge[^"]*">([a-z_]+)</)?.[1] ?? null;
+    assert.equal("tab", badgeFor("tab"));
+    assert.equal("star", badgeFor("bookmark"));
+    assert.equal(null, badgeFor("history"));
+    assert.equal(null, badgeFor("topSite"));
+    assert.equal(null, badgeFor("domain"));
+  });
+
   should("highlight query words", () => {
     const suggestion = new Suggestion({
       queryTerms: ["ninj", "words"],
