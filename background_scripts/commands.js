@@ -332,6 +332,9 @@ const Commands = {
   // mode_key_handler.js.
   async installKeyStateMapping() {
     const keyStateMapping = {};
+    // Descriptions are included so the keystroke popup can list what follows a prefix key using
+    // the user's actual mappings.
+    const descriptions = Object.fromEntries(allCommands.map((c) => [c.name, c.desc]));
     for (const keys of Object.keys(this.keyToRegistryEntry || {})) {
       const registryEntry = this.keyToRegistryEntry[keys];
       let currentMapping = keyStateMapping;
@@ -346,7 +349,9 @@ const Commands = {
             ? currentMapping[key]
             : (currentMapping[key] = {});
         } else {
-          currentMapping[key] = Object.assign({}, registryEntry);
+          currentMapping[key] = Object.assign({}, registryEntry, {
+            desc: descriptions[registryEntry.command],
+          });
           // We don't need these properties in the content scripts.
           for (const prop of ["keySequence"]) {
             delete currentMapping[key][prop];

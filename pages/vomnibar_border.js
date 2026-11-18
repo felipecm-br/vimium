@@ -5,7 +5,11 @@
  * turns in 45 degree steps, changes preview live, Enter keeps them and Esc reverts them.
  */
 
-const STORAGE_KEY = "vimium.vomnibarBorderMotion";
+import "../lib/settings.js";
+
+// Where earlier versions kept these values; migrated into Settings on load.
+const LEGACY_STORAGE_KEY = "vimium.vomnibarBorderMotion";
+const SETTINGS_KEY = "vomnibarBorderMotion";
 
 // Seconds per full turn of the gradient. `null` keeps the gradient but stops the rotation.
 export const borderSpeeds = [
@@ -33,19 +37,45 @@ export class BorderMotion {
     this.snapshot = null;
   }
 
-  // Load the saved values and apply them to `element` (the #vomnibar box).
+  // Load the saved values, apply them to `element` (the #vomnibar box) and follow later changes
+  // (another tab, or another device through chrome.storage.sync).
   init(element) {
     this.element = element;
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-      if (saved) {
-        if (Number.isInteger(saved.speedIndex)) this.speedIndex = clampSpeedIndex(saved.speedIndex);
-        if (Number.isFinite(saved.angle)) this.angle = normalizeAngle(saved.angle);
-      }
-    } catch {
-      // Storage may be unavailable or hold bad data; keep the defaults.
+    this.migrateLegacyValues();
+    this.loadFromSettings();
+    if (!this.listeningForSettings && Settings.isLoaded()) {
+      this.listeningForSettings = true;
+      Settings.addEventListener("change", () => {
+        if (!this.hasPendingPreview()) this.loadFromSettings();
+      });
     }
+  }
+
+  loadFromSettings() {
+    const saved = Settings.isLoaded() ? Settings.get(SETTINGS_KEY) : null;
+    const speedIndex = borderSpeeds.findIndex((s) => s.label === saved?.speed);
+    this.speedIndex = speedIndex >= 0 ? speedIndex : DEFAULT_SPEED_INDEX;
+    this.angle = Number.isFinite(saved?.angle) ? normalizeAngle(saved.angle) : DEFAULT_ANGLE;
     this.apply();
+  }
+
+  migrateLegacyValues() {
+    try {
+      const legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "null");
+      if (legacy == null) return;
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      if (!Settings.isLoaded() || !Number.isInteger(legacy.speedIndex)) return;
+      this.speedIndex = clampSpeedIndex(legacy.speedIndex);
+      this.angle = Number.isFinite(legacy.angle) ? normalizeAngle(legacy.angle) : DEFAULT_ANGLE;
+      this.save();
+    } catch {
+      // localStorage may be unavailable or hold bad data; Settings is the source of truth.
+    }
+  }
+
+  save() {
+    if (!Settings.isLoaded()) return;
+    Settings.set(SETTINGS_KEY, { speed: this.speed.label, angle: this.angle }).catch(() => {});
   }
 
   get speed() {
@@ -86,15 +116,10 @@ export class BorderMotion {
 
   confirmPreview() {
     if (!this.snapshot) return;
+    const changed = this.snapshot.speedIndex !== this.speedIndex ||
+      this.snapshot.angle !== this.angle;
     this.snapshot = null;
-    try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ speedIndex: this.speedIndex, angle: this.angle }),
-      );
-    } catch {
-      // Ignore storage errors; the values still apply for this page.
-    }
+    if (changed) this.save();
   }
 
   cancelPreview() {

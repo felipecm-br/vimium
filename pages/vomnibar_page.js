@@ -100,32 +100,9 @@ class VomnibarUI {
       this._deactivateGoogleMode();
     });
 
-    // Animated border preference (persisted in localStorage)
-    this._loadAnimatedBorderPref();
     // Border rotation speed and angle, adjustable in theme mode.
     borderMotion.init(this.box);
     this.themeFooter = document.getElementById("vomnibar-theme-footer");
-  }
-
-  // --- Animated border preference ---
-  _loadAnimatedBorderPref() {
-    try {
-      const disabled = localStorage.getItem("vimium.vomnibarAnimatedBorder") === "disabled";
-      if (disabled) {
-        this.box.classList.add("no-animated-border");
-      }
-    } catch (e) { /* ignore */ }
-  }
-
-  setAnimatedBorder(enabled) {
-    try {
-      localStorage.setItem("vimium.vomnibarAnimatedBorder", enabled ? "enabled" : "disabled");
-    } catch (e) { /* ignore */ }
-    if (enabled) {
-      this.box.classList.remove("no-animated-border");
-    } else {
-      this.box.classList.add("no-animated-border");
-    }
   }
 
   // --- Shift-hold Google Search Mode ---

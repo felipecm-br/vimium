@@ -11,81 +11,64 @@
 // arbitrarily deep. Observe that @keyMapping["g"] is itself also a valid key mapping. At any point,
 // the key state (@keyState) consists of a (non-empty) list of such mappings.
 
-// Keystroke popup configuration - defines which prefix keys show a popup and their descriptions
-const KeystrokePopupConfig = {
-  // Map of prefix key -> { nextKey: description }
-  prefixes: {
-    "y": {
-      "y": "Copy page URL",
-      "f": "Copy link URL",
-      "c": "Copy element text",
-      "t": "Duplicate tab",
-    },
-    "g": {
-      "g": "Scroll to top",
-      "t": "Next tab",
-      "T": "Previous tab",
-      "0": "First tab",
-      "$": "Last tab",
-      "u": "Go up a directory",
-      "U": "Go to root",
-      "f": "Next frame",
-      "F": "Main frame",
-      "s": "View source",
-      "e": "Edit URL",
-      "E": "Edit URL (new tab)",
-      "o": "Go back",
-      "i": "Go forward",
-    },
-    "z": {
-      "i": "Zoom in",
-      "o": "Zoom out",
-      "0": "Reset zoom",
-      "H": "Scroll left",
-      "L": "Scroll right",
-    },
-    "<": {
-      "<": "Move tab left",
-    },
-    ">": {
-      ">": "Move tab right",
-    },
-  },
-};
-
 // Manages the keystroke popup UI element
 const KeystrokePopup = {
   element: null,
   hideTimeout: null,
 
+  // Vimium's stylesheet, as cached by the background page; fetched once per frame.
+  stylesheet: null,
+
+  // The commands that can follow the current prefix, from the key state (the user's real mappings,
+  // not a fixed list): { key: description }. Nested prefixes are left out.
+  optionsFor(mapping) {
+    const options = {};
+    for (const [key, entry] of Object.entries(mapping)) {
+      if (entry?.command != null) options[key] = entry.desc || entry.command;
+    }
+    return options;
+  },
+
   show(prefixKey, options) {
     this.hide(true); // Hide any existing popup immediately
-    
-    if (!document.body) return;
-    
-    const popup = document.createElement("div");
+    if (Object.keys(options).length === 0) return;
+    if (!document.documentElement) return;
+
+    // Rendered in a shadow root so the page's CSS and scripts can't restyle or read it.
+    const host = DomUtils.createElement("div");
+    host.className = "vimium-reset";
+    const shadow = host.attachShadow({ mode: "open" });
+    const style = DomUtils.createElement("style");
+    shadow.appendChild(style);
+    if (this.stylesheet != null) {
+      style.textContent = this.stylesheet;
+    } else {
+      chrome.storage.session.get("vimiumCSSInChromeStorage").then((items) => {
+        this.stylesheet = items.vimiumCSSInChromeStorage || "";
+        style.textContent = this.stylesheet;
+      });
+    }
+
+    const popup = DomUtils.createElement("div");
     popup.id = "vimium-keystroke-popup";
     popup.className = "vimium-reset";
-    
-    // Build the popup content
-    let html = `<span class="keystroke-prefix">${this.escapeHtml(prefixKey)} +</span>`;
-    
+    let html = `<span class="keystroke-prefix">${Utils.escapeHtml(prefixKey)} +</span>`;
     for (const [key, desc] of Object.entries(options)) {
       html += `
         <span class="keystroke-option">
-          <span class="keystroke-key">${this.escapeHtml(key)}</span>
-          <span class="keystroke-desc">${this.escapeHtml(desc)}</span>
+          <span class="keystroke-key">${Utils.escapeHtml(key)}</span>
+          <span class="keystroke-desc">${Utils.escapeHtml(desc)}</span>
         </span>`;
     }
-    
     popup.innerHTML = html;
-    document.body.appendChild(popup);
-    this.element = popup;
-    
+    shadow.appendChild(popup);
+    document.documentElement.appendChild(host);
+    this.element = host;
+
     // Auto-hide after 3 seconds if no action
     this.hideTimeout = setTimeout(() => this.hide(), 3000);
   },
-  
+
   hide(immediate = false) {
     if (this.hideTimeout) {
       clearTimeout(this.hideTimeout);
@@ -100,18 +83,13 @@ const KeystrokePopup = {
     } else {
       // Remove this popup, not whatever this.element is in 100ms: a new popup may be shown during
       // the fade-out.
-      const popup = this.element;
+      const host = this.element;
       this.element = null;
-      popup.classList.add("hiding");
-      setTimeout(() => popup.remove(), 100);
+      host.shadowRoot.getElementById("vimium-keystroke-popup")?.classList.add("hiding");
+      setTimeout(() => host.remove(), 100);
     }
   },
-  
-  escapeHtml(text) {
-    const div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML;
-  }
+
 };
 
 class KeyHandlerMode extends Mode {
@@ -249,10 +227,9 @@ class KeyHandlerMode extends Mode {
       }
     } else {
       // Command is not complete - show keystroke popup if this prefix has options defined
-      const popupOptions = KeystrokePopupConfig.prefixes[keyChar];
-      if (popupOptions && this.keyState.length === 2) {
+      if (this.keyState.length === 2) {
         // We're at a prefix key (keyState has 2 entries: the prefix mapping + the full keyMapping)
-        KeystrokePopup.show(keyChar, popupOptions);
+        KeystrokePopup.show(keyChar, KeystrokePopup.optionsFor(this.keyState[0]));
       }
     }
     return this.suppressEvent;

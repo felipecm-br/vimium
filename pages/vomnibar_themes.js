@@ -5,8 +5,8 @@
  * Themes are applied efficiently by setting CSS variables on the document root.
  */
 
-// Storage key for persisting theme preference
-const THEME_STORAGE_KEY = "vimium.vomnibarTheme";
+// Where earlier versions kept the theme; migrated into Settings on load.
+const LEGACY_THEME_STORAGE_KEY = "vimium.vomnibarTheme";
 
 import "../lib/settings.js";
 
@@ -748,27 +748,50 @@ export class ThemeManager {
   }
 
   /**
-   * Initialize the theme manager and apply saved theme.
+   * Apply the saved theme and follow changes to it (e.g. made in another tab or synced from
+   * another device). The theme lives in Settings (chrome.storage.sync), the same source the link
+   * hints read, so the two always agree.
    */
   init() {
     this.loadSavedTheme();
+    if (!this.listeningForSettings) {
+      this.listeningForSettings = true;
+      Settings.addEventListener("change", () => {
+        if (this.isPreviewMode) return;
+        const name = this.savedThemeName();
+        if (name !== this.currentTheme) this.applyTheme(name, false);
+      });
+    }
   }
 
-  /**
-   * Load and apply the saved theme from localStorage.
-   */
+  savedThemeName() {
+    const name = Settings.isLoaded() ? Settings.get("vomnibarTheme") : null;
+    return themeMap.has(name) ? name : "Default";
+  }
+
   loadSavedTheme() {
+    let name = this.savedThemeName();
+    // One-time migration: earlier versions kept the theme in this page's localStorage only.
     try {
-      const savedName = localStorage.getItem(THEME_STORAGE_KEY);
-      if (savedName && themeMap.has(savedName)) {
-        this.applyTheme(savedName, false);
-      } else {
-        // Apply default theme
-        this.applyTheme("Default", false);
+      const legacy = localStorage.getItem(LEGACY_THEME_STORAGE_KEY);
+      if (legacy != null) {
+        localStorage.removeItem(LEGACY_THEME_STORAGE_KEY);
+        if (name === "Default" && legacy !== "Default" && themeMap.has(legacy)) {
+          name = legacy;
+          this.persist(name);
+        }
       }
-    } catch (e) {
-      // localStorage might be unavailable, use default
-      this.applyTheme("Default", false);
+    } catch {
+      // localStorage may be unavailable; Settings is the source of truth anyway.
+    }
+    this.applyTheme(name, false);
+  }
+
+  // Writes to chrome.storage.sync, which has a write quota and makes every tab reload its settings,
+  // so this only runs when the user picks a theme, never on load or on cancel.
+  persist(themeName) {
+    if (Settings.isLoaded() && Settings.get("vomnibarTheme") !== themeName) {
+      Settings.set("vomnibarTheme", themeName).catch(() => {});
     }
   }
 
@@ -786,37 +809,16 @@ export class ThemeManager {
       this.previousTheme = this.currentTheme;
     }
 
-    // Clear all theme variables first
     this.clearThemeVars();
-
-    // Apply new theme variables
-    if (theme.vars && typeof theme.vars === "object") {
-      const root = document.documentElement;
-      Object.entries(theme.vars).forEach(([key, value]) => {
-        root.style.setProperty(key, value);
-      });
+    const root = document.documentElement;
+    for (const [key, value] of Object.entries(theme.vars)) {
+      root.style.setProperty(key, value);
     }
-
     // Set data attribute for per-theme CSS selectors (e.g. Google badge colors)
-    document.documentElement.setAttribute("data-vomnibar-theme", themeName);
-
+    root.setAttribute("data-vomnibar-theme", themeName);
     this.currentTheme = themeName;
 
-    // Sync the selected theme so content scripts (e.g. link hints) can theme consistently.
-    if (!this.isPreviewMode && Settings.isLoaded()) {
-      // Fire-and-forget to avoid blocking UI updates.
-      Settings.set("vomnibarTheme", themeName).catch(() => {});
-    }
-
-    // Persist theme choice if requested
-    if (save && !this.isPreviewMode) {
-      try {
-        localStorage.setItem(THEME_STORAGE_KEY, themeName);
-      } catch (e) {
-        // Ignore storage errors
-      }
-    }
-
+    if (save && !this.isPreviewMode) this.persist(themeName);
     return true;
   }
 
@@ -825,11 +827,9 @@ export class ThemeManager {
    */
   clearThemeVars() {
     const root = document.documentElement;
-    themeDefinitions.forEach(theme => {
-      Object.keys(theme.vars).forEach(key => {
-        root.style.removeProperty(key);
-      });
-    });
+    for (const theme of themeDefinitions) {
+      for (const key of Object.keys(theme.vars)) root.style.removeProperty(key);
+    }
   }
 
   /**
@@ -850,15 +850,7 @@ export class ThemeManager {
   confirmPreview() {
     if (this.isPreviewMode) {
       this.isPreviewMode = false;
-      try {
-        localStorage.setItem(THEME_STORAGE_KEY, this.currentTheme);
-      } catch (e) {
-        // Ignore storage errors
-      }
-      // Sync to chrome.storage so content scripts (e.g. link hints) pick up the new theme.
-      if (Settings.isLoaded()) {
-        Settings.set("vomnibarTheme", this.currentTheme).catch(() => {});
-      }
+      this.persist(this.currentTheme);
       this.previousTheme = null;
     }
   }

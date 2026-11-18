@@ -110,6 +110,25 @@ context("vomnibar page", () => {
     assert.isFalse(borderMotion.hasPendingPreview());
   });
 
+  should("save the theme and border to Settings only when a theme is confirmed", async () => {
+    const savedTheme = Settings.get("vomnibarTheme");
+    const savedBorder = Settings.get("vomnibarBorderMotion");
+    ui.setCompleterName("omniSearch");
+    ui.setQuery("theme");
+    await ui.update();
+    await ui.onKeyEvent(newKeyEvent({ key: "down" }));
+    await ui.onKeyEvent(newKeyEvent({ key: "ArrowRight", ctrlKey: true }));
+    // Previewing writes nothing to chrome.storage.sync.
+    assert.equal(savedTheme, Settings.get("vomnibarTheme"));
+    assert.equal(savedBorder, Settings.get("vomnibarBorderMotion"));
+    const previewed = themeManager.getCurrentTheme();
+    await ui.onKeyEvent(newKeyEvent({ type: "keypress", key: "Enter" }));
+    assert.equal(previewed, Settings.get("vomnibarTheme"));
+    assert.equal((savedBorder.angle + 45) % 360, Settings.get("vomnibarBorderMotion").angle);
+    await Settings.set("vomnibarTheme", savedTheme);
+    await Settings.set("vomnibarBorderMotion", savedBorder);
+  });
+
   should("edit a completion's URL when ctrl-enter is pressed", async () => {
     stub(
       chrome.runtime,

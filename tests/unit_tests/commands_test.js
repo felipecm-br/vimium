@@ -233,3 +233,16 @@ context("Validate commands and options data structures", () => {
     }
   });
 });
+
+context("installKeyStateMapping", () => {
+  should("include each command's description, honoring the user's remappings", async () => {
+    await Commands.loadKeyMappings("map gg scrollToBottom");
+    const { normalModeKeyStateMapping } = await chrome.storage.session.get(
+      "normalModeKeyStateMapping",
+    );
+    const desc = (name) => allCommands.find((c) => c.name == name).desc;
+    assert.equal("scrollToBottom", normalModeKeyStateMapping.g.g.command);
+    assert.equal(desc("scrollToBottom"), normalModeKeyStateMapping.g.g.desc);
+    assert.equal(desc("nextTab"), normalModeKeyStateMapping.g.t.desc);
+  });
+});
