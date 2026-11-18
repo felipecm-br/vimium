@@ -125,17 +125,21 @@ ul {
   text-align: left;
   border-radius: var(--vomnibar-border-radius);
 
+  /* Border motion, set by vomnibar_border.js (speed and angle keys in theme mode). */
+  --vomnibar-border-duration: 4s;
+  --vomnibar-border-offset: 0deg;
+
   /* Animated gradient border using @property for GPU-efficient rotation */
   border: 1px solid transparent;
   background:
     linear-gradient(var(--vomnibar-inner-bg), var(--vomnibar-inner-bg)) padding-box,
-    conic-gradient(from var(--border-angle),
+    conic-gradient(from calc(var(--border-angle) + var(--vomnibar-border-offset)),
       var(--vomnibar-gradient-1),
       var(--vomnibar-gradient-2),
       var(--vomnibar-gradient-3),
       var(--vomnibar-gradient-1)
     ) border-box;
-  animation: border-rotate 4s linear infinite;
+  animation: border-rotate var(--vomnibar-border-duration) linear infinite;
 
   box-shadow:
     0 25px 50px -12px rgba(0, 0, 0, 0.5),
@@ -151,6 +155,47 @@ ul {
    This is significantly cheaper than background-position animation on an oversized texture. */
 @keyframes border-rotate {
   to { --border-angle: 360deg; }
+}
+
+/* Border speed "Off": keep the gradient at its angle, stop the rotation. */
+#vomnibar.static-border {
+  animation: none;
+}
+
+/* Theme mode footer: border speed and angle controls */
+#vomnibar-theme-footer {
+  display: none;
+}
+
+/* Leave room for the footer: #vomnibar clips at 70vh, so a full list would push it out of view. */
+#vomnibar.theme-mode ul {
+  max-height: calc(70vh - 100px);
+}
+
+#vomnibar.theme-mode #vomnibar-theme-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--vomnibar-border-color);
+  font-size: 11px;
+  color: var(--vomnibar-secondary-text);
+}
+
+#vomnibar-theme-footer b {
+  color: var(--vomnibar-text-color);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+#vomnibar-theme-footer kbd {
+  font-family: inherit;
+  font-size: 10px;
+  padding: 0 4px;
+  margin-right: 2px;
+  border: 1px solid var(--vomnibar-border-color);
+  border-radius: 3px;
+  color: var(--vomnibar-text-color);
 }
 
 /* Option to disable animated border */

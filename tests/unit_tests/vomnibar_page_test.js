@@ -11,6 +11,7 @@ import * as userSearchEngines from "../../background_scripts/user_search_engines
 import { Commands } from "../../background_scripts/commands.js";
 import { filterCompleter } from "./completion/completers_test.js";
 import { themeDefinitions, themeManager } from "../../pages/vomnibar_themes.js";
+import { borderMotion } from "../../pages/vomnibar_border.js";
 
 function newKeyEvent(properties) {
   return Object.assign(
@@ -69,6 +70,44 @@ context("vomnibar page", () => {
     const selected = ui.completionList.querySelector("li.selected");
     assert.isTrue(selected.classList.contains("theme-item"));
     assert.isTrue(selected.textContent.includes(themeDefinitions[target].name));
+  });
+
+  should("change border speed and angle in theme mode, and revert them on escape", async () => {
+    ui.setCompleterName("omniSearch");
+    ui.setQuery("theme");
+    await ui.update();
+    const start = { speed: borderMotion.speed.label, angle: borderMotion.angle };
+    await ui.onKeyEvent(newKeyEvent({ key: "ArrowRight" }));
+    await ui.onKeyEvent(newKeyEvent({ key: "ArrowRight", ctrlKey: true }));
+    assert.isTrue(borderMotion.speed.label != start.speed);
+    assert.equal((start.angle + 45) % 360, borderMotion.angle);
+    assert.equal(`${borderMotion.angle}deg`, ui.box.style.getPropertyValue("--vomnibar-border-offset"));
+    assert.isTrue(ui.box.querySelector("#vomnibar-theme-footer").textContent.includes("45°"));
+    await ui.onKeyEvent(newKeyEvent({ key: "Escape" }));
+    assert.equal(start.speed, borderMotion.speed.label);
+    assert.equal(start.angle, borderMotion.angle);
+  });
+
+  should("stop the border rotation at speed Off", async () => {
+    ui.setCompleterName("omniSearch");
+    ui.setQuery("theme");
+    await ui.update();
+    for (let i = 0; i < 10; i++) {
+      await ui.onKeyEvent(newKeyEvent({ key: "ArrowLeft" }));
+    }
+    assert.equal("Off", borderMotion.speed.label);
+    assert.isTrue(ui.box.classList.contains("static-border"));
+    await ui.onKeyEvent(newKeyEvent({ key: "ArrowRight" }));
+    assert.isFalse(ui.box.classList.contains("static-border"));
+    borderMotion.cancelPreview();
+  });
+
+  should("leave left and right alone outside theme mode", async () => {
+    ui.setQuery("www.example.com");
+    const angle = borderMotion.angle;
+    await ui.onKeyEvent(newKeyEvent({ key: "ArrowRight", ctrlKey: true }));
+    assert.equal(angle, borderMotion.angle);
+    assert.isFalse(borderMotion.hasPendingPreview());
   });
 
   should("edit a completion's URL when ctrl-enter is pressed", async () => {

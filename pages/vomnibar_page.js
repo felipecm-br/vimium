@@ -14,6 +14,7 @@ import "../lib/handler_stack.js";
 import * as UIComponentMessenger from "./ui_component_messenger.js";
 import * as userSearchEngines from "../background_scripts/user_search_engines.js";
 import { themeManager, themeDefinitions } from "./vomnibar_themes.js";
+import { borderMotion } from "./vomnibar_border.js";
 
 // An instance of VomnibarUI. Exported for use by tests.
 export let ui;
@@ -101,6 +102,9 @@ class VomnibarUI {
 
     // Animated border preference (persisted in localStorage)
     this._loadAnimatedBorderPref();
+    // Border rotation speed and angle, adjustable in theme mode.
+    borderMotion.init(this.box);
+    this.themeFooter = document.getElementById("vomnibar-theme-footer");
   }
 
   // --- Animated border preference ---
@@ -237,6 +241,7 @@ class VomnibarUI {
     if (this.isThemeMode && themeManager.isInPreviewMode()) {
       themeManager.cancelPreview();
     }
+    borderMotion.cancelPreview();
     // Trigger slide-out animation BEFORE resetting DOM, so the animation plays smoothly
     // without jank from DOM manipulation.
     await this.hideAnimations();
@@ -268,7 +273,7 @@ class VomnibarUI {
     this.lastRequestId = null;
     this.isThemeMode = false;
     this.themeCompletions = [];
-    this.box.classList.remove("theme-preview");
+    this.box.classList.remove("theme-preview", "theme-mode");
     this._deactivateGoogleMode();
     this.updatePositionIndicator();
   }
@@ -358,6 +363,12 @@ class VomnibarUI {
     // translation (see #2915 and #2934).
     if ((event.type === "keypress") && (key !== "enter")) return null;
     if ((event.type === "keydown") && (key === "enter") && !this.isGoogleSearchMode) return null;
+    // Theme mode: left/right change the border speed, ctrl-left/right rotate its angle.
+    if (this.isThemeMode && ((key === "left") || (key === "right"))) {
+      const forward = key === "right";
+      if (event.ctrlKey) return forward ? "border-rotate-cw" : "border-rotate-ccw";
+      return forward ? "border-faster" : "border-slower";
+    }
     if (KeyboardUtils.isEscape(event)) {
       return "dismiss";
     } else if (
@@ -400,12 +411,21 @@ class VomnibarUI {
       event.preventDefault();
     }
 
-    if (action === "dismiss") {
+    if (action.startsWith("border-")) {
+      event.stopImmediatePropagation();
+      event.preventDefault();
+      if (action === "border-faster") borderMotion.changeSpeed(1);
+      else if (action === "border-slower") borderMotion.changeSpeed(-1);
+      else if (action === "border-rotate-cw") borderMotion.rotate(1);
+      else if (action === "border-rotate-ccw") borderMotion.rotate(-1);
+      this.updateThemeFooter();
+    } else if (action === "dismiss") {
       // In theme mode, cancel preview and revert to previous theme
       if (this.isThemeMode && themeManager.isInPreviewMode()) {
         themeManager.cancelPreview();
         this.box.classList.remove("theme-preview");
       }
+      borderMotion.cancelPreview();
       this.hide();
     } else if (["tab", "down"].includes(action)) {
       if (
@@ -526,6 +546,7 @@ class VomnibarUI {
       const themeCompletion = this.themeCompletions[this.globalSelection];
       if (themeCompletion) {
         themeManager.confirmPreview();
+        borderMotion.confirmPreview();
         this.box.classList.remove("theme-preview");
         this.hide();
         return;
@@ -653,6 +674,17 @@ class VomnibarUI {
   }
 
   // Render theme completions
+  // Show the border speed and angle, and the keys that change them, under the theme list.
+  updateThemeFooter() {
+    if (!this.themeFooter) return;
+    const { speed, angle } = borderMotion.describe();
+    this.themeFooter.innerHTML = `\
+<span><kbd>←</kbd><kbd>→</kbd> Speed <b>${speed}</b></span>
+<span><kbd>Ctrl</kbd><kbd>←</kbd><kbd>→</kbd> Angle <b>${angle}</b></span>
+<span><kbd>Enter</kbd> Apply</span>
+<span><kbd>Esc</kbd> Cancel</span>`;
+  }
+
   // Render the theme completions of the current page.
   renderThemeCompletions() {
     const start = this.currentPage * this.itemsPerPage;
@@ -683,13 +715,15 @@ class VomnibarUI {
       this.selection = 0;
       this.renderThemeCompletions();
       this.updateSelection();
+      this.box.classList.add("theme-mode");
+      this.updateThemeFooter();
       return;
     }
 
     // Not in theme mode
     this.isThemeMode = false;
     this.themeCompletions = [];
-    this.box.classList.remove("theme-preview");
+    this.box.classList.remove("theme-preview", "theme-mode");
 
     const requestId = Utils.createUniqueId();
     this.lastRequestId = requestId;
