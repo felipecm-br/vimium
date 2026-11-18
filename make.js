@@ -434,6 +434,12 @@ async function testDom() {
 desc("Run DOM tests");
 task("test-dom", [], testDom);
 
+desc("Run end-to-end tests: Chrome with the extension loaded, driven by keyboard and mouse");
+task("test-e2e", [], async () => {
+  const { runE2ETests } = await import("./tests/e2e/vomnibar_e2e.js");
+  if (!(await runE2ETests({ puppeteer, extensionPath: projectPath }))) abort("test-e2e failed.");
+});
+
 desc("Run unit and DOM tests");
 task("test", ["test-unit", "test-dom"]);
 
