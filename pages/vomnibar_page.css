@@ -74,13 +74,6 @@
   --vomnibar-item-radius: 8px;
 }
 
-/* GPU-friendly animated border angle */
-@property --border-angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
 /* Reset */
 * {
   box-sizing: border-box;
@@ -163,17 +156,13 @@ ul {
   --vomnibar-border-duration: 4s;
   --vomnibar-border-offset: 0deg;
 
-  /* Animated gradient border using @property for GPU-efficient rotation */
-  border: 1px solid transparent;
-  background:
-    linear-gradient(var(--vomnibar-inner-bg), var(--vomnibar-inner-bg)) padding-box,
-    conic-gradient(from calc(var(--border-angle) + var(--vomnibar-border-offset)),
-    var(--vomnibar-gradient-1),
-    var(--vomnibar-gradient-2),
-    var(--vomnibar-gradient-3),
-    var(--vomnibar-gradient-1)
-    ) border-box;
-  animation: border-rotate var(--vomnibar-border-duration) linear infinite;
+  /* Animated gradient border, drawn by ::before (rotating gradient) and ::after (inner plate);
+     the 1px padding is the visible ring. See the rules after this one. */
+  padding: 1px;
+  background: none;
+  /* Explicit, so the box's own animations stay as they were (the border used to be animated here,
+     which also overrode the .vomnibar-slide-* classes). */
+  animation: none;
 
   box-shadow:
     0 25px 50px -12px rgba(0, 0, 0, 0.5),
@@ -185,16 +174,55 @@ ul {
   overflow: hidden;
 }
 
-/* Animated gradient border rotation — animates a registered @property custom property.
-   This is significantly cheaper than background-position animation on an oversized texture. */
+/* Rotating border. A square, larger than the box's diagonal, holds the conic gradient and turns
+   with the `rotate` property, which the compositor animates on its own: no style recalc, paint or
+   raster per frame. (Animating a registered custom property inside the gradient, as before,
+   repainted the whole Vomnibar 60 times a second while it was open.) The box's overflow: hidden and
+   border-radius clip the square to the rounded rectangle; ::after covers all but the 1px ring.
+   The box is at most 70vh tall, so a side of 100% + 70vh covers its diagonal at any angle. */
+#vomnibar::before,
+#vomnibar::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+
+#vomnibar::before {
+  left: 50%;
+  top: 50%;
+  width: calc(100% + 70vh);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  background: conic-gradient(
+    from var(--vomnibar-border-offset),
+    var(--vomnibar-gradient-1),
+    var(--vomnibar-gradient-2),
+    var(--vomnibar-gradient-3),
+    var(--vomnibar-gradient-1)
+  );
+  animation: border-rotate var(--vomnibar-border-duration) linear infinite;
+  will-change: rotate;
+}
+
+#vomnibar::after {
+  inset: 1px;
+  border-radius: calc(var(--vomnibar-border-radius) - 1px);
+  background: var(--vomnibar-inner-bg);
+}
+
 @keyframes border-rotate {
+  from {
+    rotate: 0deg;
+  }
+
   to {
-    --border-angle: 360deg;
+    rotate: 360deg;
   }
 }
 
 /* Border speed "Off": keep the gradient at its angle, stop the rotation. */
-#vomnibar.static-border {
+#vomnibar.static-border::before {
   animation: none;
 }
 
@@ -956,6 +984,7 @@ ul {
    its gradient at the chosen angle, as with speed "Off". */
 @media (prefers-reduced-motion: reduce) {
   #vomnibar,
+  #vomnibar::before,
   #vomnibar *,
   #vomnibar *::before,
   #vomnibar *::after {
