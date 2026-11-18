@@ -5,9 +5,43 @@
  * The default values provide a dark theme that matches Vimium's aesthetic.
  */
 
-/* JetBrains Mono font for modern code-like appearance */
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=bookmark,circle,history_2,public,rainy_light,search,star,tab,tab_move,whatshot');
+/* Fonts are bundled (pages/fonts) so the Vomnibar renders offline, paints without waiting on the
+   network and does not tell a font CDN when it opens. Licenses are next to the files. */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("fonts/jetbrains-mono-latin.woff2") format("woff2");
+}
+
+/* Subset with only the icons used. To add an icon, regenerate the file with its name added to
+   icon_names: https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=bookmark,circle,history_2,public,rainy_light,search,star,tab,tab_move,terminal,whatshot
+   (request it with a Chrome user agent to get woff2). */
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: 100 700;
+  /* block: never show an icon's ligature name (e.g. "history_2") as text. */
+  font-display: block;
+  src: url("fonts/material-symbols-outlined-subset.woff2") format("woff2");
+}
+
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+}
 
 :root {
   /* Core Colors - These are the main theme variables */
