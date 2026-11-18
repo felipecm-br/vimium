@@ -976,6 +976,54 @@ export function placeWebSearch(queryTerms, suggestions, webSearch) {
     : [...suggestions, webSearch];
 }
 
+// How much each source is worth when everything else is equal: an open tab is the cheapest to go
+// back to, then what the user chose to keep or visits most, then the rest of history.
+const SOURCE_WEIGHTS = { tab: 1.15, bookmark: 1.1, topSite: 1.05, history: 1 };
+const NAVIGATIONAL_BOOST = 1.3;
+// A page of search results matches the words of an old search, but is rarely where the user means
+// to go: it drops below real pages that match as well.
+const SEARCH_RESULTS_PENALTY = 0.6;
+
+// How recently the user went to `suggestion`, from 0 to 1. Bookmarks and top sites carry no visit
+// time here, so they get a fixed middle value.
+function recencyOf(suggestion) {
+  const data = suggestion.relevancyData ?? {};
+  if (suggestion.description === "tab") return data.recency ?? 0;
+  if (suggestion.description === "history") {
+    return data.lastVisitTime ? ranking.recencyScore(data.lastVisitTime) : 0;
+  }
+  return suggestion.description === "topSite" ? 0.6 : 0.3;
+}
+
+// The score OmniSearch orders typed-query results by, across sources: how well the query matches
+// the page (recency can pull that up, never down, as in HistoryCompleter), weighted by the source,
+// boosted for navigational matches (an open tab named like the query, a hostname it starts), and
+// lowered for pages of search results.
+export function omniSearchScore(queryTerms, suggestion) {
+  const title = suggestion.pageTitle ?? suggestion.title ?? "";
+  const word = ranking.wordRelevancy(queryTerms, suggestion.url, title);
+  const base = (word + Math.max(recencyOf(suggestion), word)) / 2;
+  const boost = isNavigationalMatch(queryTerms, suggestion)
+    ? NAVIGATIONAL_BOOST
+    : isSearchResultsPage(suggestion.url ?? "")
+    ? SEARCH_RESULTS_PENALTY
+    : 1;
+  return base * (SOURCE_WEIGHTS[suggestion.description] ?? 1) * boost;
+}
+
+// Orders `suggestions` by omniSearchScore, best first; ties keep their order (tabs, top sites,
+// bookmarks, history).
+export function rankOmniSearch(queryTerms, suggestions) {
+  return suggestions
+    .map((suggestion, index) => ({
+      suggestion,
+      index,
+      score: omniSearchScore(queryTerms, suggestion),
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map(({ suggestion }) => suggestion);
+}
+
 export class OmniSearchCompleter {
   constructor() {
     this.bookmarksCache = null;
@@ -1066,6 +1114,7 @@ export class OmniSearchCompleter {
         tabId: tab.id,
         deDuplicate: false,
         relevancy: 1.0 - (index * 0.1), // MRU ordering preserved via relevancy
+        relevancyData: { recency: Math.max(0, 1 - index * 0.1) },
         bookmarkPath: tab.bookmark?.fullPathTitle, // Include bookmark path if available
       });
     });
@@ -1202,6 +1251,7 @@ export class OmniSearchCompleter {
         url: entry.url,
         title: entry.title,
         relevancyFunction: (s) => ranking.wordRelevancy(s.queryTerms, s.url, s.title),
+        relevancyData: { lastVisitTime: entry.lastVisitTime },
       });
       if (queryTerms.length === 0) {
         suggestion.relevancy = ranking.recencyScore(entry.lastVisitTime);
@@ -1270,7 +1320,14 @@ export class OmniSearchCompleter {
       ...topSiteSuggestions,
       ...bookmarkSuggestions,
       ...historySuggestions,
-    ].slice(0, query ? omniSearchMaxResults - 1 : omniSearchMaxResults);
+    ];
+    // With a query, the best match leads whatever its source. Without one, the order above stands:
+    // recent tabs first.
+    if (queryTerms.length > 0) allSuggestions = rankOmniSearch(queryTerms, allSuggestions);
+    allSuggestions = allSuggestions.slice(
+      0,
+      query ? omniSearchMaxResults - 1 : omniSearchMaxResults,
+    );
     if (query) {
       const webSearch = new Suggestion({
         queryTerms,

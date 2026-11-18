@@ -19,6 +19,7 @@ import {
   OmniSearchCompleter,
   placeWebSearch,
   queryExtends,
+  rankOmniSearch,
   SearchEngineCompleter,
   Suggestion,
   TabCompleter,
@@ -236,6 +237,64 @@ context("OmniSearch web search intent", () => {
     }).generateHtml({});
     assert.isTrue(html.includes("&lt;b&gt;q"));
     assert.isTrue(html.includes("Search the web"));
+  });
+});
+
+context("OmniSearch ranking", () => {
+  const item = (description, title, url, relevancyData = {}) => ({
+    description,
+    title,
+    url,
+    relevancyData,
+  });
+  const rank = (query, items) => rankOmniSearch(query.split(" "), items).map((s) => s.url);
+
+  should("put the site the query names before bookmarks that only mention it", () => {
+    const now = Date.now();
+    assert.equal(
+      ["https://github.com/", "https://github.com/trending"],
+      rank("github", [
+        { ...item("bookmark", "Trending", "https://github.com/trending"), pageTitle: "Trending" },
+        item("history", "GitHub", "https://github.com/", { lastVisitTime: now }),
+      ]),
+    );
+  });
+
+  should("rank by match across sources, not by source", () => {
+    const now = Date.now();
+    assert.equal(
+      ["https://starship.rs/", "https://a.example/"],
+      rank("starship", [
+        item("tab", "Notes mentioning a starship somewhere", "https://a.example/", {
+          recency: 0.9,
+        }),
+        item("history", "Starship", "https://starship.rs/", { lastVisitTime: now }),
+      ]),
+    );
+  });
+
+  should("prefer the open tab when the match is the same", () => {
+    const now = Date.now();
+    assert.equal(
+      ["https://doc.rust-lang.org/a", "https://doc.rust-lang.org/b"],
+      rank("rust", [
+        item("history", "Rust Book", "https://doc.rust-lang.org/b", { lastVisitTime: now }),
+        item("tab", "Rust Book", "https://doc.rust-lang.org/a", { recency: 1 }),
+      ]),
+    );
+  });
+
+  should("drop pages of search results below real pages", () => {
+    const now = Date.now();
+    assert.equal(
+      ["https://lazygit.dev/", "https://www.google.com/search?q=lazygit"],
+      rank("lazygit", [
+        item("history", "lazygit - Google", "https://www.google.com/search?q=lazygit", {
+          lastVisitTime: now,
+        }),
+        item("history", "lazygit", "https://lazygit.dev/", { lastVisitTime: now - 864e5 * 30 }),
+      ]),
+    );
   });
 });
 
