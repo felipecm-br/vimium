@@ -922,3 +922,14 @@ ul {
     --vomnibar-icon-color: #57606a;
   }
 }
+/* Reduced motion: no rotating border, entrance shake, slide, glow or badge pop. The border keeps
+   its gradient at the chosen angle, as with speed "Off". */
+@media (prefers-reduced-motion: reduce) {
+  #vomnibar,
+  #vomnibar *,
+  #vomnibar *::before,
+  #vomnibar *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

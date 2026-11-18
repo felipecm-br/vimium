@@ -129,6 +129,19 @@ context("vomnibar page", () => {
     await Settings.set("vomnibarBorderMotion", savedBorder);
   });
 
+  should("expose the results to screen readers as a combobox with an active option", async () => {
+    ui.setCompleterName("omniSearch");
+    ui.setQuery("theme");
+    await ui.update();
+    await ui.onKeyEvent(newKeyEvent({ key: "down" }));
+    const selected = ui.completionList.querySelector("li.selected");
+    assert.equal("option", selected.getAttribute("role"));
+    assert.equal("true", selected.getAttribute("aria-selected"));
+    assert.equal(selected.id, ui.input.getAttribute("aria-activedescendant"));
+    assert.equal("true", ui.input.getAttribute("aria-expanded"));
+    assert.equal(1, ui.completionList.querySelectorAll('[aria-selected="true"]').length);
+  });
+
   should("edit a completion's URL when ctrl-enter is pressed", async () => {
     stub(
       chrome.runtime,

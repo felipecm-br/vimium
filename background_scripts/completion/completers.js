@@ -103,7 +103,7 @@ export class Suggestion {
       const faviconUrl = new URL(chrome.runtime.getURL("/_favicon/"));
       faviconUrl.searchParams.set("pageUrl", this.url);
       faviconUrl.searchParams.set("size", "16");
-      faviconHtml = `<img class="favicon" src="${faviconUrl.toString()}" loading="lazy" decoding="async" />`;
+      faviconHtml = `<img class="favicon" src="${faviconUrl.toString()}" alt="" loading="lazy" decoding="async" />`;
     }
 
     if (this.command) {
@@ -119,7 +119,7 @@ export class Suggestion {
         </span>`
       ).join("\n");
       this.html = `\
-<span class="suggestion-icons"><span class="type-icon material-symbols-outlined">terminal</span></span>
+<span class="suggestion-icons" aria-hidden="true"><span class="type-icon material-symbols-outlined">terminal</span></span>
 <div class="suggestion-content">
   <div class="top-half">
     <span class="title">${this.highlightQueryTerms(this.title)}</span>${keybindings}${relevancyHtml}
@@ -128,12 +128,12 @@ export class Suggestion {
       return this.html;
     }
 
-    const iconsHtml = `<span class="suggestion-icons">${faviconHtml}<span class="type-icon material-symbols-outlined">${typeIcon}</span></span>`;
+    const iconsHtml = `<span class="suggestion-icons" aria-hidden="true">${faviconHtml}<span class="type-icon material-symbols-outlined">${typeIcon}</span></span>`;
     const titleHtml = this.highlightQueryTerms(Utils.escapeHtml(this.title));
     
     // Add switch button for tabs
     const switchButtonHtml = this.description === "tab" && this.tabId != null
-      ? `<button class="suggestion-icons switch-tab-btn" data-tab-id="${this.tabId}"><span class="action-icon material-symbols-outlined">tab_move</span></button>`
+      ? `<button class="suggestion-icons switch-tab-btn" data-tab-id="${this.tabId}" aria-label="Switch to tab" title="Switch to tab"><span class="action-icon material-symbols-outlined" aria-hidden="true">tab_move</span></button>`
       : "";
     
     this.html = `\

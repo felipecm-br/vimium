@@ -92,10 +92,10 @@ class VomnibarUI {
     this.isGoogleModeModifierPressed = false;
     this._onGoogleModeModifierDown = this._onGoogleModeModifierDown.bind(this);
     this._onGoogleModeModifierUp = this._onGoogleModeModifierUp.bind(this);
-    window.addEventListener("keydown", this._onGoogleModeModifierDown, true);
-    window.addEventListener("keyup", this._onGoogleModeModifierUp, true);
+    globalThis.addEventListener("keydown", this._onGoogleModeModifierDown, true);
+    globalThis.addEventListener("keyup", this._onGoogleModeModifierUp, true);
     // Also deactivate if the window loses focus while modifier is held
-    window.addEventListener("blur", () => {
+    globalThis.addEventListener("blur", () => {
       this.isGoogleModeModifierPressed = false;
       this._deactivateGoogleMode();
     });
@@ -272,11 +272,23 @@ class VomnibarUI {
       this.previousInputValue = null;
     }
 
-    // Highlight the selected entry.
+    // Highlight the selected entry, and expose it to screen readers: the input is a combobox whose
+    // active option follows the selection (focus stays in the input).
     for (const [i, el] of Object.entries(this.completionList.children)) {
+      const selected = i == this.selection;
       // Toggle only "selected" so other classes (e.g. "theme-item") survive.
-      el.classList.toggle("selected", i == this.selection);
+      el.classList.toggle("selected", selected);
+      el.setAttribute("role", "option");
+      el.id = `vomnibar-option-${i}`;
+      el.setAttribute("aria-selected", String(selected));
     }
+    const selectedEl = this.completionList.children[this.selection];
+    if (selectedEl) {
+      this.input.setAttribute("aria-activedescendant", selectedEl.id);
+    } else {
+      this.input.removeAttribute("aria-activedescendant");
+    }
+    this.input.setAttribute("aria-expanded", String(this.completionList.children.length > 0));
 
     // Update position indicator
     this.updatePositionIndicator();
@@ -641,7 +653,7 @@ class VomnibarUI {
   generateThemeItemHtml(theme, isActive) {
     const activeLabel = isActive ? `<span class="theme-active">Active</span>` : "";
     return `
-      <span class="theme-icon">${theme.icon}</span>
+      <span class="theme-icon" aria-hidden="true">${theme.icon}</span>
       <div class="theme-info">
         <div class="theme-name">${Utils.escapeHtml(theme.name)}</div>
         <div class="theme-description">${Utils.escapeHtml(theme.description)}</div>

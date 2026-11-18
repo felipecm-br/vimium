@@ -728,3 +728,12 @@ iframe.vimium-non-clickable {
     color: #666;
   }
 }
+
+/* Reduced motion: show and hide Vimium's overlays without fades. */
+@media (prefers-reduced-motion: reduce) {
+  .vomnibar-glass-bg,
+  #vimium-keystroke-popup {
+    animation: none !important;
+    transition: none !important;
+  }
+}

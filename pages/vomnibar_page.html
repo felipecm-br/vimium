@@ -14,11 +14,13 @@
 <body>
   <div id="vomnibar">
     <div id="vomnibar-search-area">
-      <span class="search-icon material-symbols-outlined">rainy_light</span>
-      <input type="text" autocomplete="off" placeholder="Search tabs, bookmarks, history...">
+      <span class="search-icon material-symbols-outlined" aria-hidden="true">rainy_light</span>
+      <input type="text" autocomplete="off" placeholder="Search tabs, bookmarks, history..."
+        role="combobox" aria-label="Search" aria-autocomplete="list" aria-expanded="false"
+        aria-controls="vomnibar-results">
       <span id="vomnibar-position-indicator"></span>
     </div>
-    <ul></ul>
+    <ul id="vomnibar-results" role="listbox" aria-label="Results"></ul>
     <div id="vomnibar-theme-footer"></div>
   </div>
 </body>
