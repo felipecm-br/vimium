@@ -959,6 +959,34 @@ ul {
     --vomnibar-icon-color: #57606a;
   }
 }
+/* Effects levels, picked by typing "effects" in OmniSearch (vomnibar_effects.js sets the attribute).
+   "Full" is everything above. */
+
+/* Calm: keeps the slide and the glass backdrop; the border stands still at its angle and Google mode
+   changes color without shaking or glowing. */
+:root[data-vomnibar-effects="calm"] #vomnibar::before,
+:root[data-vomnibar-effects="calm"] #vomnibar.google-search-mode,
+:root[data-vomnibar-effects="calm"] #vomnibar.google-search-mode #vomnibar-search-area::after {
+  animation: none;
+}
+
+/* Fast: nothing moves or blurs. The JS skips the slide in and out (so closing doesn't wait for it)
+   and the content script skips the glass backdrop. The border's layer is dropped too: it is
+   painted once and never changes. */
+:root[data-vomnibar-effects="fast"] #vomnibar,
+:root[data-vomnibar-effects="fast"] #vomnibar *,
+:root[data-vomnibar-effects="fast"] #vomnibar::before,
+:root[data-vomnibar-effects="fast"] #vomnibar::after,
+:root[data-vomnibar-effects="fast"] #vomnibar *::before,
+:root[data-vomnibar-effects="fast"] #vomnibar *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+:root[data-vomnibar-effects="fast"] #vomnibar::before {
+  will-change: auto;
+}
+
 /* Reduced motion: no rotating border, slide, Google mode shake, glow or badge pop. The border keeps
    its gradient at the chosen angle, as with speed "Off". */
 @media (prefers-reduced-motion: reduce) {

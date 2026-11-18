@@ -15,6 +15,7 @@ import * as UIComponentMessenger from "./ui_component_messenger.js";
 import * as userSearchEngines from "../background_scripts/user_search_engines.js";
 import { themeDefinitions, themeManager } from "./vomnibar_themes.js";
 import { borderMotion } from "./vomnibar_border.js";
+import { effectLevels, effectsManager } from "./vomnibar_effects.js";
 
 // An instance of VomnibarUI. Exported for use by tests.
 export let ui;
@@ -80,6 +81,8 @@ export function webSearchCompletion(query) {
 
 // Theme command prefix for triggering theme selection in OmniSearch
 const THEME_COMMAND_PREFIX = "theme";
+// Typing this in OmniSearch lists the effects levels, picked the same way as themes.
+const EFFECTS_COMMAND_PREFIX = "effects";
 
 // Pagination settings
 const DEFAULT_ITEMS_PER_PAGE = 7;
@@ -106,6 +109,7 @@ class VomnibarUI {
     this.themeCompletions = [];
     // Initialize theme manager
     themeManager.init();
+    effectsManager.init();
 
     // Pagination state
     this.allCompletions = []; // All completions from backend
@@ -229,19 +233,25 @@ class VomnibarUI {
     return this.activeUserSearchEngine != null;
   }
 
-  // Check if current query is a theme command (for OmniSearch only)
-  isThemeCommand() {
-    if (this.completerName !== "omniSearch") return false;
+  // Which picker the query opens in OmniSearch: "theme", "effects", or null for a normal search.
+  pickerKind() {
+    if (this.completerName !== "omniSearch") return null;
     const query = this.input.value.trim().toLowerCase();
-    return query.startsWith(THEME_COMMAND_PREFIX);
+    if (query.startsWith(EFFECTS_COMMAND_PREFIX)) return "effects";
+    if (query.startsWith(THEME_COMMAND_PREFIX)) return "theme";
+    return null;
   }
 
-  // Get the theme search query (part after "theme ")
+  isThemeCommand() {
+    return this.pickerKind() != null;
+  }
+
+  // The filter typed after the picker's command ("dark" in "theme dark").
   getThemeSearchQuery() {
+    const prefix = this.pickerKind() === "effects" ? EFFECTS_COMMAND_PREFIX : THEME_COMMAND_PREFIX;
     const query = this.input.value.trim();
-    if (query.toLowerCase() === THEME_COMMAND_PREFIX) return "";
-    if (query.toLowerCase().startsWith(THEME_COMMAND_PREFIX + " ")) {
-      return query.slice(THEME_COMMAND_PREFIX.length + 1).toLowerCase();
+    if (query.toLowerCase().startsWith(prefix + " ")) {
+      return query.slice(prefix.length + 1).toLowerCase();
     }
     return "";
   }
@@ -266,6 +276,7 @@ class VomnibarUI {
       themeManager.cancelPreview();
     }
     borderMotion.cancelPreview();
+    effectsManager.cancelPreview();
     // Trigger slide-out animation BEFORE resetting DOM, so the animation plays smoothly
     // without jank from DOM manipulation.
     await this.hideAnimations();
@@ -344,7 +355,9 @@ class VomnibarUI {
     // Preview theme when in theme mode and selection changes
     if (this.isThemeMode && this.selection >= 0) {
       const themeCompletion = this.themeCompletions[this.globalSelection];
-      if (themeCompletion) {
+      if (themeCompletion?.kind === "effects") {
+        effectsManager.preview(themeCompletion.name);
+      } else if (themeCompletion) {
         themeManager.previewTheme(themeCompletion.name);
         this.box.classList.add("theme-preview");
       }
@@ -406,7 +419,9 @@ class VomnibarUI {
     if ((event.type === "keypress") && (key !== "enter")) return null;
     if ((event.type === "keydown") && (key === "enter") && !this.isGoogleSearchMode) return null;
     // Theme mode: left/right change the border speed, ctrl-left/right rotate its angle.
-    if (this.isThemeMode && ((key === "left") || (key === "right"))) {
+    if (
+      this.isThemeMode && this.pickerKind() === "theme" && ((key === "left") || (key === "right"))
+    ) {
       const forward = key === "right";
       if (event.ctrlKey) return forward ? "border-rotate-cw" : "border-rotate-ccw";
       return forward ? "border-faster" : "border-slower";
@@ -468,6 +483,7 @@ class VomnibarUI {
         this.box.classList.remove("theme-preview");
       }
       borderMotion.cancelPreview();
+      effectsManager.cancelPreview();
       this.hide();
     } else if (["tab", "down"].includes(action)) {
       if (
@@ -609,6 +625,7 @@ class VomnibarUI {
       if (themeCompletion) {
         themeManager.confirmPreview();
         borderMotion.confirmPreview();
+        effectsManager.confirmPreview();
         this.box.classList.remove("theme-preview");
         this.hide();
         return;
@@ -720,12 +737,28 @@ class VomnibarUI {
     }
 
     return themes.map((theme) => ({
+      kind: "theme",
       name: theme.name,
       icon: theme.icon,
       description: theme.description,
       isActive: theme.name === currentTheme,
       html: this.generateThemeItemHtml(theme, theme.name === currentTheme),
     }));
+  }
+
+  // The effects levels, shown like themes.
+  getEffectCompletions(searchQuery) {
+    const current = effectsManager.getCurrentLevel();
+    return effectLevels
+      .filter((level) =>
+        !searchQuery || `${level.name} ${level.description}`.toLowerCase().includes(searchQuery)
+      )
+      .map((level) => ({
+        kind: "effects",
+        name: level.name,
+        isActive: level.name === current,
+        html: this.generateThemeItemHtml(level, level.name === current),
+      }));
   }
 
   // Generate HTML for a theme item
@@ -745,6 +778,13 @@ class VomnibarUI {
   // Show the border speed and angle, and the keys that change them, under the theme list.
   updateThemeFooter() {
     if (!this.themeFooter) return;
+    if (this.pickerKind() === "effects") {
+      this.themeFooter.innerHTML = `\
+<span><kbd>↑</kbd><kbd>↓</kbd> Preview</span>
+<span><kbd>Enter</kbd> Apply</span>
+<span><kbd>Esc</kbd> Cancel</span>`;
+      return;
+    }
     const { speed, angle } = borderMotion.describe();
     this.themeFooter.innerHTML = `\
 <span><kbd>←</kbd><kbd>→</kbd> Speed <b>${speed}</b></span>
@@ -768,7 +808,9 @@ class VomnibarUI {
     if (this.isThemeCommand()) {
       this.isThemeMode = true;
       const searchQuery = this.getThemeSearchQuery();
-      this.themeCompletions = this.getThemeCompletions(searchQuery);
+      this.themeCompletions = this.pickerKind() === "effects"
+        ? this.getEffectCompletions(searchQuery)
+        : this.getThemeCompletions(searchQuery);
 
       // Create fake completions for rendering (use allCompletions for consistency)
       this.allCompletions = this.themeCompletions.map((theme, index) => ({
@@ -990,6 +1032,12 @@ class VomnibarUI {
     this.isHiding = false;
     // Reset any existing animation classes first
     this.box.classList.remove("vomnibar-slide-out");
+    if (effectsManager.isFast()) {
+      // Effects "Fast": appear at once, no forced reflow.
+      this.box.classList.remove("vomnibar-slide-in");
+      this.input.focus();
+      return;
+    }
     // Force reflow to restart animation
     void this.box.offsetWidth;
     this.box.classList.add("vomnibar-slide-in");
@@ -998,6 +1046,11 @@ class VomnibarUI {
   }
 
   hideAnimations() {
+    if (effectsManager.isFast()) {
+      // Effects "Fast": hide at once, so the page or search being opened isn't held back 140ms.
+      this.box.classList.remove("vomnibar-slide-in", "vomnibar-slide-out");
+      return Promise.resolve();
+    }
     return new Promise((resolve) => {
       // Hide vomnibar with slide-out
       this.box.classList.remove("vomnibar-slide-in");

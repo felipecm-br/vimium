@@ -12,6 +12,7 @@ import { Commands } from "../../background_scripts/commands.js";
 import { filterCompleter } from "./completion/completers_test.js";
 import { themeDefinitions, themeManager } from "../../pages/vomnibar_themes.js";
 import { borderMotion } from "../../pages/vomnibar_border.js";
+import { effectsManager } from "../../pages/vomnibar_effects.js";
 
 function newKeyEvent(properties) {
   return Object.assign(
@@ -205,6 +206,48 @@ context("vomnibar page", () => {
     assert.equal((savedBorder.angle + 45) % 360, Settings.get("vomnibarBorderMotion").angle);
     await Settings.set("vomnibarTheme", savedTheme);
     await Settings.set("vomnibarBorderMotion", savedBorder);
+  });
+
+  const effectsAttribute = () => document.documentElement.dataset.vomnibarEffects;
+
+  should("list the effects levels and preview the selected one live", async () => {
+    ui.setCompleterName("omniSearch");
+    ui.setQuery("effects");
+    await ui.update();
+    assert.equal(["Full", "Calm", "Fast"], ui.themeCompletions.map((c) => c.name));
+    assert.equal("full", effectsAttribute());
+    await ui.onKeyEvent(newKeyEvent({ key: "ArrowDown" }));
+    await ui.onKeyEvent(newKeyEvent({ key: "ArrowDown" }));
+    assert.equal("fast", effectsAttribute());
+    // Left and right are for the border, in the theme picker only.
+    const border = JSON.stringify(borderMotion.describe());
+    await ui.onKeyEvent(newKeyEvent({ key: "ArrowRight" }));
+    assert.equal(border, JSON.stringify(borderMotion.describe()));
+    // Escape reverts the preview and saves nothing.
+    await ui.onKeyEvent(newKeyEvent({ key: "Escape" }));
+    assert.equal("full", effectsAttribute());
+    assert.equal("Full", Settings.get("vomnibarEffects"));
+  });
+
+  should("save the effects level when it is confirmed, and skip the slide when Fast", async () => {
+    ui.setCompleterName("omniSearch");
+    ui.setQuery("effects fast");
+    await ui.update();
+    assert.equal(["Fast"], ui.themeCompletions.map((c) => c.name));
+    await ui.onKeyEvent(newKeyEvent({ type: "keypress", key: "Enter" }));
+    // Settings.set writes in two steps (remove defaults, then set), each followed by a "change".
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal("Fast", Settings.get("vomnibarEffects"));
+    assert.equal("fast", effectsAttribute());
+    ui.showAnimations();
+    assert.isFalse(ui.box.classList.contains("vomnibar-slide-in"));
+    // Closing doesn't wait for a slide-out.
+    let resolved = false;
+    ui.hideAnimations().then(() => (resolved = true));
+    await Promise.resolve();
+    assert.isTrue(resolved);
+    await Settings.set("vomnibarEffects", "Full");
+    effectsManager.init();
   });
 
   should("expose the results to screen readers as a combobox with an active option", async () => {

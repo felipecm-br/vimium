@@ -12,6 +12,10 @@
 // the key state (@keyState) consists of a (non-empty) list of such mappings.
 
 // Manages the keystroke popup UI element
+// Effects level "Fast" (see pages/vomnibar_effects.js): Vimium's UI shows and hides without motion.
+const effectsAreFast = () =>
+  globalThis.Settings?.isLoaded?.() && Settings.get("vomnibarEffects") === "Fast";
+
 const KeystrokePopup = {
   element: null,
   hideTimeout: null,
@@ -51,7 +55,7 @@ const KeystrokePopup = {
 
     const popup = DomUtils.createElement("div");
     popup.id = "vimium-keystroke-popup";
-    popup.className = "vimium-reset";
+    popup.className = effectsAreFast() ? "vimium-reset no-motion" : "vimium-reset";
     let html = `<span class="keystroke-prefix">${Utils.escapeHtml(prefixKey)} +</span>`;
     for (const [key, desc] of Object.entries(options)) {
       html += `
@@ -77,7 +81,7 @@ const KeystrokePopup = {
 
     if (!this.element) return;
 
-    if (immediate) {
+    if (immediate || effectsAreFast()) {
       this.element.remove();
       this.element = null;
     } else {

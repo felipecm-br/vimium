@@ -62,7 +62,9 @@ async function waitForVomnibarFrame(page, timeout) {
     const frame = page.frames().find((f) => f.url().includes("vomnibar_page.html"));
     const shown = frame &&
       await frame.evaluate(() =>
-        document.querySelector("#vomnibar")?.classList.contains("vomnibar-slide-in")
+        document.querySelector("#vomnibar")?.classList.contains("vomnibar-slide-in") ||
+        (document.documentElement.dataset.vomnibarEffects === "fast" &&
+          document.activeElement?.tagName === "INPUT")
       ).catch(() => false);
     if (shown) return frame;
     await sleep(100);
@@ -184,6 +186,36 @@ test("t: shift-delete forgets a visited page", async ({ page, base, worker }) =>
   );
   assertEqual(0, remaining, "visits left in history");
   await closeVomnibar(page);
+});
+
+test("t: picking the Fast effects level makes the next Vomnibar open without motion", async (ctx) => {
+  const { page, base } = ctx;
+  await page.goto(base + "/");
+  await openVomnibar(page, "t", "effects fast");
+  await page.keyboard.press("Enter");
+  await sleep(500);
+  await page.goto(base + "/b.html");
+  // The new page's Vomnibar picks the level up from Settings.
+  let next = null;
+  for (let attempt = 0; attempt < 10 && !next; attempt++) {
+    await page.keyboard.press("t");
+    await sleep(400);
+    next = page.frames().find((f) => f.url().includes("vomnibar_page.html"));
+    const open = next && await next.evaluate(() => document.activeElement?.tagName === "INPUT");
+    if (!open) next = null;
+  }
+  if (!next) throw new Error("The Vomnibar never opened after picking Fast.");
+  const state = await next.evaluate(() => ({
+    level: document.documentElement.dataset.vomnibarEffects,
+    sliding: document.getElementById("vomnibar").classList.contains("vomnibar-slide-in"),
+    moving: document.getAnimations().filter((a) => a.playState === "running").length,
+  }));
+  assertEqual({ level: "fast", sliding: false, moving: 0 }, state);
+  // Back to Full for any later test.
+  await page.keyboard.type("effects full");
+  await sleep(300);
+  await page.keyboard.press("Enter");
+  await sleep(300);
 });
 
 // Runs the tests above. `puppeteer` is the module make.js uses; returns whether all passed.
