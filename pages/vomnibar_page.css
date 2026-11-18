@@ -573,7 +573,14 @@ ul {
   }
 }
 
+/* Keep the border rotating while previewing, so speed and angle changes show live. */
 #vomnibar.theme-preview {
+  animation:
+    border-rotate var(--vomnibar-border-duration) linear infinite,
+    theme-pulse 2s ease-in-out infinite;
+}
+
+#vomnibar.theme-preview.static-border {
   animation: theme-pulse 2s ease-in-out infinite;
 }
 
