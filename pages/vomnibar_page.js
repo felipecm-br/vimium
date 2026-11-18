@@ -816,8 +816,6 @@ class VomnibarUI {
   }
 
   renderCompletions(completions) {
-    const query = this.input.value.trim();
-
     this.completionList.innerHTML = completions.map((c, index) =>
       `<li data-index="${index}">${c.html}</li>`
     ).join("");
