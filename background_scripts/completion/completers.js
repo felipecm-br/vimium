@@ -913,12 +913,14 @@ const hostnameOf = (url) => {
 
 // Whether every query term starts a word in the suggestion's title or site name: "rust" in "The Rust
 // Book" or "rust-lang.org", but not in "trustpilot.com". A suggestion matched only inside words is
-// a weak match, likely not the page the user means.
+// a weak match, likely not the page the user means. A term of one or two letters starts a word in
+// almost any title, so it has to be the whole word ("c" in "Rust and C", not in "clone").
 export function isStrongMatch(queryTerms, suggestion) {
   const text = `${suggestion.title ?? ""} ${siteName(hostnameOf(suggestion.url))}`;
-  return queryTerms.every((term) =>
-    new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(term)}`, "iu").test(text)
-  );
+  return queryTerms.every((term) => {
+    const wordEnd = term.length <= 2 ? "(?=$|[^\\p{L}\\p{N}])" : "";
+    return new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(term)}${wordEnd}`, "iu").test(text);
+  });
 }
 
 const SEARCH_ENGINE_HOST =

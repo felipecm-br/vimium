@@ -161,6 +161,18 @@ context("OmniSearch web search intent", () => {
     );
   });
 
+  should("require a one or two letter term to be a whole word", () => {
+    const lazygit = page(
+      "lazygitrs: A faster lazygit clone in Rust",
+      "https://github.com",
+      "bookmark",
+    );
+    assert.isFalse(isStrongMatch(["rust", "c"], lazygit));
+    assert.isTrue(looksLikeWebSearch(["rust", "c"], [lazygit]));
+    assert.isTrue(isStrongMatch(["rust", "c"], page("Calling C from Rust", "https://a.com")));
+    assert.isTrue(isStrongMatch(["rust", "clo"], lazygit));
+  });
+
   should("not count the top-level domain or www as words", () => {
     const results = page("rust book - Pesquisa Google", "https://www.google.com/x");
     assert.isFalse(isStrongMatch(["rust", "c"], results));
