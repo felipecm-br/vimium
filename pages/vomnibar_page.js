@@ -604,8 +604,9 @@ class VomnibarUI {
         return;
       }
 
-      // <Enter> with no selection on a completer other than "omni" is a no-op.
-      if (this.completerName != "omni") return;
+      // <Enter> with no selection is a no-op, except on the completers that search the web for
+      // what was typed (omni, and omniSearch, which also offers "Search with Google").
+      if (this.completerName != "omni" && this.completerName != "omniSearch") return;
 
       const firstCompletion = this.completions[0];
       const isPrimary = isPrimarySearchSuggestion(firstCompletion);
@@ -918,6 +919,20 @@ class VomnibarUI {
     this.completionList = this.box.querySelector("ul");
     this.completionList.style.display = "";
     this.positionIndicator = document.getElementById("vomnibar-position-indicator");
+    // Clicking a result opens it, as Enter would; ctrl/cmd/shift-click or a middle click opens it in
+    // a new tab. One listener for the list, since its items are re-rendered on every keystroke.
+    this.completionList.addEventListener("click", (event) => this.onCompletionClick(event));
+    this.completionList.addEventListener("auxclick", (event) => {
+      if (event.button !== 1) return;
+      this.onCompletionClick({
+        shiftKey: false,
+        ctrlKey: true,
+        altKey: false,
+        metaKey: false,
+        target: event.target,
+      });
+      event.preventDefault();
+    });
 
     globalThis.addEventListener("focus", () => this.input.focus());
     // A click in the vomnibar itself refocuses the input.
@@ -931,6 +946,17 @@ class VomnibarUI {
         this.hide();
       }
     });
+  }
+
+  // `event` carries the modifiers that decide where the result opens (see handleEnterKey).
+  async onCompletionClick(event) {
+    const item = event.target.closest?.("li[data-index]");
+    if (!item || this.isHiding) return;
+    const index = Number(item.dataset.index);
+    // Theme items are numbered across pages, result items within the current page.
+    this.globalSelection = this.isThemeMode ? index : this.currentPage * this.itemsPerPage + index;
+    this.updatePageAndSelection();
+    await this.handleEnterKey(event);
   }
 
   showAnimations() {

@@ -232,6 +232,58 @@ context("vomnibar page", () => {
     assert.equal("www.example.com", url);
   });
 
+  should("search the web on enter with no results in omniSearch", async () => {
+    ui.setCompleterName("omniSearch");
+    ui.setQuery("zzqq no match");
+    let message = null;
+    stub(chrome.runtime, "sendMessage", withPromise((m) => (message = m)));
+    await ui.onKeyEvent(newKeyEvent({ type: "keypress", key: "Enter" }));
+    ui.onHidden();
+    assert.equal("launchSearchQuery", message?.handler);
+    assert.equal("zzqq no match", message?.query);
+  });
+
+  should("open a result when it is clicked, in a new tab with ctrl", async () => {
+    const opened = [];
+    stub(
+      chrome.runtime,
+      "sendMessage",
+      withPromise((m) => {
+        if (m.handler == "filterCompletions") return [];
+        if (m.handler == "openUrlInCurrentTab" || m.handler == "openUrlInNewTab") opened.push(m);
+      }),
+    );
+    for (const ctrlKey of [false, true]) {
+      vomnibarPage.reset();
+      await vomnibarPage.activate();
+      ui = vomnibarPage.ui;
+      ui.setQuery("example");
+      const completions = ["https://a.example", "https://b.example"].map((url) =>
+        new Suggestion({
+          queryTerms: [],
+          description: "history",
+          url,
+          title: url,
+          relevancyFunction: () => 1,
+        })
+      );
+      ui.allCompletions = completions;
+      ui.currentPage = 0;
+      ui.renderCurrentPage();
+      const item = ui.completionList.querySelectorAll("li")[1];
+      await ui.onCompletionClick({
+        target: item,
+        ctrlKey,
+        shiftKey: false,
+        altKey: false,
+        metaKey: false,
+      });
+      ui.onHidden();
+    }
+    assert.equal(["openUrlInCurrentTab", "openUrlInNewTab"], opened.map((m) => m.handler));
+    assert.equal(["https://b.example", "https://b.example"], opened.map((m) => m.url));
+  });
+
   should("search for a non-URL query when enter is pressed", async () => {
     ui.setQuery("example");
     let handler = null;
