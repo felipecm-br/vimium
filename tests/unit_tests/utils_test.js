@@ -208,3 +208,16 @@ context("assertType", () => {
     Utils.assertType({ bool: "boolean" }, { bool: null });
   });
 });
+
+context("escapeHtml", () => {
+  should("escape markup and double quotes, so text is safe in content and attributes", () => {
+    assert.equal(
+      "&lt;b&gt;Tom &amp; Jerry&lt;/b&gt; &quot;x&quot;",
+      Utils.escapeHtml('<b>Tom & Jerry</b> "x"'),
+    );
+  });
+
+  should("leave single quotes alone", () => {
+    assert.equal("it's", Utils.escapeHtml("it's"));
+  });
+});

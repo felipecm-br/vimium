@@ -768,7 +768,7 @@ class VomnibarUI {
     if (completions.length === 0 && query.length > 0) {
       const escapedQuery = Utils.escapeHtml(query);
       this.completionList.innerHTML = `
-        <li data-search-query="${escapedQuery}">
+        <li class="search-fallback" data-search-query="${escapedQuery}">
           <span class="search-icon"></span>
           <div class="suggestion-content">
             <div class="top-half">

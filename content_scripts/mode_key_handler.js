@@ -98,13 +98,12 @@ const KeystrokePopup = {
       this.element.remove();
       this.element = null;
     } else {
-      this.element.classList.add("hiding");
-      setTimeout(() => {
-        if (this.element) {
-          this.element.remove();
-          this.element = null;
-        }
-      }, 100);
+      // Remove this popup, not whatever this.element is in 100ms: a new popup may be shown during
+      // the fade-out.
+      const popup = this.element;
+      this.element = null;
+      popup.classList.add("hiding");
+      setTimeout(() => popup.remove(), 100);
     }
   },
   
