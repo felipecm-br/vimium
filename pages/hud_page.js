@@ -52,7 +52,8 @@ export function onKeyEvent(event) {
       exitEventIsEscape: KeyboardUtils.isEscape(event),
     });
   } else if (event.key === "ArrowUp") {
-    if (rawQuery = FindModeHistory.getQuery(findMode.historyIndex + 1)) {
+    rawQuery = FindModeHistory.getQuery(findMode.historyIndex + 1);
+    if (rawQuery) {
       findMode.historyIndex += 1;
       if (findMode.historyIndex === 0) {
         findMode.partialQuery = findMode.rawQuery;
@@ -85,6 +86,14 @@ function ensureClipboardIsAvailable() {
   return true;
 }
 
+function setMessageName(el, messageName) {
+  if (messageName) {
+    el.dataset.messageName = messageName;
+  } else {
+    delete el.dataset.messageName;
+  }
+}
+
 // Exported for unit tests.
 export const handlers = {
   show(data) {
@@ -93,6 +102,7 @@ export const handlers = {
     el.classList.add("vimium-ui-component-visible");
     el.classList.remove("vimium-ui-component-hidden");
     el.classList.remove("hud-find");
+    setMessageName(el, data.messageName);
   },
 
   hidden() {
@@ -102,6 +112,7 @@ export const handlers = {
     el.textContent = "";
     el.classList.add("vimium-ui-component-hidden");
     el.classList.remove("vimium-ui-component-visible");
+    setMessageName(el, null);
   },
 
   showFindMode() {
@@ -114,7 +125,7 @@ export const handlers = {
     // want.
     try {
       inputEl.contentEditable = "plaintext-only";
-    } catch (error) { // Fallback to standard-compliant version.
+    } catch (_error) { // Fallback to standard-compliant version.
       inputEl.contentEditable = "true";
     }
     inputEl.id = "hud-find-input";

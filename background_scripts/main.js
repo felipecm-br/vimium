@@ -6,21 +6,22 @@ import * as bgUtils from "../background_scripts/bg_utils.js";
 import "../background_scripts/all_commands.js";
 import { Commands } from "../background_scripts/commands.js";
 import * as exclusions from "../background_scripts/exclusions.js";
-import "../background_scripts/completion_engines.js";
-import "../background_scripts/completion_search.js";
-import "../background_scripts/completion.js";
+import "../background_scripts/completion/search_engines.js";
+import "../background_scripts/completion/search_wrapper.js";
+import "../background_scripts/completion/completers.js";
 import "../background_scripts/tab_operations.js";
 import * as marks from "../background_scripts/marks.js";
 
 import {
   BookmarkCompleter,
+  CommandCompleter,
   DomainCompleter,
   HistoryCompleter,
   MultiCompleter,
   OmniSearchCompleter,
   SearchEngineCompleter,
   TabCompleter,
-} from "./completion.js";
+} from "./completion/completers.js";
 
 // NOTE(philc): This file has many superfluous return statements in its functions, as a result of
 // converting from coffeescript to es6. Many can be removed, but I didn't take the time to
@@ -44,6 +45,7 @@ chrome.storage.session.set({ vimiumSecret: secretToken });
 
 const completionSources = {
   bookmarks: new BookmarkCompleter(),
+  commands: new CommandCompleter(),
   history: new HistoryCompleter(),
   domains: new DomainCompleter(),
   tabs: new TabCompleter(),
@@ -59,6 +61,7 @@ const completers = {
     completionSources.searchEngines,
   ]),
   bookmarks: new MultiCompleter([completionSources.bookmarks]),
+  commands: new MultiCompleter([completionSources.commands]),
   tabs: new MultiCompleter([completionSources.tabs]),
   omniSearch: new OmniSearchCompleter(),
 };
@@ -336,7 +339,7 @@ const BackgroundCommands = {
       chrome.tabs.remove(tab.id);
     });
   },
-  restoreTab: createRepeatCommand(async (request) => {
+  restoreTab: createRepeatCommand(async (_request) => {
     await chrome.sessions.restore(null);
   }),
   async togglePinTab({ count, tab }) {
@@ -348,7 +351,7 @@ const BackgroundCommands = {
   moveTabLeft: moveTab,
   moveTabRight: moveTab,
 
-  async setZoom({ tabId, registryEntry }) {
+  setZoom({ tabId, registryEntry }) {
     const level = registryEntry.options?.["level"] ?? "1";
     const newZoom = parseFloat(level);
     if (!isNaN(newZoom)) {
@@ -365,7 +368,7 @@ const BackgroundCommands = {
     const newZoom = nextZoomLevel(currentZoom, -count);
     chrome.tabs.setZoom(tabId, newZoom);
   },
-  async zoomReset({ tabId }) {
+  zoomReset({ tabId }) {
     chrome.tabs.setZoom(tabId, 0); // setZoom of 0 sets to the tab default.
   },
 
@@ -626,6 +629,12 @@ const sendRequestHandlers = {
   runBackgroundCommand(request, sender) {
     return BackgroundCommands[request.registryEntry.command](request, sender);
   },
+  // Executes a command as if it was run in normal mode by a content script.
+  // Used by the Vomnibar's command completer, which can be used to execute any command in Vimium.
+  // The "request" must contain a "count" and a valid "command: RegistryEntry" parameter.
+  runNormalModeCommand(request, sender) {
+    chrome.tabs.sendMessage(sender.tab.id, request);
+  },
   // getCurrentTabUrl is used by the content scripts to get their full URL, because window.location
   // cannot help with Chrome-specific URLs like "view-source:http:..".
   getCurrentTabUrl({ tab }) {
@@ -683,7 +692,7 @@ const sendRequestHandlers = {
     HintCoordinator.prepareToActivateLinkHintsMode(sender.tab.id, sender.frameId, request);
   },
 
-  async initializeFrame(request, sender) {
+  async initializeFrame(_request, sender) {
     // Check whether the extension is enabled for the top frame's URL, rather than the URL of the
     // specific frame that sent this request.
     const enabledState = exclusions.isEnabledForUrl(sender.tab.url);

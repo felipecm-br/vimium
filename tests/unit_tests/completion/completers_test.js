@@ -1,32 +1,34 @@
-import "./test_helper.js";
-import "../../background_scripts/tab_recency.js";
-import "../../background_scripts/bg_utils.js";
-import "../../background_scripts/completion_engines.js";
-import "../../background_scripts/completion_search.js";
-import * as userSearchEngines from "../../background_scripts/user_search_engines.js";
+import "../test_helper.js";
+import { withPromise } from "../test_helper.js";
+import "../../../background_scripts/tab_recency.js";
+import "../../../background_scripts/bg_utils.js";
+import "../../../background_scripts/completion/search_engines.js";
+import "../../../background_scripts/completion/search_wrapper.js";
+import * as userSearchEngines from "../../../background_scripts/user_search_engines.js";
 import {
   BookmarkCompleter,
+  CommandCompleter,
   DomainCompleter,
   HistoryCache,
   HistoryCompleter,
   MultiCompleter,
-  RankingUtils,
-  RegexpCache,
   SearchEngineCompleter,
   Suggestion,
   TabCompleter,
-} from "../../background_scripts/completion.js";
-import "../../lib/url_utils.js";
+} from "../../../background_scripts/completion/completers.js";
+import "../../../lib/url_utils.js";
+import { Commands, RegistryEntry } from "../../../background_scripts/commands.js";
+import { allCommands } from "../../../background_scripts/all_commands.js";
 
 const hours = (n) => 1000 * 60 * 60 * n;
 
 // A convenience wrapper around completer.filter() so it can be called synchronously in tests.
-const filterCompleter = async (completer, queryTerms) => {
+export async function filterCompleter(completer, queryTerms) {
   return await completer.filter({
     queryTerms,
     query: queryTerms.join(" "),
   });
-};
+}
 
 context("bookmark completer", () => {
   const bookmark3 = { title: "bookmark3", url: "bookmark3.com" };
@@ -349,6 +351,73 @@ context("multi completer", () => {
     assert.equal(1, (await filterCompleter(tabCompleter, [])).length);
     assert.equal([], await filterCompleter(multiCompleter, []));
   });
+
+  should("deduplicate suggestions with the same URL", async () => {
+    const make = (url, relevancy) => new Suggestion({ url, relevancy, html: url });
+    const fakeCompleter = {
+      filter: () => [
+        make("http://example.com", 1),
+        make("http://example.com", 0.9), // duplicate
+        make("http://other.com", 0.8),
+      ],
+    };
+    const results = await filterCompleter(new MultiCompleter([fakeCompleter]), ["example"]);
+    assert.equal(2, results.length);
+    assert.equal("http://example.com", results[0].url);
+    assert.equal("http://other.com", results[1].url);
+  });
+});
+
+context("command completer", () => {
+  const commandCompleter = new CommandCompleter();
+  const multiCompleter = new MultiCompleter([commandCompleter]);
+
+  should("return all commands with default options if no mappings are specified", async () => {
+    stub(
+      chrome.storage.session,
+      "get",
+      withPromise(() => ({
+        commandToOptionsToKeys: {},
+      })),
+    );
+    stub(Commands, "keyToRegistryEntry", {});
+
+    const suggestions = await filterCompleter(commandCompleter, []);
+
+    // Checks that all available commands are returned as suggestions.
+    assert.equal(allCommands.length, suggestions.length);
+
+    // Check that by default no options (e.g. value=1.1) are applied to each command.
+    assert.isTrue(
+      suggestions.every((s) => Object.keys(s.command.registryEntry.options).length === 0),
+    );
+  });
+
+  should("create suggestions for different variations of the same command", async () => {
+    stub(
+      chrome.storage.session,
+      "get",
+      withPromise(() => ({
+        commandToOptionsToKeys: {
+          "setZoom": {
+            "value=1.1": ["z1"],
+            "value=1.2": ["z2"],
+          },
+        },
+      })),
+    );
+
+    stub(Commands, "keyToRegistryEntry", {
+      "z1": new RegistryEntry(),
+      "z2": new RegistryEntry(),
+    });
+
+    const suggestions = await filterCompleter(multiCompleter, ["set", "zoom"]);
+    assert.equal(
+      ["Set zoom", "Set zoom (value=1.1)", "Set zoom (value=1.2)", "Reset zoom"],
+      suggestions.map((s) => s.title),
+    );
+  });
 });
 
 context("tab completer", () => {
@@ -452,78 +521,16 @@ context("suggestions", () => {
   });
 });
 
-context("RankingUtils.wordRelevancy", () => {
-  should("score higher in shorter URLs", () => {
-    const highScore = RankingUtils.wordRelevancy(
-      ["stack"],
-      "http://stackoverflow.com/short",
-      "a-title",
-    );
-    const lowScore = RankingUtils.wordRelevancy(
-      ["stack"],
-      "http://stackoverflow.com/longer",
-      "a-title",
-    );
-    assert.isTrue(highScore > lowScore);
-  });
-
-  should("score higher in shorter titles", () => {
-    const highScore = RankingUtils.wordRelevancy(["milk"], "a-url", "Milkshakes");
-    const lowScore = RankingUtils.wordRelevancy(["milk"], "a-url", "Milkshakes rocks");
-    assert.isTrue(highScore > lowScore);
-  });
-
-  should("score higher for matching the start of a word (in a URL)", () => {
-    const lowScore = RankingUtils.wordRelevancy(
-      ["stack"],
-      "http://Xstackoverflow.com/same",
-      "a-title",
-    );
-    const highScore = RankingUtils.wordRelevancy(
-      ["stack"],
-      "http://stackoverflowX.com/same",
-      "a-title",
-    );
-    assert.isTrue(highScore > lowScore);
-  });
-
-  should("score higher for matching the start of a word (in a title)", () => {
-    const lowScore = RankingUtils.wordRelevancy(["te"], "a-url", "Dist racted");
-    const highScore = RankingUtils.wordRelevancy(["te"], "a-url", "Distrac ted");
-    assert.isTrue(highScore > lowScore);
-  });
-
-  should("score higher for matching a whole word (in a URL)", () => {
-    const lowScore = RankingUtils.wordRelevancy(
-      ["com"],
-      "http://stackoverflow.comX/same",
-      "a-title",
-    );
-    const highScore = RankingUtils.wordRelevancy(
-      ["com"],
-      "http://stackoverflowX.com/same",
-      "a-title",
-    );
-    assert.isTrue(highScore > lowScore);
-  });
-
-  should("score higher for matching a whole word (in a title)", () => {
-    const lowScore = RankingUtils.wordRelevancy(["com"], "a-url", "abc comX");
-    const highScore = RankingUtils.wordRelevancy(["com"], "a-url", "abcX com");
-    assert.isTrue(highScore > lowScore);
-  });
-});
-
 // TODO: (smblott)
 // Word relevancy should take into account the number of matches (it doesn't currently). should
 // "score higher for multiple matches (in a URL)", ->
-//   lowScore  = RankingUtils.wordRelevancy(["stack"], "http://stackoverflow.com/Xxxxxx", "a-title")
-//   highScore = RankingUtils.wordRelevancy(["stack"], "http://stackoverflow.com/Xstack", "a-title")
+//   lowScore  = ranking.wordRelevancy(["stack"], "http://stackoverflow.com/Xxxxxx", "a-title")
+//   highScore = ranking.wordRelevancy(["stack"], "http://stackoverflow.com/Xstack", "a-title")
 //   assert.isTrue highScore > lowScore
 
 // should "score higher for multiple matches (in a title)", ->
-//   lowScore  = RankingUtils.wordRelevancy(["bbc"], "http://stackoverflow.com/same", "BBC Radio 4 (XBCr4)")
-//   highScore = RankingUtils.wordRelevancy(["bbc"], "http://stackoverflow.com/same", "BBC Radio 4 (BBCr4)")
+//   lowScore  = ranking.wordRelevancy(["bbc"], "http://stackoverflow.com/same", "BBC Radio 4 (XBCr4)")
+//   highScore = ranking.wordRelevancy(["bbc"], "http://stackoverflow.com/same", "BBC Radio 4 (BBCr4)")
 //   assert.isTrue highScore > lowScore
 
 context("Suggestion.pushMatchingRanges", () => {
@@ -572,92 +579,5 @@ context("Suggestion.pushMatchingRanges", () => {
     const suggestion = new Suggestion([], "", "", "", returns(1));
     suggestion.pushMatchingRanges(`${one}${two}${three}${two}${one}`, "does-not-match", ranges);
     assert.equal(0, ranges.length);
-  });
-});
-
-context("RankingUtils", () => {
-  should("do a case insensitive match", () => {
-    assert.isTrue(RankingUtils.matches(["ari"], "maRio"));
-  });
-
-  should("do a case insensitive match on full term", () => {
-    assert.isTrue(RankingUtils.matches(["mario"], "MARio"));
-  });
-
-  should("do a case insensitive match on several terms", () => {
-    assert.isTrue(
-      RankingUtils.matches(["ari"], "DOES_NOT_MATCH", "DOES_NOT_MATCH_EITHER", "MARio"),
-    );
-  });
-
-  should("do a smartcase match (positive)", () => {
-    assert.isTrue(RankingUtils.matches(["Mar"], "Mario"));
-  });
-
-  should("do a smartcase match (negative)", () => {
-    assert.isFalse(RankingUtils.matches(["Mar"], "mario"));
-  });
-
-  should("do a match with regexp meta-characters (positive)", () => {
-    assert.isTrue(RankingUtils.matches(["ma.io"], "ma.io"));
-  });
-
-  should("do a match with regexp meta-characters (negative)", () => {
-    assert.isFalse(RankingUtils.matches(["ma.io"], "mario"));
-  });
-
-  should("do a smartcase match on full term", () => {
-    assert.isTrue(RankingUtils.matches(["Mario"], "Mario"));
-    assert.isFalse(RankingUtils.matches(["Mario"], "mario"));
-  });
-
-  should("do case insensitive word relevancy (matching)", () => {
-    assert.isTrue(RankingUtils.wordRelevancy(["ari"], "MARIO", "MARio") > 0.0);
-  });
-
-  should("do case insensitive word relevancy (not matching)", () => {
-    assert.isTrue(RankingUtils.wordRelevancy(["DOES_NOT_MATCH"], "MARIO", "MARio") === 0.0);
-  });
-
-  should("every query term must match at least one thing (matching)", () => {
-    assert.isTrue(RankingUtils.matches(["cat", "dog"], "catapult", "hound dog"));
-  });
-
-  should("every query term must match at least one thing (not matching)", () => {
-    assert.isTrue(!RankingUtils.matches(["cat", "dog", "wolf"], "catapult", "hound dog"));
-  });
-});
-
-context("RegexpCache", () => {
-  should("RegexpCache is in fact caching (positive case)", () => {
-    assert.isTrue(RegexpCache.get("this") === RegexpCache.get("this"));
-  });
-
-  should("RegexpCache is in fact caching (negative case)", () => {
-    assert.isTrue(RegexpCache.get("this") !== RegexpCache.get("that"));
-  });
-
-  should("RegexpCache prefix/suffix wrapping is working (positive case)", () => {
-    assert.isTrue(RegexpCache.get("this", "(", ")") === RegexpCache.get("this", "(", ")"));
-  });
-
-  should("RegexpCache prefix/suffix wrapping is working (negative case)", () => {
-    assert.isTrue(RegexpCache.get("this", "(", ")") !== RegexpCache.get("this"));
-  });
-
-  should("search for a string", () => {
-    assert.isTrue("hound dog".search(RegexpCache.get("dog")) === 6);
-  });
-
-  should("search for a string which isn't there", () => {
-    assert.isTrue("hound dog".search(RegexpCache.get("cat")) === -1);
-  });
-
-  should("search for a string with a prefix/suffix (positive case)", () => {
-    assert.isTrue("hound dog".search(RegexpCache.get("dog", "\\b", "\\b")) === 6);
-  });
-
-  should("search for a string with a prefix/suffix (negative case)", () => {
-    assert.isTrue("hound dog".search(RegexpCache.get("do", "\\b", "\\b")) === -1);
   });
 });

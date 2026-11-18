@@ -3,12 +3,12 @@
 // This is a set of tasks for building and testing Vimium in development.
 import * as fs from "@std/fs";
 import * as path from "@std/path";
-import { abort, desc, run, task } from "https://deno.land/x/drake@v1.5.1/mod.ts";
-import puppeteer from "npm:puppeteer";
+import { abort, desc, run, task } from "drake";
+import puppeteer from "puppeteer";
 // We use a vendored version of shoulda, rather than jsr:@philc/shoulda, because shoulda.js is used
 // in dom_tests.js which is loaded by Puppeteer, which doesn't have access to Deno's module system.
 import * as shoulda from "./tests/vendor/shoulda.js";
-import JSON5 from "npm:json5";
+import JSON5 from "json5";
 import { DOMParser } from "@b-fuze/deno-dom";
 import * as fileServer from "@std/http/file-server";
 
@@ -19,11 +19,15 @@ async function shell(procName, argsArray = []) {
   if (Deno.build.os == "windows") {
     // if win32, prefix arguments with "/c {original command}"
     // e.g. "mkdir c:\git\vimium" becomes "cmd.exe /c mkdir c:\git\vimium"
-    optArray.unshift("/c", procName);
+    argsArray.unshift("/c", procName);
     procName = "cmd.exe";
   }
-  const p = Deno.run({ cmd: [procName].concat(argsArray) });
-  const status = await p.status();
+  const command = new Deno.Command(procName, {
+    args: argsArray,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  const status = await command.output();
   if (!status.success) {
     throw new Error(`${procName} ${argsArray} exited with status ${status.code}`);
   }
@@ -91,7 +95,7 @@ async function parseManifestFile() {
   return JSON5.parse(await Deno.readTextFile("./manifest.json"));
 }
 
-async function checkForBuildIssues() {
+async function checkForCommonBuildIssues() {
   // Ensure the version number is properly formed.
   const chromeManifest = await parseManifestFile();
   const version = chromeManifest["version"];
@@ -110,9 +114,78 @@ async function checkForBuildIssues() {
   }
 }
 
+// Verify all files referenced in the manifest are present in dist.
+async function checkFilesFromManifestArePresent(manifest) {
+  const missing = [];
+
+  for (const file of getPathsFromManifest(manifest)) {
+    const exists = await fs.exists(path.join("dist/vimium", file));
+    if (!exists) {
+      missing.push(file);
+    }
+  }
+
+  if (missing.length > 0) {
+    const msg = "These files are referenced in manifest.json but missing from the build:\n" +
+      missing.map((f) => `  ${f}`).join("\n");
+    throw new Error(msg);
+  }
+}
+
+// Returns all file paths referenced in a parsed manifest object, excluding glob patterns.
+function getPathsFromManifest(manifest) {
+  let files = [];
+
+  files = files.concat(Object.values(manifest.icons));
+
+  if (manifest.background.service_worker) {
+    files.push(manifest.background.service_worker);
+  }
+
+  if (manifest.background.scripts) {
+    files = files.concat(manifest.background.scripts);
+  }
+
+  files.push(manifest.options_ui.page);
+  files.push(manifest.action.default_popup);
+
+  // The shape of the default_icon structure is different in Chrome vs. Firefox.
+  const icon = manifest.action.default_icon;
+  if (typeof icon === "string") {
+    files.push(icon);
+  } else {
+    files = files.concat(Object.values(icon));
+  }
+
+  for (const script of manifest.content_scripts) {
+    if (script.js) {
+      files = files.concat(script.js);
+    }
+    if (script.css) {
+      files = files.concat(script.css);
+    }
+  }
+
+  for (const obj of manifest.web_accessible_resources) {
+    for (const resource of (obj.resources)) {
+      // Skip files with glob patterns.
+      if (resource.includes("*")) {
+        continue;
+      }
+      files.push(resource);
+    }
+  }
+
+  if (files.some((f) => f == null)) {
+    throw new Error("manifest.json is missing a path that was expected by getPathsFromManifest");
+  }
+  // Remove duplicates.
+  return Array.from(new Set(files)).sort();
+}
+
 // Builds a zip file for submission to the Chrome and Firefox stores. The output is in dist/.
 async function buildStorePackage() {
-  await checkForBuildIssues();
+  await checkForCommonBuildIssues();
 
   const excludeList = [
     "*.md",
@@ -155,6 +228,8 @@ async function buildStorePackage() {
   ]);
   await shell("rsync", rsyncOptions);
 
+  await checkFilesFromManifestArePresent(chromeManifest);
+
   // Build the Firefox / Mozilla Addons store package.
   const firefoxManifest = createFirefoxManifest(chromeManifest);
   await writeDistManifest(firefoxManifest);
@@ -163,6 +238,8 @@ async function buildStorePackage() {
     "-c",
     `${zipCommand} ../firefox/vimium-firefox-${version}.zip . -x icons/*.png`,
   ]);
+
+  await checkFilesFromManifestArePresent(firefoxManifest);
 
   // Build the Chrome Store package.
   await writeDistManifest(chromeManifest);
@@ -186,7 +263,7 @@ async function runUnitTests() {
   // Import every test file.
   const dir = path.join(projectPath, "tests/unit_tests");
   const files = Array.from(Deno.readDirSync(dir)).map((f) => f.name).sort();
-  for (let f of files) {
+  for (const f of files) {
     if (f.endsWith("_test.js")) {
       await import(path.join(dir, f));
     }
@@ -210,7 +287,7 @@ function setupPuppeteerPageForTests(page) {
     }
     processing = false;
   };
-  page.on("console", async (msg) => {
+  page.on("console", (msg) => {
     const values = msg.args().map((a) => a.jsonValue());
     messageQueue.push(values);
     if (!processing) {
@@ -271,7 +348,7 @@ function isPortAvailable(number) {
     const listener = Deno.listen({ port: number });
     listener.close();
     return true;
-  } catch (error) {
+  } catch (_error) {
     return false;
   }
 }
@@ -354,6 +431,12 @@ task("test-dom", [], testDom);
 
 desc("Run unit and DOM tests");
 task("test", ["test-unit", "test-dom"]);
+
+desc("Check code formatting and lint issues");
+task("check", [], async () => {
+  await shell("deno", ["fmt", "--check"]);
+  await shell("deno", ["lint"]);
+});
 
 desc("Builds a zip file for submission to the Chrome and Firefox stores. The output is in dist/");
 task("package", ["write-command-listing"], async () => {

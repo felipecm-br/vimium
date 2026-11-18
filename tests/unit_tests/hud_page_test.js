@@ -20,18 +20,26 @@ function newKeyEvent(properties) {
 }
 
 context("hud page", () => {
-  let ui;
   setup(async () => {
     stub(Utils, "isFirefox", () => false);
     await testHelper.jsdomStub("pages/hud_page.html");
     // Make Utils.setTimeout synchronous so that the tests easier to deal with.
-    stub(Utils, "setTimeout", (timeout, fn) => {
+    stub(Utils, "setTimeout", (_timeout, fn) => {
       fn();
     });
   });
 
   teardown(() => {
     UIComponentMessenger.unregister();
+  });
+
+  should("sets a data-message-name attribute", () => {
+    const el = document.querySelector("#hud");
+    hudPage.handlers.show({
+      text: "example",
+      messageName: "example-name",
+    });
+    assert.equal("example-name", el.dataset.messageName);
   });
 
   should("find mode hides when escape is pressed", async () => {

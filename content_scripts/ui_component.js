@@ -59,6 +59,8 @@ class UIComponent {
     shadowWrapper.className = "vimium-reset";
     this.shadowDOM = shadowWrapper.attachShadow({ mode: "open" });
     this.shadowDOM.appendChild(styleSheet);
+    // Allow a user's custom CSS to style iframe element inside this shadow DOM.
+    DomUtils.injectUserCss(this.shadowDOM);
 
     // Create glass background overlay for vomnibar
     if (className === "vomnibar-frame") {

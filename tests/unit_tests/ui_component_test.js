@@ -1,6 +1,7 @@
 import * as testHelper from "./test_helper.js";
 import "../../lib/utils.js";
 import "../../lib/dom_utils.js";
+import "../../lib/settings.js";
 import "../../content_scripts/ui_component.js";
 
 function stubPostMessage(iframeEl, fn) {
@@ -19,6 +20,7 @@ context("UIComponent", () => {
     // Which page we load doesn't matter; we just need any DOM.
     await testHelper.jsdomStub("pages/help_dialog_page.html");
     stub(Utils, "isFirefox", () => false);
+    await Settings.onLoaded();
   });
 
   teardown(() => {
@@ -33,6 +35,11 @@ context("UIComponent", () => {
     c = new UIComponent("testing.html", "example-class");
     await c.load("example.html", "example-class");
     stubPostMessage(c.iframeElement, function () {});
+    // `window` here is the jsdom window stubbed onto globalThis by test_helper's jsdomStub, and
+    // must be used to construct the Event so it belongs to the same realm as c.iframeElement;
+    // globalThis.Event is a different (Deno-native) class and jsdom rejects it as "not of type
+    // Event" when dispatched.
+    // deno-lint-ignore no-window no-window-prefix
     c.iframeElement.dispatchEvent(new window.Event("load"));
     assert.equal(document.body, document.activeElement);
 

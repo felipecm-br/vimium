@@ -1,4 +1,4 @@
-import * as completionEngines from "./completion_engines.js";
+import * as searchEngines from "./search_engines.js";
 
 // This is a wrapper class for completion engines. It handles the case where a custom search engine
 // includes a prefix query term (or terms). For example:
@@ -41,8 +41,7 @@ class EnginePrefixWrapper {
   }
 }
 
-let debug = false;
-const inTransit = {};
+const debug = false;
 const completionCache = new SimpleCache(2 * 60 * 60 * 1000, 5000); // Two hours, 5000 entries.
 const engineCache = new SimpleCache(1000 * 60 * 60 * 1000); // 1000 hours.
 
@@ -79,7 +78,7 @@ function lookupEngine(searchUrl) {
   if (engineCache.has(searchUrl)) {
     return engineCache.get(searchUrl);
   } else {
-    for (const engineClass of completionEngines.list) {
+    for (const engineClass of searchEngines.list) {
       const engine = new engineClass();
       if (engine.match(searchUrl)) {
         return engineCache.set(searchUrl, engine);
