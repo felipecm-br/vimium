@@ -11,6 +11,7 @@ import {
   DomainCompleter,
   HistoryCache,
   HistoryCompleter,
+  isNavigationalMatch,
   isStrongMatch,
   looksLikeWebSearch,
   MultiCompleter,
@@ -131,7 +132,7 @@ context("topK", () => {
 });
 
 context("OmniSearch web search intent", () => {
-  const page = (title, url) => ({ title, url });
+  const page = (title, url, description = "tab") => ({ title, url, description });
   const terms = (q) => q.split(" ");
 
   should("treat a match at a word start in the title or hostname as strong", () => {
@@ -145,6 +146,18 @@ context("OmniSearch web search intent", () => {
     assert.isTrue(looksLikeWebSearch(terms("zzqq"), []));
     assert.isTrue(looksLikeWebSearch(["rust"], [page("Reviews", "https://trustpilot.com")]));
     assert.isFalse(looksLikeWebSearch(["rust"], [page("The Rust Book", "https://a.com")]));
+  });
+
+  should("count history only when the query starts its hostname, like Chrome's omnibox", () => {
+    const history = page("React Hooks Guide", "https://legacy.example.com/hooks", "history");
+    assert.isFalse(isNavigationalMatch(["react"], history));
+    assert.isTrue(looksLikeWebSearch(["react"], [history]));
+    const github = page("Pull requests", "https://www.github.com/pulls", "history");
+    assert.isTrue(isNavigationalMatch(["git"], github));
+    assert.isFalse(looksLikeWebSearch(["git"], [github]));
+    assert.isTrue(
+      isNavigationalMatch(["react"], page("React Hooks Guide", "https://a.com", "bookmark")),
+    );
   });
 
   should("search the web for questions, whatever matches", () => {

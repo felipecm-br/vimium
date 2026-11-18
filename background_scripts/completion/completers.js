@@ -915,9 +915,28 @@ export function isStrongMatch(queryTerms, suggestion) {
   );
 }
 
-// Whether the user more likely wants to search the web than open one of `suggestions`: nothing
-// matches, the query reads as a question, or no suggestion is a strong match. A query that looks like
-// a URL never is.
+// Sources the user deliberately keeps around: a strong match there is likely the page they mean.
+// History is not one of them: with thousands of visited pages, nearly any word starts some title.
+const NAVIGATIONAL_SOURCES = new Set(["tab", "bookmark", "topSite"]);
+
+// Whether `suggestion` is likely where the user wants to go, the way Chrome's omnibox decides
+// between navigating and searching: a strong match in an open tab, bookmark or top site, or a
+// single term that starts the hostname (typing "git" for github.com), from any source.
+export function isNavigationalMatch(queryTerms, suggestion) {
+  if (queryTerms.length === 1) {
+    try {
+      const host = new URL(suggestion.url).hostname.replace(/^www\./, "");
+      if (host.startsWith(queryTerms[0].toLowerCase())) return true;
+    } catch {
+      // Not a URL; fall through to the title.
+    }
+  }
+  return NAVIGATIONAL_SOURCES.has(suggestion.description) && isStrongMatch(queryTerms, suggestion);
+}
+
+// Whether the user more likely wants to search the web than open one of `suggestions`: the query
+// reads as a question, or no suggestion is a navigational match. A query that looks like a URL
+// never is.
 export function looksLikeWebSearch(queryTerms, suggestions) {
   if (queryTerms.length === 0) return false;
   if (queryTerms.length === 1 && /[.:/]/.test(queryTerms[0])) return false;
@@ -925,7 +944,7 @@ export function looksLikeWebSearch(queryTerms, suggestions) {
   if (queryTerms.at(-1).endsWith("?") || QUESTION_WORDS.has(queryTerms[0].toLowerCase())) {
     return true;
   }
-  return !suggestions.some((suggestion) => isStrongMatch(queryTerms, suggestion));
+  return !suggestions.some((suggestion) => isNavigationalMatch(queryTerms, suggestion));
 }
 
 // Puts the "search the web" row first when that is the likely intent (so it is what Enter opens), and
