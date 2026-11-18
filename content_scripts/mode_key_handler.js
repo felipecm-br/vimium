@@ -74,9 +74,9 @@ const KeystrokePopup = {
       clearTimeout(this.hideTimeout);
       this.hideTimeout = null;
     }
-    
+
     if (!this.element) return;
-    
+
     if (immediate) {
       this.element.remove();
       this.element = null;
@@ -89,7 +89,6 @@ const KeystrokePopup = {
       setTimeout(() => host.remove(), 100);
     }
   },
-
 };
 
 class KeyHandlerMode extends Mode {

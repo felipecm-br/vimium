@@ -13,7 +13,7 @@ import "../lib/dom_utils.js";
 import "../lib/handler_stack.js";
 import * as UIComponentMessenger from "./ui_component_messenger.js";
 import * as userSearchEngines from "../background_scripts/user_search_engines.js";
-import { themeManager, themeDefinitions } from "./vomnibar_themes.js";
+import { themeDefinitions, themeManager } from "./vomnibar_themes.js";
 import { borderMotion } from "./vomnibar_border.js";
 
 // An instance of VomnibarUI. Exported for use by tests.
@@ -80,7 +80,7 @@ class VomnibarUI {
     this.themeCompletions = [];
     // Initialize theme manager
     themeManager.init();
-    
+
     // Pagination state
     this.allCompletions = []; // All completions from backend
     this.currentPage = 0;
@@ -211,7 +211,7 @@ class VomnibarUI {
     // Prevent multiple hide calls
     if (this.isHiding) return;
     this.isHiding = true;
-    
+
     this.onHiddenCallback = onHiddenCallback;
     this.input.blur();
     // Cancel theme preview if active
@@ -305,14 +305,14 @@ class VomnibarUI {
 
   updatePositionIndicator() {
     if (!this.positionIndicator) return;
-    
+
     const totalItems = this.allCompletions.length;
     if (totalItems === 0 || this.globalSelection < 0) {
       this.positionIndicator.textContent = "";
       this.positionIndicator.classList.remove("visible");
       return;
     }
-    
+
     this.positionIndicator.textContent = `${this.globalSelection + 1}/${totalItems}`;
     this.positionIndicator.classList.add("visible");
   }
@@ -320,13 +320,13 @@ class VomnibarUI {
   updatePageAndSelection() {
     // Calculate which page the global selection is on
     const newPage = Math.floor(this.globalSelection / this.itemsPerPage);
-    
+
     // If page changed, re-render
     if (newPage !== this.currentPage) {
       this.currentPage = newPage;
       this.renderCurrentPage();
     }
-    
+
     // Calculate selection within current page
     this.selection = this.globalSelection % this.itemsPerPage;
     this.updateSelection();
@@ -485,18 +485,21 @@ class VomnibarUI {
       const completion = this.completions[this.selection];
       if (completion.tabId != null) {
         // Close the tab
-        chrome.runtime.sendMessage({ handler: "closeTabFromVomnibar", tabIdToBeRemoved: completion.tabId });
+        chrome.runtime.sendMessage({
+          handler: "closeTabFromVomnibar",
+          tabIdToBeRemoved: completion.tabId,
+        });
         // Remove the completion from allCompletions (pagination source)
         this.allCompletions.splice(this.globalSelection, 1);
-        
+
         // Adjust global selection if needed
         if (this.globalSelection >= this.allCompletions.length) {
           this.globalSelection = this.allCompletions.length - 1;
         }
-        
+
         // Re-render current page
         this.renderCurrentPage();
-        
+
         // Recalculate selection within page
         if (this.allCompletions.length > 0) {
           this.selection = this.globalSelection % this.itemsPerPage;
@@ -634,18 +637,18 @@ class VomnibarUI {
     // Filter themes if there's a search query
     if (searchQuery) {
       const lowerQuery = searchQuery.toLowerCase();
-      themes = themes.filter(theme => 
+      themes = themes.filter((theme) =>
         theme.name.toLowerCase().includes(lowerQuery) ||
         theme.description.toLowerCase().includes(lowerQuery)
       );
     }
 
-    return themes.map(theme => ({
+    return themes.map((theme) => ({
       name: theme.name,
       icon: theme.icon,
       description: theme.description,
       isActive: theme.name === currentTheme,
-      html: this.generateThemeItemHtml(theme, theme.name === currentTheme)
+      html: this.generateThemeItemHtml(theme, theme.name === currentTheme),
     }));
   }
 
@@ -690,16 +693,16 @@ class VomnibarUI {
       this.isThemeMode = true;
       const searchQuery = this.getThemeSearchQuery();
       this.themeCompletions = this.getThemeCompletions(searchQuery);
-      
+
       // Create fake completions for rendering (use allCompletions for consistency)
       this.allCompletions = this.themeCompletions.map((theme, index) => ({
         html: theme.html,
         isTheme: true,
-        themeIndex: index
+        themeIndex: index,
       }));
       this.currentPage = 0;
       this.completions = this.allCompletions.slice(0, this.itemsPerPage);
-      
+
       this.globalSelection = 0; // Auto-select first theme
       this.selection = 0;
       this.renderThemeCompletions();
@@ -733,15 +736,15 @@ class VomnibarUI {
     // Store all completions for pagination
     this.allCompletions = results;
     this.currentPage = 0;
-    
+
     // Get first page of completions
     this.completions = this.allCompletions.slice(0, this.itemsPerPage);
-    
+
     // Set initial selection
     const autoSelect = this.allCompletions[0]?.autoSelect;
     this.globalSelection = 0;
     this.selection = autoSelect ? 0 : this.initialSelectionValue;
-    
+
     this.renderCompletions(this.completions);
     this.selection = Math.min(
       this.completions.length - 1,
@@ -752,7 +755,7 @@ class VomnibarUI {
 
   renderCompletions(completions) {
     const query = this.input.value.trim();
-    
+
     // If no completions and user has typed something, show "Search with Google" option
     if (completions.length === 0 && query.length > 0) {
       const escapedQuery = Utils.escapeHtml(query);
@@ -782,12 +785,12 @@ class VomnibarUI {
       }
       return;
     }
-    
-    this.completionList.innerHTML = completions.map((c, index) => 
+
+    this.completionList.innerHTML = completions.map((c, index) =>
       `<li data-index="${index}">${c.html}</li>`
     ).join("");
     this.completionList.style.display = completions.length > 0 ? "block" : "";
-    
+
     // Add click handlers for switch tab buttons
     this.completionList.querySelectorAll(".switch-tab-btn").forEach((btn) => {
       btn.addEventListener("click", (e) => {

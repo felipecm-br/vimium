@@ -43,17 +43,20 @@ context("keystroke popup", () => {
     assert.isTrue(popup.textContent.includes("Scroll to top"));
   });
 
-  should("list the commands that follow a prefix from the key mapping, skipping nested prefixes", () => {
-    const mapping = {
-      g: { command: "scrollToTop", desc: "Scroll to the top of the page" },
-      x: { command: "myCommandWithoutDesc" },
-      s: { t: { command: "nested" } },
-    };
-    assert.equal(
-      { g: "Scroll to the top of the page", x: "myCommandWithoutDesc" },
-      KeystrokePopup.optionsFor(mapping),
-    );
-  });
+  should(
+    "list the commands that follow a prefix from the key mapping, skipping nested prefixes",
+    () => {
+      const mapping = {
+        g: { command: "scrollToTop", desc: "Scroll to the top of the page" },
+        x: { command: "myCommandWithoutDesc" },
+        s: { t: { command: "nested" } },
+      };
+      assert.equal(
+        { g: "Scroll to the top of the page", x: "myCommandWithoutDesc" },
+        KeystrokePopup.optionsFor(mapping),
+      );
+    },
+  );
 
   should("show nothing when no command follows the prefix", () => {
     KeystrokePopup.show("s", {});

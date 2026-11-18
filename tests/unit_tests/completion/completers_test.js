@@ -85,27 +85,30 @@ context("bookmark completer", () => {
 });
 
 context("OmniSearch bookmark traversal", () => {
-  should("collect bookmarks depth-first with folder paths, skipping ignored top-level folders", () => {
-    const tree = [{
-      title: "",
-      children: [
-        {
-          title: "Bookmarks Bar",
-          children: [
-            { title: "a", url: "http://a.com" },
-            { title: "Work", children: [{ title: "b", url: "http://b.com" }] },
-          ],
-        },
-        { title: "Reading", children: [{ title: "c", url: "http://c.com" }] },
-      ],
-    }];
-    const { bookmarksList, bookmarksMap } = new OmniSearchCompleter().traverseBookmarksWithPath(
-      tree,
-    );
-    assert.equal(["a", "Work/b", "Reading/c"], bookmarksList.map((b) => b.fullPathTitle));
-    assert.equal(3, bookmarksMap.size);
-    assert.equal("Work/b", bookmarksMap.get("http://b.com").fullPathTitle);
-  });
+  should(
+    "collect bookmarks depth-first with folder paths, skipping ignored top-level folders",
+    () => {
+      const tree = [{
+        title: "",
+        children: [
+          {
+            title: "Bookmarks Bar",
+            children: [
+              { title: "a", url: "http://a.com" },
+              { title: "Work", children: [{ title: "b", url: "http://b.com" }] },
+            ],
+          },
+          { title: "Reading", children: [{ title: "c", url: "http://c.com" }] },
+        ],
+      }];
+      const { bookmarksList, bookmarksMap } = new OmniSearchCompleter().traverseBookmarksWithPath(
+        tree,
+      );
+      assert.equal(["a", "Work/b", "Reading/c"], bookmarksList.map((b) => b.fullPathTitle));
+      assert.equal(3, bookmarksMap.size);
+      assert.equal("Work/b", bookmarksMap.get("http://b.com").fullPathTitle);
+    },
+  );
 });
 
 context("HistoryCache", () => {

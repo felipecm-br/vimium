@@ -1,6 +1,6 @@
 /**
  * Vomnibar Theme System
- * 
+ *
  * Provides theme management for the Vomnibar using CSS custom properties.
  * Themes are applied efficiently by setting CSS variables on the document root.
  */
@@ -19,7 +19,7 @@ export const themeDefinitions = [
     name: "Default",
     icon: "◐",
     description: "Default dark theme",
-    vars: {} // Uses defaults from vomnibar_page.css
+    vars: {}, // Uses defaults from vomnibar_page.css
   },
   {
     name: "Midnight Glass",
@@ -38,8 +38,8 @@ export const themeDefinitions = [
       "--vomnibar-match-color": "#79c0ff",
       "--vomnibar-gradient-1": "#388bfd",
       "--vomnibar-gradient-2": "#1f6feb",
-      "--vomnibar-gradient-3": "#58a6ff"
-    }
+      "--vomnibar-gradient-3": "#58a6ff",
+    },
   },
   {
     name: "Paper Light",
@@ -60,8 +60,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#0550ae",
       "--vomnibar-gradient-3": "#54aeff",
       "--vomnibar-input-text": "#24292f",
-      "--vomnibar-icon-color": "#57606a"
-    }
+      "--vomnibar-icon-color": "#57606a",
+    },
   },
   {
     name: "Ocean Depth",
@@ -80,8 +80,8 @@ export const themeDefinitions = [
       "--vomnibar-match-color": "#90e0ef",
       "--vomnibar-gradient-1": "#0096c7",
       "--vomnibar-gradient-2": "#023e8a",
-      "--vomnibar-gradient-3": "#48cae4"
-    }
+      "--vomnibar-gradient-3": "#48cae4",
+    },
   },
   {
     name: "Forest",
@@ -100,8 +100,8 @@ export const themeDefinitions = [
       "--vomnibar-match-color": "#a5d6a7",
       "--vomnibar-gradient-1": "#4caf50",
       "--vomnibar-gradient-2": "#1b5e20",
-      "--vomnibar-gradient-3": "#81c784"
-    }
+      "--vomnibar-gradient-3": "#81c784",
+    },
   },
   {
     name: "Sunset",
@@ -120,8 +120,8 @@ export const themeDefinitions = [
       "--vomnibar-match-color": "#ffcdd2",
       "--vomnibar-gradient-1": "#f44336",
       "--vomnibar-gradient-2": "#b71c1c",
-      "--vomnibar-gradient-3": "#ff8a80"
-    }
+      "--vomnibar-gradient-3": "#ff8a80",
+    },
   },
   {
     name: "Purple Haze",
@@ -140,8 +140,8 @@ export const themeDefinitions = [
       "--vomnibar-match-color": "#e1bee7",
       "--vomnibar-gradient-1": "#9c27b0",
       "--vomnibar-gradient-2": "#4a148c",
-      "--vomnibar-gradient-3": "#ce93d8"
-    }
+      "--vomnibar-gradient-3": "#ce93d8",
+    },
   },
   {
     name: "Dracula",
@@ -160,8 +160,8 @@ export const themeDefinitions = [
       "--vomnibar-match-color": "#50fa7b",
       "--vomnibar-gradient-1": "#bd93f9",
       "--vomnibar-gradient-2": "#ff79c6",
-      "--vomnibar-gradient-3": "#8be9fd"
-    }
+      "--vomnibar-gradient-3": "#8be9fd",
+    },
   },
   {
     name: "Nord",
@@ -180,8 +180,8 @@ export const themeDefinitions = [
       "--vomnibar-match-color": "#a3be8c",
       "--vomnibar-gradient-1": "#88c0d0",
       "--vomnibar-gradient-2": "#5e81ac",
-      "--vomnibar-gradient-3": "#81a1c1"
-    }
+      "--vomnibar-gradient-3": "#81a1c1",
+    },
   },
   {
     name: "Monokai",
@@ -200,8 +200,8 @@ export const themeDefinitions = [
       "--vomnibar-match-color": "#f92672",
       "--vomnibar-gradient-1": "#66d9ef",
       "--vomnibar-gradient-2": "#ae81ff",
-      "--vomnibar-gradient-3": "#a6e22e"
-    }
+      "--vomnibar-gradient-3": "#a6e22e",
+    },
   },
   {
     name: "Tokyo Night",
@@ -222,8 +222,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#bb9af7",
       "--vomnibar-gradient-3": "#7dcfff",
       "--vomnibar-input-text": "#a9b1d6",
-      "--vomnibar-icon-color": "#99a0c2"
-    }
+      "--vomnibar-icon-color": "#99a0c2",
+    },
   },
   {
     name: "Catppuccin Mocha",
@@ -244,8 +244,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#cba6f7",
       "--vomnibar-gradient-3": "#a6e3a1",
       "--vomnibar-input-text": "#cdd6f4",
-      "--vomnibar-icon-color": "#a2a8c3"
-    }
+      "--vomnibar-icon-color": "#a2a8c3",
+    },
   },
   {
     name: "Catppuccin Latte",
@@ -266,8 +266,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#8839ef",
       "--vomnibar-gradient-3": "#40a02b",
       "--vomnibar-input-text": "#4c4f69",
-      "--vomnibar-icon-color": "#5b5e76"
-    }
+      "--vomnibar-icon-color": "#5b5e76",
+    },
   },
   {
     name: "Gruvbox",
@@ -288,8 +288,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#b16286",
       "--vomnibar-gradient-3": "#8ec07c",
       "--vomnibar-input-text": "#ebdbb2",
-      "--vomnibar-icon-color": "#ada287"
-    }
+      "--vomnibar-icon-color": "#ada287",
+    },
   },
   {
     name: "Rosé Pine",
@@ -310,8 +310,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#c4a7e7",
       "--vomnibar-gradient-3": "#9ccfd8",
       "--vomnibar-input-text": "#e0def4",
-      "--vomnibar-icon-color": "#9d9bae"
-    }
+      "--vomnibar-icon-color": "#9d9bae",
+    },
   },
   {
     name: "One Dark",
@@ -332,8 +332,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#c678dd",
       "--vomnibar-gradient-3": "#98c379",
       "--vomnibar-input-text": "#abb2bf",
-      "--vomnibar-icon-color": "#a5acb8"
-    }
+      "--vomnibar-icon-color": "#a5acb8",
+    },
   },
   {
     name: "One Light",
@@ -354,8 +354,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#a626a4",
       "--vomnibar-gradient-3": "#50a14f",
       "--vomnibar-input-text": "#383a42",
-      "--vomnibar-icon-color": "#64656c"
-    }
+      "--vomnibar-icon-color": "#64656c",
+    },
   },
   {
     name: "Solarized Dark",
@@ -376,8 +376,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#6c71c4",
       "--vomnibar-gradient-3": "#2aa198",
       "--vomnibar-input-text": "#98a6a6",
-      "--vomnibar-icon-color": "#98a6a6"
-    }
+      "--vomnibar-icon-color": "#98a6a6",
+    },
   },
   {
     name: "Solarized Light",
@@ -398,8 +398,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#6c71c4",
       "--vomnibar-gradient-3": "#2aa198",
       "--vomnibar-input-text": "#56696f",
-      "--vomnibar-icon-color": "#56696f"
-    }
+      "--vomnibar-icon-color": "#56696f",
+    },
   },
   {
     name: "GitHub Light",
@@ -420,8 +420,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#8250df",
       "--vomnibar-gradient-3": "#1a7f37",
       "--vomnibar-input-text": "#24292f",
-      "--vomnibar-icon-color": "#64676c"
-    }
+      "--vomnibar-icon-color": "#64676c",
+    },
   },
   {
     name: "Kanagawa",
@@ -442,8 +442,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#957fb8",
       "--vomnibar-gradient-3": "#76946a",
       "--vomnibar-input-text": "#dcd7ba",
-      "--vomnibar-icon-color": "#a9a592"
-    }
+      "--vomnibar-icon-color": "#a9a592",
+    },
   },
   {
     name: "Everforest",
@@ -464,8 +464,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#7fbbb3",
       "--vomnibar-gradient-3": "#83c092",
       "--vomnibar-input-text": "#d3c6aa",
-      "--vomnibar-icon-color": "#c8bca2"
-    }
+      "--vomnibar-icon-color": "#c8bca2",
+    },
   },
   {
     name: "Synthwave 84",
@@ -486,8 +486,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#8a2be2",
       "--vomnibar-gradient-3": "#ffbe0b",
       "--vomnibar-input-text": "#ffe6ff",
-      "--vomnibar-icon-color": "#9988a4"
-    }
+      "--vomnibar-icon-color": "#9988a4",
+    },
   },
   {
     name: "Outrun",
@@ -508,8 +508,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#7b2cbf",
       "--vomnibar-gradient-3": "#00f6ff",
       "--vomnibar-input-text": "#e6fbff",
-      "--vomnibar-icon-color": "#848b9b"
-    }
+      "--vomnibar-icon-color": "#848b9b",
+    },
   },
   {
     name: "Cyber Ronin",
@@ -530,8 +530,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#f59e0b",
       "--vomnibar-gradient-3": "#10b981",
       "--vomnibar-input-text": "#f4f4f5",
-      "--vomnibar-icon-color": "#8e8e90"
-    }
+      "--vomnibar-icon-color": "#8e8e90",
+    },
   },
   {
     name: "Matrix",
@@ -552,8 +552,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#059669",
       "--vomnibar-gradient-3": "#00ff66",
       "--vomnibar-input-text": "#a7f3d0",
-      "--vomnibar-icon-color": "#6da489"
-    }
+      "--vomnibar-icon-color": "#6da489",
+    },
   },
   {
     name: "Firewatch",
@@ -574,8 +574,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#9b59b6",
       "--vomnibar-gradient-3": "#06b6d4",
       "--vomnibar-input-text": "#f0c0e0",
-      "--vomnibar-icon-color": "#ad87a8"
-    }
+      "--vomnibar-icon-color": "#ad87a8",
+    },
   },
   {
     name: "Dune",
@@ -596,8 +596,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#d97706",
       "--vomnibar-gradient-3": "#0284c7",
       "--vomnibar-input-text": "#ffedd5",
-      "--vomnibar-icon-color": "#9f8f80"
-    }
+      "--vomnibar-icon-color": "#9f8f80",
+    },
   },
   {
     name: "Sakura",
@@ -618,8 +618,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#c084fc",
       "--vomnibar-gradient-3": "#fb7185",
       "--vomnibar-input-text": "#fce7f3",
-      "--vomnibar-icon-color": "#a898a4"
-    }
+      "--vomnibar-icon-color": "#a898a4",
+    },
   },
   {
     name: "Matcha",
@@ -640,8 +640,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#4d7c0f",
       "--vomnibar-gradient-3": "#10b981",
       "--vomnibar-input-text": "#ecfccb",
-      "--vomnibar-icon-color": "#95a382"
-    }
+      "--vomnibar-icon-color": "#95a382",
+    },
   },
   {
     name: "Klimt Gold",
@@ -662,8 +662,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#b8860b",
       "--vomnibar-gradient-3": "#b8860b",
       "--vomnibar-input-text": "#e8d9a0",
-      "--vomnibar-icon-color": "#998d66"
-    }
+      "--vomnibar-icon-color": "#998d66",
+    },
   },
   {
     name: "Starry Night",
@@ -684,8 +684,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#2e6f95",
       "--vomnibar-gradient-3": "#2e6f95",
       "--vomnibar-input-text": "#f4ecd8",
-      "--vomnibar-icon-color": "#8b8f91"
-    }
+      "--vomnibar-icon-color": "#8b8f91",
+    },
   },
   {
     name: "Espresso",
@@ -706,8 +706,8 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#78350f",
       "--vomnibar-gradient-3": "#a16207",
       "--vomnibar-input-text": "#fef3c7",
-      "--vomnibar-icon-color": "#978e75"
-    }
+      "--vomnibar-icon-color": "#978e75",
+    },
   },
   {
     name: "Omarchy",
@@ -728,13 +728,13 @@ export const themeDefinitions = [
       "--vomnibar-gradient-2": "#5fffd7",
       "--vomnibar-gradient-3": "#5fd7ff",
       "--vomnibar-input-text": "#e0e0e0",
-      "--vomnibar-icon-color": "#9f9f9f"
-    }
-  }
+      "--vomnibar-icon-color": "#9f9f9f",
+    },
+  },
 ];
 
 // Create a lookup map for efficient theme access
-export const themeMap = new Map(themeDefinitions.map(t => [t.name, t]));
+export const themeMap = new Map(themeDefinitions.map((t) => [t.name, t]));
 
 /**
  * Theme Manager Class

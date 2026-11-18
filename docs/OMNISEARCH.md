@@ -7,29 +7,29 @@ searching through your browser data compared to the standard `Vomnibar.activate`
 
 ## Key Differences from Standard Omni Search
 
-| Feature | Standard Omni (`o`) | OmniSearch |
-|---------|---------------------|------------|
+| Feature             | Standard Omni (`o`)      | OmniSearch                                                   |
+| ------------------- | ------------------------ | ------------------------------------------------------------ |
 | **Result Ordering** | Mixed by relevancy score | Grouped by category (tabs → top sites → bookmarks → history) |
-| **Tab Sorting** | By relevancy | By Most Recently Used (MRU) |
-| **Bookmark Search** | Title + URL | Full folder path + title + URL |
-| **Top Sites** | Not included | Included (Chrome's frequently visited sites) |
-| **Domains** | Included | Not included |
-| **Search Engines** | Included | Not included |
-| **Max Results** | 10 total | 10 total (4 per category max) |
+| **Tab Sorting**     | By relevancy             | By Most Recently Used (MRU)                                  |
+| **Bookmark Search** | Title + URL              | Full folder path + title + URL                               |
+| **Top Sites**       | Not included             | Included (Chrome's frequently visited sites)                 |
+| **Domains**         | Included                 | Not included                                                 |
+| **Search Engines**  | Included                 | Not included                                                 |
+| **Max Results**     | 10 total                 | 10 total (4 per category max)                                |
 
 ## Features
 
 ### 1. Most Recently Used (MRU) Tab Ordering
 
 When searching tabs, results are ordered by how recently you accessed each tab, with the most
-recently used tabs appearing first. This makes it quick to switch back to tabs you were just
-working with.
+recently used tabs appearing first. This makes it quick to switch back to tabs you were just working
+with.
 
 ### 2. Top Sites Integration
 
 OmniSearch includes your browser's top sites (frequently visited pages) as a dedicated category.
-These are fetched using Chrome's `chrome.topSites` API and provide quick access to your most
-visited websites.
+These are fetched using Chrome's `chrome.topSites` API and provide quick access to your most visited
+websites.
 
 ### 3. Full-Path Bookmark Search
 
@@ -45,6 +45,7 @@ You can find it by typing "Work", "Projects", "Vimium", or any combination of th
 ### 4. Grouped Results
 
 Results are displayed in distinct categories:
+
 1. **Tabs** - Your open tabs (MRU ordered)
 2. **Top Sites** - Frequently visited pages
 3. **Bookmarks** - Matching bookmarks with full folder paths
@@ -56,6 +57,7 @@ looking for.
 ### 5. Smart Deduplication
 
 URLs that appear in multiple categories are deduplicated following this priority:
+
 1. If a URL is open as a tab → it won't appear in top sites, bookmarks, or history
 2. If a URL is in top sites → it won't appear in bookmarks or history
 3. If a URL is bookmarked → it won't appear in history
@@ -69,13 +71,13 @@ leaving the vomnibar. The tab is removed from the list and you can continue brow
 
 ### Result Limits
 
-| Setting | Value | Description |
-|---------|-------|-------------|
-| `omniSearchMaxResultsPerCategory` | 4 | Maximum results per category |
-| `omniSearchMaxResults` | 10 | Maximum total results displayed |
+| Setting                           | Value | Description                     |
+| --------------------------------- | ----- | ------------------------------- |
+| `omniSearchMaxResultsPerCategory` | 4     | Maximum results per category    |
+| `omniSearchMaxResults`            | 10    | Maximum total results displayed |
 
-The per-category limit ensures a balanced distribution of results, while the total limit keeps
-the interface clean and responsive.
+The per-category limit ensures a balanced distribution of results, while the total limit keeps the
+interface clean and responsive.
 
 ## Usage
 
@@ -101,6 +103,7 @@ map go Vomnibar.activateOmniSearch query=github
 ## When to Use OmniSearch vs Standard Omni
 
 **Use OmniSearch when:**
+
 - You want to quickly switch to a recently used tab
 - You frequently visit the same sites and want quick access via top sites
 - You organize bookmarks in folders and want to search by folder names
@@ -109,6 +112,7 @@ map go Vomnibar.activateOmniSearch query=github
 - You want to see suggestions immediately when opening the vomnibar (no typing required)
 
 **Use Standard Omni when:**
+
 - You want results ranked purely by relevancy
 - You frequently use custom search engines
 - You want domain auto-completion
@@ -168,12 +172,12 @@ map go Vomnibar.activateOmniSearch query=github
 
 ### Results Per Category
 
-| Category | Max Results | Sorting |
-|----------|-------------|---------|
-| Tabs | 4 | Most Recently Used |
-| Top Sites | 4 | Chrome's ranking |
-| Bookmarks | 4 | Relevancy score |
-| History | 4 | Relevancy (with query) or Recency (without query) |
+| Category  | Max Results | Sorting                                           |
+| --------- | ----------- | ------------------------------------------------- |
+| Tabs      | 4           | Most Recently Used                                |
+| Top Sites | 4           | Chrome's ranking                                  |
+| Bookmarks | 4           | Relevancy score                                   |
+| History   | 4           | Relevancy (with query) or Recency (without query) |
 
 **Total Maximum**: 10 results (after deduplication and final slice)
 
@@ -207,25 +211,26 @@ map gp Vomnibar.activateOmniSearch query=project
 
 ## Keyboard Shortcuts (in Vomnibar)
 
-| Key | Action |
-|-----|--------|
-| `↑` / `Ctrl+K` / `Ctrl+P` | Move selection up |
-| `↓` / `Ctrl+J` / `Ctrl+N` | Move selection down |
-| `Enter` | Open selected result |
-| `Ctrl+Enter` | Copy URL to input |
-| `Ctrl+D` | Close selected tab (tabs only) |
-| `Escape` | Close vomnibar |
+| Key                       | Action                         |
+| ------------------------- | ------------------------------ |
+| `↑` / `Ctrl+K` / `Ctrl+P` | Move selection up              |
+| `↓` / `Ctrl+J` / `Ctrl+N` | Move selection down            |
+| `Enter`                   | Open selected result           |
+| `Ctrl+Enter`              | Copy URL to input              |
+| `Ctrl+D`                  | Close selected tab (tabs only) |
+| `Escape`                  | Close vomnibar                 |
 
 ## Troubleshooting
 
 ### Tabs not appearing in MRU order
 
-Make sure Vimium has been active since you started your browser session. Tab recency tracking
-begins when Vimium loads.
+Make sure Vimium has been active since you started your browser session. Tab recency tracking begins
+when Vimium loads.
 
 ### Bookmarks not showing folder paths
 
 Refresh your bookmarks by:
+
 1. Opening Vimium's options page
 2. Making any change (or no change)
 3. Saving
@@ -234,14 +239,15 @@ This will trigger a bookmark cache refresh.
 
 ### Top Sites not appearing
 
-Top Sites require the `topSites` permission. Make sure Vimium has the necessary permissions
-enabled. On Firefox, this feature may have limited support.
+Top Sites require the `topSites` permission. Make sure Vimium has the necessary permissions enabled.
+On Firefox, this feature may have limited support.
 
 ### Results seem limited
 
 OmniSearch intentionally limits results to keep the interface clean and fast:
+
 - 4 results per category maximum
 - 10 results total maximum
 
-If you need to see more results, consider using the standard omni search (`o`) which shows
-more comprehensive results ranked by relevancy.
+If you need to see more results, consider using the standard omni search (`o`) which shows more
+comprehensive results ranked by relevancy.

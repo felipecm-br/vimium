@@ -89,12 +89,12 @@ export class Suggestion {
     // Uses Google Material Symbols ligatures - requires Material Symbols font
     // See: https://developers.google.com/fonts/docs/material_symbols
     const typeIcons = {
-      tab: "tab",              // Tab icon
-      bookmark: "star",    // Bookmark icon
-      history: "history_2",      // Clock/history icon
-      domain: "public",        // Globe/domain icon
-      topSite: "whatshot",  // Top/trending icon
-      search: "search",        // Search icon
+      tab: "tab", // Tab icon
+      bookmark: "star", // Bookmark icon
+      history: "history_2", // Clock/history icon
+      domain: "public", // Globe/domain icon
+      topSite: "whatshot", // Top/trending icon
+      search: "search", // Search icon
     };
     const typeIcon = typeIcons[this.description] || (this.isCustomSearch ? "search" : "circle");
     // Generate favicon HTML (works for all types in Chrome, not just tabs)
@@ -103,7 +103,8 @@ export class Suggestion {
       const faviconUrl = new URL(chrome.runtime.getURL("/_favicon/"));
       faviconUrl.searchParams.set("pageUrl", this.url);
       faviconUrl.searchParams.set("size", "16");
-      faviconHtml = `<img class="favicon" src="${faviconUrl.toString()}" alt="" loading="lazy" decoding="async" />`;
+      faviconHtml =
+        `<img class="favicon" src="${faviconUrl.toString()}" alt="" loading="lazy" decoding="async" />`;
     }
 
     if (this.command) {
@@ -128,22 +129,21 @@ export class Suggestion {
       return this.html;
     }
 
-    const iconsHtml = `<span class="suggestion-icons" aria-hidden="true">${faviconHtml}<span class="type-icon material-symbols-outlined">${typeIcon}</span></span>`;
+    const iconsHtml =
+      `<span class="suggestion-icons" aria-hidden="true">${faviconHtml}<span class="type-icon material-symbols-outlined">${typeIcon}</span></span>`;
     const titleHtml = this.highlightQueryTerms(Utils.escapeHtml(this.title));
-    
+
     // Add switch button for tabs
     const switchButtonHtml = this.description === "tab" && this.tabId != null
       ? `<button class="suggestion-icons switch-tab-btn" data-tab-id="${this.tabId}" aria-label="Switch to tab" title="Switch to tab"><span class="action-icon material-symbols-outlined" aria-hidden="true">tab_move</span></button>`
       : "";
-    
+
     this.html = `\
 ${iconsHtml}
 <div class="suggestion-content">
   <div class="top-half">
     <span class="title">${titleHtml}</span> - 
-    <span class="url">${
-        this.highlightQueryTerms(Utils.escapeHtml(this.shortenUrl()))
-    }</span>
+    <span class="url">${this.highlightQueryTerms(Utils.escapeHtml(this.shortenUrl()))}</span>
     ${relevancyHtml}
   </div>
 </div>
@@ -932,9 +932,7 @@ export class OmniSearchCompleter {
         title: site.title,
         deDuplicate: false,
         relevancyFunction: (s) =>
-          queryTerms.length > 0
-            ? ranking.wordRelevancy(s.queryTerms, s.url, s.title)
-            : 0.5,
+          queryTerms.length > 0 ? ranking.wordRelevancy(s.queryTerms, s.url, s.title) : 0.5,
       });
     });
   }
@@ -982,8 +980,7 @@ export class OmniSearchCompleter {
       description: "bookmark",
       url: bookmark.url,
       title: bookmark.fullPathTitle, // Show full path as title
-      relevancyFunction: (s) =>
-        ranking.wordRelevancy(s.queryTerms, s.url, s.title),
+      relevancyFunction: (s) => ranking.wordRelevancy(s.queryTerms, s.url, s.title),
     });
   }
 
@@ -1015,8 +1012,7 @@ export class OmniSearchCompleter {
         description: "history",
         url: entry.url,
         title: entry.title,
-        relevancyFunction: (s) =>
-          ranking.wordRelevancy(s.queryTerms, s.url, s.title),
+        relevancyFunction: (s) => ranking.wordRelevancy(s.queryTerms, s.url, s.title),
       });
       if (queryTerms.length === 0) {
         suggestion.relevancy = ranking.recencyScore(entry.lastVisitTime);

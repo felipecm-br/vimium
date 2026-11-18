@@ -1,6 +1,6 @@
-/* 
+/*
  * Vomnibar Styles with CSS Custom Properties Theme System
- * 
+ *
  * All colors are defined as CSS variables for easy theming.
  * The default values provide a dark theme that matches Vimium's aesthetic.
  */
@@ -168,10 +168,10 @@ ul {
   background:
     linear-gradient(var(--vomnibar-inner-bg), var(--vomnibar-inner-bg)) padding-box,
     conic-gradient(from calc(var(--border-angle) + var(--vomnibar-border-offset)),
-      var(--vomnibar-gradient-1),
-      var(--vomnibar-gradient-2),
-      var(--vomnibar-gradient-3),
-      var(--vomnibar-gradient-1)
+    var(--vomnibar-gradient-1),
+    var(--vomnibar-gradient-2),
+    var(--vomnibar-gradient-3),
+    var(--vomnibar-gradient-1)
     ) border-box;
   animation: border-rotate var(--vomnibar-border-duration) linear infinite;
 
@@ -188,7 +188,9 @@ ul {
 /* Animated gradient border rotation — animates a registered @property custom property.
    This is significantly cheaper than background-position animation on an oversized texture. */
 @keyframes border-rotate {
-  to { --border-angle: 360deg; }
+  to {
+    --border-angle: 360deg;
+  }
 }
 
 /* Border speed "Off": keep the gradient at its angle, stop the rotation. */
@@ -379,7 +381,8 @@ ul {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-image: linear-gradient(91deg, rgb(255, 255, 255, 0) 4%, rgb(255, 255, 255, 0) 20%, rgb(255, 255, 255, 1) 100%);
+  background-image: linear-gradient(91deg, rgb(255, 255, 255, 0) 4%, rgb(255, 255, 255, 0) 20%,
+    rgb(255, 255, 255, 1) 100%);
   background-clip: text;
   z-index: 1;
   color: transparent;
@@ -391,7 +394,8 @@ ul {
 }
 
 #vomnibar li.selected .type-icon {
-  background-image: linear-gradient(91deg, rgb(255, 255, 255, 0) 4%, rgb(255, 255, 255, 0) 20%, var(--vomnibar-accent-color) 100%);
+  background-image: linear-gradient(91deg, rgb(255, 255, 255, 0) 4%, rgb(255, 255, 255, 0) 20%,
+    var(--vomnibar-accent-color) 100%);
 }
 
 #vomnibar li.selected .action-icon {
@@ -594,10 +598,19 @@ ul {
 
 /* --- OPTION A: Very subtle wobble (recommended default) --- */
 @keyframes vomnibar-entrance-shake {
-  0%, 100% { transform: translateX(-50%) rotate(0deg); }
-  25%      { transform: translateX(-50%) rotate(-0.3deg) scale(1.003); }
-  50%      { transform: translateX(-50%) rotate(0.3deg) scale(1.005); }
-  75%      { transform: translateX(-50%) rotate(-0.15deg); }
+  0%,
+  100% {
+    transform: translateX(-50%) rotate(0deg);
+  }
+  25% {
+    transform: translateX(-50%) rotate(-0.3deg) scale(1.003);
+  }
+  50% {
+    transform: translateX(-50%) rotate(0.3deg) scale(1.005);
+  }
+  75% {
+    transform: translateX(-50%) rotate(-0.15deg);
+  }
 }
 
 /* --- OPTION B: Gentle bounce (uncomment to test) ---
@@ -878,11 +891,22 @@ ul {
 
 /* Google mode shake — less aggressive version */
 @keyframes google-mode-shake {
-  0%, 100% { transform: translateX(-50%) rotate(0deg); }
-  20%      { transform: translateX(-50%) rotate(-0.6deg) scale(1.005); }
-  40%      { transform: translateX(-50%) rotate(0.6deg) scale(1.008); }
-  60%      { transform: translateX(-50%) rotate(-0.3deg) scale(1.003); }
-  80%      { transform: translateX(-50%) rotate(0.3deg); }
+  0%,
+  100% {
+    transform: translateX(-50%) rotate(0deg);
+  }
+  20% {
+    transform: translateX(-50%) rotate(-0.6deg) scale(1.005);
+  }
+  40% {
+    transform: translateX(-50%) rotate(0.6deg) scale(1.008);
+  }
+  60% {
+    transform: translateX(-50%) rotate(-0.3deg) scale(1.003);
+  }
+  80% {
+    transform: translateX(-50%) rotate(0.3deg);
+  }
 }
 
 @keyframes google-mode-glow {
@@ -901,8 +925,14 @@ ul {
 }
 
 @keyframes google-badge-pop {
-  0%   { opacity: 0; transform: translateY(-50%) scale(0.3); }
-  100% { opacity: 1; transform: translateY(-50%) scale(1); }
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.3);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
 }
 
 /* Light theme auto-detection (when no theme is explicitly set) */

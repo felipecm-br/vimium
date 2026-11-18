@@ -2,35 +2,40 @@
 
 ## Overview
 
-This document outlines the plan to implement `Vomnibar.activateOmniSearch` in Vimium, inspired by the OmniSearch feature from Surfing Keys. This feature provides a **unified search interface** that displays results from multiple sources in **grouped sections** rather than mixing them together.
+This document outlines the plan to implement `Vomnibar.activateOmniSearch` in Vimium, inspired by
+the OmniSearch feature from Surfing Keys. This feature provides a **unified search interface** that
+displays results from multiple sources in **grouped sections** rather than mixing them together.
 
 ## Feature Description
 
-Unlike the existing `Vomnibar.activate` (omni) completer which combines all results and ranks them by relevancy, OmniSearch displays results in **distinct grouped categories**:
+Unlike the existing `Vomnibar.activate` (omni) completer which combines all results and ranks them
+by relevancy, OmniSearch displays results in **distinct grouped categories**:
 
 1. **Tabs** - Open tabs (with MRU/Most Recently Used ordering)
 2. **Top Sites** - Frequently visited sites
 3. **Bookmarks** - User bookmarks (with full folder path fuzzy search)
 4. **History** - Browser history
 
-This approach provides better UX when users want to see results from specific categories without them being mixed together based on relevancy scores.
+This approach provides better UX when users want to see results from specific categories without
+them being mixed together based on relevancy scores.
 
 ## Key Differences from Existing Omni Completer
 
-| Feature | Omni Completer | OmniSearch |
-|---------|---------------|------------|
-| Result Display | Mixed, ranked by relevancy | Grouped by source type |
-| Tab Ordering | By relevancy | MRU (Most Recently Used) |
-| Bookmark Search | Title + URL | Full folder path + fuzzy matching |
-| Categories | Implicit | Explicit sections |
-| Domains | Included | Not included (less noise) |
-| Search Engines | Included | Not included |
+| Feature         | Omni Completer             | OmniSearch                        |
+| --------------- | -------------------------- | --------------------------------- |
+| Result Display  | Mixed, ranked by relevancy | Grouped by source type            |
+| Tab Ordering    | By relevancy               | MRU (Most Recently Used)          |
+| Bookmark Search | Title + URL                | Full folder path + fuzzy matching |
+| Categories      | Implicit                   | Explicit sections                 |
+| Domains         | Included                   | Not included (less noise)         |
+| Search Engines  | Included                   | Not included                      |
 
 ## Implementation Steps
 
 ### Step 1: Create OmniSearchCompleter Class
 
 Create a new completer class in `background_scripts/completion.js` that:
+
 - Fetches results from tabs, bookmarks, and history
 - Returns results grouped by category
 - Supports MRU ordering for tabs
@@ -89,6 +94,7 @@ activateOmniSearch(sourceFrameId, registryEntry) {
 ### Step 5: Update Vomnibar UI (if needed)
 
 The Vomnibar page may need updates to handle grouped results display:
+
 - Show category headers (Tabs, Bookmarks, History)
 - Visual separation between groups
 
@@ -97,6 +103,7 @@ The Vomnibar page may need updates to handle grouped results display:
 ### Step 6: Testing
 
 Create unit tests in `tests/unit_tests/`:
+
 - Test OmniSearchCompleter filtering
 - Test MRU tab ordering
 - Test bookmark path search
@@ -116,19 +123,19 @@ export class OmniSearchCompleter {
 
   async filter(request) {
     const { queryTerms, query } = request;
-    
+
     // Get tabs with MRU ordering
     const tabs = await this.getTabsWithMRU(queryTerms);
-    
+
     // Get bookmarks with full path
     const bookmarks = await this.getBookmarksWithPath(queryTerms);
-    
+
     // Get history
     const history = await this.getHistory(queryTerms);
-    
+
     // Get top sites (if no query)
     const topSites = query ? [] : await this.getTopSites();
-    
+
     return {
       grouped: true,
       tabs,
@@ -142,11 +149,13 @@ export class OmniSearchCompleter {
 
 ### MRU Tab Ordering
 
-Tabs will be sorted by `lastAccessed` timestamp from Chrome's tab API, with the current tab excluded from results when MRU is enabled.
+Tabs will be sorted by `lastAccessed` timestamp from Chrome's tab API, with the current tab excluded
+from results when MRU is enabled.
 
 ### Full-Path Bookmark Search
 
 When searching bookmarks, the search will match against:
+
 - Bookmark title
 - Full folder path (e.g., "Work/Projects/Vimium")
 - URL

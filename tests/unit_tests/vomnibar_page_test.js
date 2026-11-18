@@ -84,7 +84,10 @@ context("vomnibar page", () => {
     await ui.onKeyEvent(newKeyEvent({ key: "ArrowRight", ctrlKey: true }));
     assert.isTrue(borderMotion.speed.label != start.speed);
     assert.equal((start.angle + 45) % 360, borderMotion.angle);
-    assert.equal(`${borderMotion.angle}deg`, ui.box.style.getPropertyValue("--vomnibar-border-offset"));
+    assert.equal(
+      `${borderMotion.angle}deg`,
+      ui.box.style.getPropertyValue("--vomnibar-border-offset"),
+    );
     assert.isTrue(ui.box.querySelector("#vomnibar-theme-footer").textContent.includes("45°"));
     await ui.onKeyEvent(newKeyEvent({ key: "Escape" }));
     assert.equal(start.speed, borderMotion.speed.label);
