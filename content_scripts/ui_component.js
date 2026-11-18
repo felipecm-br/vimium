@@ -159,8 +159,10 @@ class UIComponent {
       // Fade the glass background in once the stylesheet that styles it has loaded. The fade is a
       // CSS transition, so no forced reflow is needed to restart it.
       // Effects "Fast" skips it: a full-page backdrop-filter is the costliest thing Vimium paints.
-      const fast = globalThis.Settings?.isLoaded?.() && Settings.get("vomnibarEffects") === "Fast";
-      if (this.glassBackground && !fast) {
+      // "Quick" keeps it, without the fade.
+      const level = globalThis.Settings?.isLoaded?.() ? Settings.get("vomnibarEffects") : null;
+      this.glassBackground?.classList.toggle("vomnibar-glass-bg-instant", level === "Quick");
+      if (this.glassBackground && level !== "Fast") {
         this.stylesheetLoaded.then(() => {
           if (classes.contains("vimium-ui-component-visible")) {
             this.glassBackground.classList.add("vomnibar-glass-bg-visible");

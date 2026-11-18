@@ -1032,8 +1032,8 @@ class VomnibarUI {
     this.isHiding = false;
     // Reset any existing animation classes first
     this.box.classList.remove("vomnibar-slide-out");
-    if (effectsManager.isFast()) {
-      // Effects "Fast": appear at once, no forced reflow.
+    if (effectsManager.isInstant()) {
+      // Effects "Quick" and "Fast": appear at once, no forced reflow.
       this.box.classList.remove("vomnibar-slide-in");
       this.input.focus();
       return;
@@ -1046,8 +1046,8 @@ class VomnibarUI {
   }
 
   hideAnimations() {
-    if (effectsManager.isFast()) {
-      // Effects "Fast": hide at once, so the page or search being opened isn't held back 140ms.
+    if (effectsManager.isInstant()) {
+      // Effects "Quick" and "Fast": hide at once, so what is being opened isn't held back 140ms.
       this.box.classList.remove("vomnibar-slide-in", "vomnibar-slide-out");
       return Promise.resolve();
     }

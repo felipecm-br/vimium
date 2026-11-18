@@ -970,6 +970,18 @@ ul {
   animation: none;
 }
 
+/* Quick: opens and closes at once (the JS skips the slide) and nothing else moves, except the
+   rotating border, which runs on the compositor and costs no repaint. The glass backdrop stays and
+   appears without fading. */
+:root[data-vomnibar-effects="quick"] #vomnibar,
+:root[data-vomnibar-effects="quick"] #vomnibar *,
+:root[data-vomnibar-effects="quick"] #vomnibar::after,
+:root[data-vomnibar-effects="quick"] #vomnibar *::before,
+:root[data-vomnibar-effects="quick"] #vomnibar *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
 /* Fast: nothing moves or blurs. The JS skips the slide in and out (so closing doesn't wait for it)
    and the content script skips the glass backdrop. The border's layer is dropped too: it is
    painted once and never changes. */

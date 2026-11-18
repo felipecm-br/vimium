@@ -46,12 +46,15 @@ const createStorageAPI = (areaName) => {
       }
     }),
 
-    remove: withPromise(function (key) {
+    // Like Chrome's, takes one key or an array of them (Settings.setSettings passes an array).
+    remove: withPromise(function (keys) {
       chrome.runtime.lastError = undefined;
-      if (key in this.store) {
-        delete this.store[key];
+      for (const key of [keys].flat()) {
+        if (key in this.store) {
+          delete this.store[key];
+        }
+        globalThis.chrome.storage.onChanged.callEmpty(key);
       }
-      globalThis.chrome.storage.onChanged.callEmpty(key);
     }),
 
     clear: withPromise(function () {

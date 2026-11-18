@@ -559,6 +559,11 @@ iframe.vomnibar-frame {
   transition: opacity 120ms ease-out;
 }
 
+/* Effects level "Quick": the backdrop appears at once. */
+.vomnibar-glass-bg.vomnibar-glass-bg-instant {
+  transition: none;
+}
+
 div.vimium-flash {
   box-shadow: 0px 0px 4px 2px #4183c4;
   padding: 1px;

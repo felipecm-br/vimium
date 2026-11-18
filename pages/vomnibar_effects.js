@@ -22,6 +22,11 @@ export const effectLevels = [
     description: "Slide and glass backdrop; border and Google mode stay still",
   },
   {
+    name: "Quick",
+    icon: "🚀",
+    description: "Opens and closes instantly; keeps the rotating border and glass",
+  },
+  {
     name: "Fast",
     icon: "⚡",
     description: "No animation or blur: opens and closes instantly",
@@ -29,6 +34,7 @@ export const effectLevels = [
 ];
 
 const DEFAULT_LEVEL = "Full";
+export const INSTANT_LEVELS = ["Quick", "Fast"];
 const isLevel = (name) => effectLevels.some((level) => level.name === name);
 
 // The saved level, from anywhere Settings is loaded (the Vomnibar page or a content script).
@@ -66,6 +72,11 @@ export class EffectsManager {
 
   isFast() {
     return this.level === "Fast";
+  }
+
+  // Quick and Fast both show and hide the Vomnibar at once, without the slide.
+  isInstant() {
+    return INSTANT_LEVELS.includes(this.level);
   }
 
   getCurrentLevel() {

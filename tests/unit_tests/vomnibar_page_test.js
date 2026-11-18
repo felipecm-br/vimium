@@ -214,9 +214,11 @@ context("vomnibar page", () => {
     ui.setCompleterName("omniSearch");
     ui.setQuery("effects");
     await ui.update();
-    assert.equal(["Full", "Calm", "Fast"], ui.themeCompletions.map((c) => c.name));
+    assert.equal(["Full", "Calm", "Quick", "Fast"], ui.themeCompletions.map((c) => c.name));
     assert.equal("full", effectsAttribute());
     await ui.onKeyEvent(newKeyEvent({ key: "ArrowDown" }));
+    await ui.onKeyEvent(newKeyEvent({ key: "ArrowDown" }));
+    assert.equal("quick", effectsAttribute());
     await ui.onKeyEvent(newKeyEvent({ key: "ArrowDown" }));
     assert.equal("fast", effectsAttribute());
     // Left and right are for the border, in the theme picker only.
@@ -247,7 +249,19 @@ context("vomnibar page", () => {
     await Promise.resolve();
     assert.isTrue(resolved);
     await Settings.set("vomnibarEffects", "Full");
+    await new Promise((resolve) => setTimeout(resolve, 20));
     effectsManager.init();
+    assert.equal("full", effectsAttribute());
+  });
+
+  should("open and close at once in Quick too", () => {
+    effectsManager.preview("Quick");
+    ui.showAnimations();
+    assert.isFalse(ui.box.classList.contains("vomnibar-slide-in"));
+    effectsManager.preview("Full");
+    ui.showAnimations();
+    assert.isTrue(ui.box.classList.contains("vomnibar-slide-in"));
+    effectsManager.cancelPreview();
   });
 
   should("expose the results to screen readers as a combobox with an active option", async () => {
