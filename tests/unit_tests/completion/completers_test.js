@@ -12,6 +12,7 @@ import {
   HistoryCache,
   HistoryCompleter,
   isNavigationalMatch,
+  isSearchResultsPage,
   isStrongMatch,
   looksLikeWebSearch,
   MultiCompleter,
@@ -158,6 +159,25 @@ context("OmniSearch web search intent", () => {
     assert.isTrue(
       isNavigationalMatch(["react"], page("React Hooks Guide", "https://a.com", "bookmark")),
     );
+  });
+
+  should("not count the top-level domain or www as words", () => {
+    const results = page("rust book - Pesquisa Google", "https://www.google.com/x");
+    assert.isFalse(isStrongMatch(["rust", "c"], results));
+    assert.isFalse(isStrongMatch(["w"], page("Docs", "https://www.example.org")));
+    assert.isTrue(isStrongMatch(["exam"], page("Docs", "https://www.example.org")));
+  });
+
+  should("never treat a page of search results as the destination", () => {
+    const url = "https://www.google.com/search?q=rust+book&oq=rust+book&sourceid=chrome";
+    assert.isTrue(isSearchResultsPage(url));
+    assert.isTrue(isSearchResultsPage("https://duckduckgo.com/?q=rust"));
+    assert.isTrue(isSearchResultsPage("https://www.youtube.com/results?search_query=rust"));
+    assert.isFalse(isSearchResultsPage("https://doc.rust-lang.org/book/"));
+    assert.isFalse(isSearchResultsPage("https://www.google.com/maps"));
+    const tab = page("rust book - Pesquisa Google", url);
+    assert.isTrue(looksLikeWebSearch(["rust", "book"], [tab]));
+    assert.isTrue(looksLikeWebSearch(["rust", "c"], [tab]));
   });
 
   should("search the web for questions, whatever matches", () => {

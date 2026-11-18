@@ -899,20 +899,37 @@ const QUESTION_WORDS = new Set([
 
 const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-// Whether every query term starts a word in the suggestion's title or hostname: "rust" in "The Rust
+// The part of a hostname that names the site: no "www." and no top-level domain, so ".com" or ".org"
+// never count as words the user typed ("c" must not match www.google.com).
+const siteName = (hostname) => hostname.replace(/^www\./, "").replace(/\.[^.]+$/, "");
+
+const hostnameOf = (url) => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return ""; // Not a URL (e.g. a bookmarklet).
+  }
+};
+
+// Whether every query term starts a word in the suggestion's title or site name: "rust" in "The Rust
 // Book" or "rust-lang.org", but not in "trustpilot.com". A suggestion matched only inside words is
 // a weak match, likely not the page the user means.
 export function isStrongMatch(queryTerms, suggestion) {
-  let hostname = "";
-  try {
-    hostname = new URL(suggestion.url).hostname;
-  } catch {
-    // Not a URL (e.g. a bookmarklet); the title alone decides.
-  }
-  const text = `${suggestion.title ?? ""} ${hostname}`;
+  const text = `${suggestion.title ?? ""} ${siteName(hostnameOf(suggestion.url))}`;
   return queryTerms.every((term) =>
     new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(term)}`, "iu").test(text)
   );
+}
+
+const SEARCH_ENGINE_HOST =
+  /(^|\.)(google|bing|duckduckgo|yahoo|yandex|baidu|kagi|ecosia|search\.brave|startpage)\./;
+const SEARCH_QUERY_PARAM = /[?&#](q|query|p|text|search_query)=/;
+
+// Whether `url` is a page of search results. Such a page matches the words of an earlier search,
+// but someone typing similar words wants a new search, not that old page.
+export function isSearchResultsPage(url) {
+  return SEARCH_QUERY_PARAM.test(url) &&
+    (SEARCH_ENGINE_HOST.test(hostnameOf(url)) || /\/(search|results)\b/.test(url));
 }
 
 // Sources the user deliberately keeps around: a strong match there is likely the page they mean.
@@ -923,13 +940,10 @@ const NAVIGATIONAL_SOURCES = new Set(["tab", "bookmark", "topSite"]);
 // between navigating and searching: a strong match in an open tab, bookmark or top site, or a
 // single term that starts the hostname (typing "git" for github.com), from any source.
 export function isNavigationalMatch(queryTerms, suggestion) {
+  if (isSearchResultsPage(suggestion.url ?? "")) return false;
   if (queryTerms.length === 1) {
-    try {
-      const host = new URL(suggestion.url).hostname.replace(/^www\./, "");
-      if (host.startsWith(queryTerms[0].toLowerCase())) return true;
-    } catch {
-      // Not a URL; fall through to the title.
-    }
+    const host = hostnameOf(suggestion.url).replace(/^www\./, "");
+    if (host && host.startsWith(queryTerms[0].toLowerCase())) return true;
   }
   return NAVIGATIONAL_SOURCES.has(suggestion.description) && isStrongMatch(queryTerms, suggestion);
 }
