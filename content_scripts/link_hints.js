@@ -1559,11 +1559,9 @@ const LocalHints = {
     const seenRects = new Set();
 
     for (const element of elements) {
-      // Skip elements with no meaningful text content
-      const text = (element.innerText || element.textContent || "").trim();
-      if (text.length === 0) continue;
-      // Skip very long text (likely a container)
-      if (text.length > 500) continue;
+      // Cheap reject first: textContent needs no layout, unlike innerText. Elements with no text
+      // are dropped here, before any layout read.
+      if (element.textContent.trim().length === 0) continue;
 
       // Get visible rect
       const clientRect = DomUtils.getVisibleClientRect(element, true);
@@ -1571,6 +1569,13 @@ const LocalHints = {
 
       // Skip tiny elements
       if (clientRect.width < 5 || clientRect.height < 5) continue;
+
+      // Only visible candidates pay for innerText (the text the user sees). Layout is already up
+      // to date from the rect read above, so this doesn't force a new one.
+      const text = (element.innerText ?? element.textContent).trim();
+      if (text.length === 0) continue;
+      // Skip very long text (likely a container)
+      if (text.length > 500) continue;
 
       // Create a simple key to avoid duplicate rects at the same position
       const rectKey = `${Math.round(clientRect.left)},${Math.round(clientRect.top)}`;

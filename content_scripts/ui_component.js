@@ -156,15 +156,14 @@ class UIComponent {
     if (visible) {
       classes.remove("vimium-ui-component-hidden");
       classes.add("vimium-ui-component-visible");
-      // Show glass background with fade-in animation (use setTimeout to ensure CSS is loaded)
+      // Fade the glass background in once the stylesheet that styles it has loaded. The fade is a
+      // CSS transition, so no forced reflow is needed to restart it.
       if (this.glassBackground) {
-        setTimeout(() => {
-          this.glassBackground.classList.remove("vomnibar-glass-bg-fade-out");
-          this.glassBackground.classList.add("vomnibar-glass-bg-visible");
-          // Force reflow to restart animation
-          void this.glassBackground.offsetWidth;
-          this.glassBackground.classList.add("vomnibar-glass-bg-fade-in");
-        }, 10);
+        this.stylesheetLoaded.then(() => {
+          if (classes.contains("vimium-ui-component-visible")) {
+            this.glassBackground.classList.add("vomnibar-glass-bg-visible");
+          }
+        });
       }
     } else {
       classes.add("vimium-ui-component-hidden");
@@ -172,11 +171,7 @@ class UIComponent {
       // Hide glass background: remove immediately to avoid expensive backdrop-filter
       // lingering during or after the vomnibar slide-out animation.
       if (this.glassBackground) {
-        this.glassBackground.classList.remove(
-          "vomnibar-glass-bg-fade-in",
-          "vomnibar-glass-bg-visible",
-          "vomnibar-glass-bg-fade-out",
-        );
+        this.glassBackground.classList.remove("vomnibar-glass-bg-visible");
       }
     }
   }

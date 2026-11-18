@@ -847,10 +847,9 @@ export class OmniSearchCompleter {
   }
 
   // Recursively traverse bookmark tree and build full folder paths
-  traverseBookmarksWithPath(tree, parentPath = "") {
-    let bookmarksList = [];
-    let bookmarksMap = new Map();
-
+  // The list and map are shared by the whole traversal (rather than merged per folder, which copied
+  // them at every level and made large bookmark trees quadratic).
+  traverseBookmarksWithPath(tree, parentPath = "", bookmarksList = [], bookmarksMap = new Map()) {
     for (const node of tree) {
       const isFolder = !node.url && node.children;
 
@@ -860,11 +859,7 @@ export class OmniSearchCompleter {
           ? ""
           : (parentPath ? `${parentPath}/${node.title}` : node.title);
 
-        const { bookmarksList: childBookmarks, bookmarksMap: childMap } =
-          this.traverseBookmarksWithPath(node.children, folderTitle);
-
-        bookmarksList = bookmarksList.concat(childBookmarks);
-        bookmarksMap = new Map([...bookmarksMap, ...childMap]);
+        this.traverseBookmarksWithPath(node.children, folderTitle, bookmarksList, bookmarksMap);
       } else if (node.url) {
         const bookmark = {
           ...node,
