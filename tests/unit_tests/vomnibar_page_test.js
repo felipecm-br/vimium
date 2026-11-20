@@ -495,7 +495,7 @@ context("vomnibar page", () => {
       const copied = [];
       // Deno's navigator has no clipboard to stub.
       Object.defineProperty(navigator, "clipboard", {
-        value: { writeText: async (text) => copied.push(text) },
+        value: { writeText: (text) => Promise.resolve(copied.push(text)) },
         configurable: true,
       });
       ui.setQuery("exa");
@@ -515,7 +515,7 @@ context("vomnibar page", () => {
     });
   });
 
-  should("switch to an open tab with the button on its row", async () => {
+  should("switch to an open tab with the button on its row", () => {
     const sent = [];
     stub(chrome.runtime, "sendMessage", withPromise((m) => sent.push(m)));
     ui.setCompleterName("omniSearch");
