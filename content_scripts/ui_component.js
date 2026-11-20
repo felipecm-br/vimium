@@ -8,6 +8,54 @@
 // page in the iframe uses the module ui_component_messenger.js to manage message passing back to
 // this class. Since the iframe's page can receive messages from untrusted javascript, secure
 // message passing is achieved using ports from MessageChannel() and a vimiumSecret handshake.
+
+// DarkReader, the most popular dark mode extension, can invert the whole page with a CSS filter (its
+// Filter and Filter+ modes), which would invert Vimium's UI too. While it does, Vimium's iframes get
+// a class that inverts them back (see vimium.css), so they keep honoring the browser's light/dark
+// preference.
+//
+// DarkReader appends a <style id="dark-reader-style"> to <head>, rewrites its text when its
+// settings change, and removes it when turned off. One observer, shared by every UI component in
+// the document, watches just that: <head>'s children and that element's text. It used to watch all
+// of <head>'s subtree, once per component, which woke it for every text change of every <style> and
+// <title>, as pages using CSS-in-JS make all the time.
+const darkReaderFilter = {
+  reverseClass: "vimium-reverse-dark-reader-filter",
+  iframes: new Set(),
+  observer: null,
+  // What the observer watches: the parent DarkReader's style goes in, and that style, if any.
+  parent: null,
+  style: null,
+  inverted: false,
+
+  // Keeps `iframe` inverted back for as long as DarkReader inverts the page.
+  watch(iframe) {
+    this.iframes.add(iframe);
+    this.update();
+    iframe.classList.toggle(this.reverseClass, this.inverted);
+  },
+
+  update() {
+    const style = document.getElementById("dark-reader-style");
+    // A document can lack a <head>, like an SVG one, and observing null would throw.
+    const parent = document.head ?? document.documentElement;
+    if (this.observer == null || style !== this.style || parent !== this.parent) {
+      this.style = style;
+      this.parent = parent;
+      this.observer?.disconnect();
+      this.observer = new MutationObserver(() => this.update());
+      this.observer.observe(parent, { childList: true });
+      if (style) {
+        this.observer.observe(style, { childList: true, characterData: true, subtree: true });
+      }
+    }
+    const inverted = style?.textContent.includes("filter") ?? false;
+    if (inverted === this.inverted) return;
+    this.inverted = inverted;
+    for (const iframe of this.iframes) iframe.classList.toggle(this.reverseClass, inverted);
+  },
+};
+
 class UIComponent {
   iframeElement;
   iframePort;
@@ -82,7 +130,7 @@ class UIComponent {
     this.setIframeVisible(false);
     this.iframeElement.src = chrome.runtime.getURL(iframeUrl);
     await DomUtils.documentReady();
-    this.handleDarkReaderFilter();
+    darkReaderFilter.watch(this.iframeElement);
     document.documentElement.appendChild(shadowWrapper);
 
     const secret = (await chrome.storage.session.get("vimiumSecret")).vimiumSecret;
@@ -128,27 +176,6 @@ class UIComponent {
         }
       };
     });
-  }
-
-  // This ensures that Vimium's UI elements (HUD, Vomnibar) honor the browser's light/dark theme
-  // preference, even when the user is also using the DarkReader extension. DarkReader is the most
-  // popular dark mode Chrome extension in use as of 2020.
-  handleDarkReaderFilter() {
-    const reverseFilterClass = "vimium-reverse-dark-reader-filter";
-    const reverseFilterIfExists = () => {
-      // The DarkReader extension creates this element if it's actively modifying the current page.
-      const darkReaderElement = document.getElementById("dark-reader-style");
-      if (darkReaderElement && darkReaderElement.innerHTML.includes("filter")) {
-        this.iframeElement.classList.add(reverseFilterClass);
-      } else {
-        this.iframeElement.classList.remove(reverseFilterClass);
-      }
-    };
-
-    reverseFilterIfExists();
-
-    const observer = new MutationObserver(reverseFilterIfExists);
-    observer.observe(document.head, { characterData: true, subtree: true, childList: true });
   }
 
   setIframeVisible(visible) {

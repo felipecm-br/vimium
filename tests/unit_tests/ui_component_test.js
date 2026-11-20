@@ -47,4 +47,47 @@ context("UIComponent", () => {
     c.show();
     assert.equal(c.iframeElement.getRootNode().host, document.activeElement);
   });
+
+  should("invert the frame back while DarkReader inverts the page", async () => {
+    c = new UIComponent();
+    await c.load("example.html", "example-class");
+    const second = new UIComponent();
+    await second.load("example2.html", "example-class");
+    const inverted = () =>
+      [c, second].map((ui) =>
+        ui.iframeElement.classList.contains("vimium-reverse-dark-reader-filter")
+      );
+    // Mutation observers run on a microtask, before this timer fires.
+    const observed = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    // A page's own styles and title don't matter.
+    document.head.appendChild(document.createElement("style")).textContent = "a { filter: none }";
+    document.title = "changed";
+    await observed();
+    assert.equal([false, false], inverted());
+
+    // DarkReader's Filter mode.
+    const style = document.createElement("style");
+    style.id = "dark-reader-style";
+    style.textContent = "html { filter: invert(100%) hue-rotate(180deg) }";
+    document.head.appendChild(style);
+    await observed();
+    assert.equal([true, true], inverted());
+
+    // A mode without a filter, which DarkReader switches to by rewriting the same element.
+    style.textContent = "html { background: black }";
+    await observed();
+    assert.equal([false, false], inverted());
+
+    style.textContent = "html { filter: invert(100%) }";
+    await observed();
+    assert.equal([true, true], inverted());
+
+    // DarkReader turned off for the page.
+    style.remove();
+    await observed();
+    assert.equal([false, false], inverted());
+
+    for (const port of second.messageChannelPorts) port.close();
+  });
 });
