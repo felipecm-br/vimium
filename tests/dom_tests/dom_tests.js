@@ -144,6 +144,44 @@ context("False positives in link-hint", () => {
   });
 });
 
+// A regression test for speed that counts instead of timing, so it holds on any machine: finding
+// hints must not measure the links that content-visibility skips rendering, since measuring one
+// lays its section out first (./make.js bench-link-hints times what that costs).
+context("Link hints on a page whose sections skip rendering", () => {
+  setup(() => {
+    const section = (s) =>
+      // A fixed height, so rendering a section doesn't shrink it and bring the next ones in view.
+      `<section style="content-visibility: auto; height: 400px">${
+        Array.from({ length: 10 }, (_, i) => `<a href="#s${s}-${i}">link ${s}.${i}</a>`).join(" ")
+      }</section>`;
+    document.getElementById("test-div").innerHTML = Array.from(
+      { length: 100 },
+      (_, s) => section(s),
+    ).join("");
+    stub(globalThis, "windowIsFocused", () => true);
+  });
+
+  teardown(() => document.getElementById("test-div").innerHTML = "");
+
+  should("measure only the links near the viewport", async () => {
+    // Rendering a frame is what tells which sections are skipped.
+    await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve)));
+    const getClientRects = Element.prototype.getClientRects;
+    let links = 0;
+    Element.prototype.getClientRects = function () {
+      if (this.localName === "a") links++;
+      return getClientRects.call(this);
+    };
+    try {
+      LocalHints.getLocalHints(false);
+    } finally {
+      Element.prototype.getClientRects = getClientRects;
+    }
+    // Of the 1,000 links, only those in the few sections around the viewport are measured.
+    assert.isTrue(links > 0 && links <= 100, `measured ${links} of 1000 links`);
+  });
+});
+
 context("jsaction matching", () => {
   let element;
 
