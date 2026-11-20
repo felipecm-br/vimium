@@ -493,6 +493,32 @@ task("test-e2e", [], async () => {
   if (!(await runE2ETests({ puppeteer, extensionPath: projectPath }))) abort("test-e2e failed.");
 });
 
+desc("Run end-to-end tests in Firefox (FIREFOX_PATH picks a Firefox; else Puppeteer's own)");
+task("test-e2e-firefox", [], async () => {
+  // Firefox needs its manifest: install a copy of the extension that has it.
+  const extensionPath = await Deno.makeTempDir({ prefix: "vimium-firefox-" });
+  try {
+    await shell("rsync", [
+      "-r",
+      ...["--exclude", ".git", "--exclude", "dist", "--exclude", "tests"],
+      "./",
+      extensionPath,
+    ]);
+    const manifest = createFirefoxManifest(await parseManifestFile());
+    await Deno.writeTextFile(
+      path.join(extensionPath, "manifest.json"),
+      JSON.stringify(manifest, null, 2),
+    );
+    const { runFirefoxE2ETests } = await import("./tests/e2e/firefox_e2e.js");
+    const executablePath = Deno.env.get("FIREFOX_PATH");
+    if (!(await runFirefoxE2ETests({ puppeteer, extensionPath, executablePath }))) {
+      abort("test-e2e-firefox failed.");
+    }
+  } finally {
+    await Deno.remove(extensionPath, { recursive: true });
+  }
+});
+
 desc("Run unit and DOM tests");
 task("test", ["test-unit", "test-dom"]);
 

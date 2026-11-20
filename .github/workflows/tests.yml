@@ -20,7 +20,7 @@ jobs:
         with:
           deno-version: 2.9.8
 
-      - name: Cache Deno's modules and Puppeteer's Chrome
+      - name: Cache Deno's modules and Puppeteer's browsers
         uses: actions/cache@v4
         with:
           path: |
@@ -28,10 +28,12 @@ jobs:
             ~/.cache/puppeteer
           key: ${{ runner.os }}-deno-${{ hashFiles('deno.json', 'deno.lock') }}
 
-      # Deno doesn't run npm install scripts, so Puppeteer's Chrome is installed explicitly: the
-      # version this Puppeteer expects.
-      - name: Install Chrome for Puppeteer
-        run: deno run -A puppeteer browsers install chrome
+      # Deno doesn't run npm install scripts, so Puppeteer's browsers are installed explicitly: the
+      # versions this Puppeteer expects.
+      - name: Install Chrome and Firefox for Puppeteer
+        run: |
+          deno run -A puppeteer browsers install chrome
+          deno run -A puppeteer browsers install firefox
 
       # Ubuntu 23.10 and later restrict unprivileged user namespaces, which Chrome's sandbox needs.
       - name: Let Chrome start its sandbox
@@ -49,3 +51,7 @@ jobs:
       # Chrome with the extension loaded. Web searches go nowhere (see tests/e2e/vomnibar_e2e.js).
       - name: End-to-end tests
         run: ./make.js test-e2e
+
+      # Firefox with the extension installed as a temporary add-on (see tests/e2e/firefox_e2e.js).
+      - name: End-to-end tests in Firefox
+        run: ./make.js test-e2e-firefox
