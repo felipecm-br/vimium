@@ -1,0 +1,51 @@
+# Checks formatting and lint, and runs the unit, DOM and end-to-end tests, as CONTRIBUTING.md
+# describes, on every push and pull request.
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.9.8
+
+      - name: Cache Deno's modules and Puppeteer's Chrome
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno
+            ~/.cache/puppeteer
+          key: ${{ runner.os }}-deno-${{ hashFiles('deno.json', 'deno.lock') }}
+
+      # Deno doesn't run npm install scripts, so Puppeteer's Chrome is installed explicitly: the
+      # version this Puppeteer expects.
+      - name: Install Chrome for Puppeteer
+        run: deno run -A puppeteer browsers install chrome
+
+      # Ubuntu 23.10 and later restrict unprivileged user namespaces, which Chrome's sandbox needs.
+      - name: Let Chrome start its sandbox
+        run: echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns
+
+      - name: Formatting and lint
+        run: ./make.js check
+
+      - name: Unit tests
+        run: ./make.js test-unit
+
+      - name: DOM tests
+        run: ./make.js test-dom
+
+      # Chrome with the extension loaded. Web searches go nowhere (see tests/e2e/vomnibar_e2e.js).
+      - name: End-to-end tests
+        run: ./make.js test-e2e
