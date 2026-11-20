@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Link hints benchmark</title>
+    <link rel="stylesheet" type="text/css" href="../../content_scripts/vimium.css" />
+    <link rel="icon" href="data:,">
+    <script src="../../lib/chrome_api_stubs.js"></script>
+    <script src="../../lib/utils.js"></script>
+    <script src="../../lib/types.js"></script>
+    <script src="../../lib/keyboard_utils.js"></script>
+    <script src="../../lib/dom_utils.js"></script>
+    <script src="../../lib/rect.js"></script>
+    <script src="../../lib/handler_stack.js"></script>
+    <script src="../../lib/settings.js"></script>
+    <script src="../../lib/find_mode_history.js"></script>
+    <script src="../../content_scripts/mode.js"></script>
+    <script src="../../content_scripts/marks.js"></script>
+    <script src="../../content_scripts/ui_component.js"></script>
+    <script src="../../content_scripts/link_hints.js"></script>
+    <script src="../../content_scripts/vomnibar.js"></script>
+    <script src="../../content_scripts/scroller.js"></script>
+    <script src="../../content_scripts/mode_insert.js"></script>
+    <script src="../../content_scripts/mode_find.js"></script>
+    <script src="../../content_scripts/mode_key_handler.js"></script>
+    <script src="../../content_scripts/mode_visual.js"></script>
+    <script src="../../content_scripts/hud.js"></script>
+    <script src="../../content_scripts/mode_normal.js"></script>
+    <script src="../../content_scripts/vimium_frontend.js"></script>
+    <script src="link_hints_benchmark.js"></script>
+    <style>
+      /* ds-allow-hardcode:start A synthetic page to measure link hints on, not Vimium's UI. */
+      body { margin: 0; font: 14px sans-serif; }
+      .card { border-bottom: 1px solid #ddd; padding: 8px; }
+      .header img { width: 32px; height: 32px; vertical-align: middle; }
+      .actions { display: flex; gap: 16px; }
+      .action-btn { display: inline-flex; gap: 4px; cursor: pointer; }
+      .action-btn svg { width: 16px; height: 16px; }
+      .scroller { height: 120px; overflow: auto; border: 1px solid #ccc; margin: 4px; }
+      .tooltip { position: absolute; visibility: hidden; }
+      td { padding: 2px 6px; }
+      /* ds-allow-hardcode:end */
+    </style>
+  </head>
+  <body></body>
+</html>

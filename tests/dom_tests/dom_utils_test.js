@@ -91,6 +91,27 @@ context("Check visibility", () => {
       </div>`;
     assert.isTrue((DomUtils.getVisibleClientRect(document.getElementById("foo"), true)) !== null);
   });
+
+  // Their rects exist once laid out, but they aren't painted.
+  should("detect links nested in content-visibility:hidden elements as hidden", () => {
+    document.getElementById("test-div").innerHTML = `\
+      <div style='content-visibility:hidden'>
+        <a id='foo'>test</a>
+      </div>
+      <div hidden='until-found'>
+        <a id='bar'>test</a>
+      </div>`;
+    assert.equal(null, DomUtils.getVisibleClientRect(document.getElementById("foo"), true));
+    assert.equal(null, DomUtils.getVisibleClientRect(document.getElementById("bar"), true));
+  });
+
+  should("detect links in content-visibility:auto elements in view as visible", () => {
+    document.getElementById("test-div").innerHTML = `\
+      <div style='content-visibility:auto'>
+        <a id='foo'>test</a>
+      </div>`;
+    assert.isTrue((DomUtils.getVisibleClientRect(document.getElementById("foo"), true)) !== null);
+  });
 });
 
 context("getClientRectsForAreas", () => {

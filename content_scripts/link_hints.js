@@ -1388,9 +1388,10 @@ const LocalHints = {
   getElementFromPoint(x, y, root, stack) {
     if (root == null) root = document;
     if (stack == null) stack = [];
-    const element = root.elementsFromPoint
-      ? root.elementsFromPoint(x, y)[0]
-      : root.elementFromPoint(x, y);
+    // Not elementsFromPoint(x, y)[0]: it lists every element under the point, which costs 1.3-2x
+    // as much as finding the topmost one, and hit testing is most of the time spent finding hints.
+    // elementFromPoint finds what a click at the point would reach, which is what we want to know.
+    const element = root.elementFromPoint(x, y);
 
     if (stack.includes(element)) return element;
 

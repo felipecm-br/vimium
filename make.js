@@ -380,22 +380,31 @@ function getAvailablePort() {
   return port;
 }
 
-async function testDom() {
+// Serves the project's files on a free port, for pages that load Vimium's scripts directly.
+// `onMissing` is called with the path of each file that was requested but doesn't exist.
+function serveProjectFiles(onMissing) {
   const port = getAvailablePort();
-  let served404 = false;
-  const httpServer = Deno.serve({ port }, async (req) => {
+  const server = Deno.serve({ port, onListen() {} }, async (req) => {
     const url = new URL(req.url);
     let path = decodeURIComponent(url.pathname);
     if (path.startsWith("/")) {
       path = "." + path;
     }
     if (!(await fs.exists(path))) {
-      console.error("dom-tests: requested missing file (not found):", path);
-      served404 = true;
+      onMissing?.(path);
       return new Response(null, { status: 404 });
     } else {
       return fileServer.serveFile(req, path);
     }
+  });
+  return { port, server };
+}
+
+async function testDom() {
+  let served404 = false;
+  const { port, server: httpServer } = serveProjectFiles((path) => {
+    console.error("dom-tests: requested missing file (not found):", path);
+    served404 = true;
   });
 
   const files = ["dom_tests.html"];
@@ -433,6 +442,50 @@ async function testDom() {
 
 desc("Run DOM tests");
 task("test-dom", [], testDom);
+
+// Times how long link hints take to find what to hint on large synthetic pages. With the
+// environment variable SIGNATURES set to a directory, writes there what each page's hints were, to
+// compare two versions of the code: `diff -r` of their directories should find nothing.
+desc("Time finding link hints on large synthetic pages (SIGNATURES=dir saves what was found)");
+task("bench-link-hints", [], async () => {
+  const { port, server } = serveProjectFiles((path) => console.error("Not found:", path));
+  const browser = await puppeteer.launch();
+  const signaturesDir = Deno.env.get("SIGNATURES");
+  if (signaturesDir) await fs.ensureDir(signaturesDir);
+  try {
+    const url = `http://localhost:${port}/tests/perf/link_hints_benchmark.html?dom_tests=true`;
+    const shapesPage = await browser.newPage();
+    await shapesPage.goto(url, { waitUntil: "load" });
+    const shapes = await shapesPage.evaluate(() => linkHintsBenchmark.shapes);
+    await shapesPage.close();
+    console.log("shape              elements  hints  find ms (first)  press f ms  signature");
+    for (const shape of shapes) {
+      // A fresh page for each shape, so one's garbage doesn't slow the next.
+      const page = await browser.newPage();
+      await page.setViewport({ width: 1280, height: 800 });
+      setupPuppeteerPageForTests(page);
+      await page.goto(url, { waitUntil: "load" });
+      const r = await page.evaluate((s) => linkHintsBenchmark.run(s), shape);
+      console.log(
+        r.shape.padEnd(18),
+        String(r.elements).padStart(8),
+        String(r.hints).padStart(6),
+        r.medianMs.toFixed(1).padStart(8),
+        `(${r.firstMs.toFixed(1)})`.padStart(8),
+        r.activationMs.toFixed(1).padStart(11),
+        "",
+        r.signature,
+      );
+      if (signaturesDir) {
+        await Deno.writeTextFile(path.join(signaturesDir, `${shape}.txt`), r.fullSignature);
+      }
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+    await server.shutdown();
+  }
+});
 
 desc("Run end-to-end tests: Chrome with the extension loaded, driven by keyboard and mouse");
 task("test-e2e", [], async () => {
