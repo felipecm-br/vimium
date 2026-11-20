@@ -400,6 +400,35 @@ context("vomnibar page", () => {
     assert.equal("zzqq nothing", message?.query);
   });
 
+  should("switch to an open tab with the button on its row", async () => {
+    const sent = [];
+    stub(chrome.runtime, "sendMessage", withPromise((m) => sent.push(m)));
+    ui.setCompleterName("omniSearch");
+    ui.setQuery("rust");
+    stub(chrome.runtime, "getURL", returns("https://test/"));
+    const tab = new Suggestion({
+      queryTerms: [],
+      description: "tab",
+      url: "https://doc.rust-lang.org/",
+      title: "Rust",
+      tabId: 7,
+      relevancy: 1,
+    });
+    tab.generateHtml();
+    ui.allCompletions = [tab];
+    ui.currentPage = 0;
+    ui.renderCurrentPage();
+    const button = ui.completionList.querySelector(".switch-tab-btn");
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    assert.equal(
+      [
+        { handler: "rememberVomnibarChoice", query: "rust", url: "https://doc.rust-lang.org/" },
+        { handler: "switchTabFromVomnibar", tabIdToSwitch: 7 },
+      ],
+      sent,
+    );
+  });
+
   should("open a result when it is clicked, in a new tab with ctrl", async () => {
     const opened = [];
     stub(

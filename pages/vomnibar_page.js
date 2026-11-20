@@ -896,21 +896,17 @@ class VomnibarUI {
       `<li data-index="${index}">${c.html}</li>`
     ).join("");
     this.completionList.style.display = completions.length > 0 ? "block" : "";
+  }
 
-    // Add click handlers for switch tab buttons
-    this.completionList.querySelectorAll(".switch-tab-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        const tabId = parseInt(btn.dataset.tabId, 10);
-        if (tabId) {
-          const url = this.completions.find((c) => c.tabId === tabId)?.url;
-          if (url) this.rememberChoice({ url });
-          chrome.runtime.sendMessage({ handler: "switchTabFromVomnibar", tabIdToSwitch: tabId });
-          this.hide();
-        }
-      });
-    });
+  // The button on an open tab's row, which switches to that tab.
+  switchToTab(event, tabId) {
+    event.stopPropagation();
+    event.preventDefault();
+    if (!tabId || this.isHiding) return;
+    const url = this.completions.find((c) => c.tabId === tabId)?.url;
+    if (url) this.rememberChoice({ url });
+    chrome.runtime.sendMessage({ handler: "switchTabFromVomnibar", tabIdToSwitch: tabId });
+    this.hide();
   }
 
   refreshCompletions() {
@@ -1003,8 +999,13 @@ class VomnibarUI {
     this.completionList.style.display = "";
     this.positionIndicator = document.getElementById("vomnibar-position-indicator");
     // Clicking a result opens it, as Enter would; ctrl/cmd/shift-click or a middle click opens it in
-    // a new tab. One listener for the list, since its items are re-rendered on every keystroke.
-    this.completionList.addEventListener("click", (event) => this.onCompletionClick(event));
+    // a new tab. One listener for the list, its rows and their buttons, since the rows are
+    // re-rendered on every keystroke.
+    this.completionList.addEventListener("click", (event) => {
+      const switchButton = event.target.closest?.(".switch-tab-btn");
+      if (switchButton) this.switchToTab(event, Number(switchButton.dataset.tabId));
+      else this.onCompletionClick(event);
+    });
     this.completionList.addEventListener("auxclick", (event) => {
       if (event.button !== 1) return;
       this.onCompletionClick({

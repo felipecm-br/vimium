@@ -147,6 +147,24 @@ test("t: an open tab that matches strongly comes before the web search", async (
   await rustTab.close();
 });
 
+test("t: the button on an open tab's row switches to that tab", async (ctx) => {
+  const { page, base, browser, worker } = ctx;
+  const rustTab = await browser.newPage();
+  await rustTab.goto(base + "/rust.html");
+  await page.bringToFront();
+  await page.goto(base + "/");
+  const frame = await openVomnibar(page, "t", "rust");
+  const button = await frame.$("#vomnibar-results li .switch-tab-btn");
+  if (!button) throw new Error("The open tab's row has no switch button.");
+  await button.click();
+  await sleep(300);
+  const active = await worker.evaluate(async () =>
+    (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0]?.url
+  );
+  assertEqual(base + "/rust.html", active);
+  await rustTab.close();
+});
+
 test("t: a results page or a bookmark's folder never outranks the web search", async (ctx) => {
   const { page, base, browser, worker } = ctx;
   const resultsTab = await browser.newPage();
