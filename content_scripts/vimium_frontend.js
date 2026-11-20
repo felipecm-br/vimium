@@ -417,6 +417,9 @@ async function initializePreDomReady() {
   // NOTE(philc): I'm blocking further Vimium initialization on this, for simplicity. If necessary
   // we could allow other tasks to run concurrently.
   await checkIfEnabledForUrl();
+  // Not before: loading a UI component needs what checkIfEnabledForUrl learns (the browser, and
+  // whether Vimium is enabled here).
+  Vomnibar.prewarm();
 
   Utils.addChromeRuntimeOnMessageListener(
     Object.keys(messageHandlers),

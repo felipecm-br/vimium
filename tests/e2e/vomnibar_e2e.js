@@ -114,6 +114,22 @@ test("o: clicking a result opens it", async ({ page, base }) => {
   assertEqual(base + "/b.html", page.url());
 });
 
+test("the Vomnibar's frame loads, hidden, before its first use on a page", async ({ page, base }) => {
+  await page.goto(base + "/");
+  let iframe = null;
+  for (let waited = 0; waited < 3000 && !iframe; waited += 100) {
+    await sleep(100);
+    iframe = await page.evaluate(() => {
+      const host = [...document.documentElement.children].find((e) =>
+        e.shadowRoot?.querySelector("iframe.vomnibar-frame")
+      );
+      return host?.shadowRoot.querySelector("iframe.vomnibar-frame").className ?? null;
+    });
+  }
+  assertEqual("vomnibar-frame vimium-ui-component-hidden", iframe);
+  assertEqual(true, page.frames().some((f) => f.url().includes("vomnibar_page.html")));
+});
+
 test("t: Enter with no matches searches the web", async ({ page, base, worker }) => {
   await page.goto(base + "/");
   const frame = await openVomnibar(page, "t", "zzqq nomatch");

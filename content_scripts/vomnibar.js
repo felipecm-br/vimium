@@ -90,6 +90,28 @@ const Vomnibar = {
     }
   },
 
+  // Loads the Vomnibar's frame before its first use, so the first open on a page takes as long as
+  // the next ones: about 20ms instead of 100ms, most of which went to loading the frame. Only in the
+  // top frame (where the Vomnibar shows) of a page Vimium is enabled on, once the page has loaded,
+  // is being looked at, and the browser is idle. A loaded frame takes about half a megabyte.
+  prewarm() {
+    if (!DomUtils.isTopFrame() || globalThis.vimiumDomTestsAreRunning) return;
+    const load = () => {
+      if (this.vomnibarUI) return;
+      if (document.visibilityState !== "visible") {
+        document.addEventListener("visibilitychange", load, { once: true });
+        return;
+      }
+      const whenIdle = globalThis.requestIdleCallback ?? ((callback) => setTimeout(callback, 500));
+      whenIdle(() => {
+        if (!isEnabledForUrl) return;
+        if (document.visibilityState === "visible") this.init();
+        else load();
+      }, { timeout: 3000 });
+    };
+    DomUtils.documentComplete().then(load);
+  },
+
   // Opens the vomnibar.
   // - vomnibarShowOptions:
   //     completer: The name of the completer to fetch results from.
