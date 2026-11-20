@@ -149,8 +149,13 @@ export class Suggestion {
       return this.html;
     }
 
-    const iconsHtml =
-      `<span class="suggestion-icons" aria-hidden="true">${faviconHtml}${badgeHtml}</span>`;
+    // Without a favicon (Firefox gives extensions none), the source's icon stands alone, and a page
+    // gets the globe a missing favicon shows, rather than a small badge or nothing.
+    const iconsHtml = faviconHtml
+      ? `<span class="suggestion-icons" aria-hidden="true">${faviconHtml}${badgeHtml}</span>`
+      : `<span class="suggestion-icons" aria-hidden="true"><span class="type-icon material-symbols-outlined">${
+        badgeIcon ?? "public"
+      }</span></span>`;
     // Bookmarks show their own name first and their folder after it, muted.
     const shownTitle = (this.folder != null && this.pageTitle) ? this.pageTitle : this.title;
     const titleHtml = this.highlightQueryTerms(Utils.escapeHtml(shownTitle));

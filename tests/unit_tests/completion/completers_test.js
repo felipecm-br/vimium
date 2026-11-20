@@ -241,6 +241,29 @@ context("OmniSearch web search intent", () => {
   });
 });
 
+context("result icons without favicons", () => {
+  should("show the source's icon on its own in Firefox, and a globe for a page", () => {
+    // How bgUtils.isFirefox tells.
+    stub(globalThis, "browser", { runtime: { getURL: () => "moz-extension://id/" } });
+    const icon = (description, extra = {}) =>
+      new Suggestion({
+        queryTerms: [],
+        description,
+        url: "https://a.example/",
+        relevancy: 1,
+        ...extra,
+      })
+        .generateHtml({})
+        .match(/<span class="suggestion-icons"[^>]*>(.*?)<\/span><\/span>/s)[1];
+    assert.equal(
+      '<span class="type-icon material-symbols-outlined">tab',
+      icon("tab", { tabId: 1 }),
+    );
+    assert.equal('<span class="type-icon material-symbols-outlined">public', icon("history"));
+    assert.equal('<span class="type-icon material-symbols-outlined">history_2', icon("closedTab"));
+  });
+});
+
 context("OmniSearch bookmark rows", () => {
   should("name a bookmark's folders without the root folder", () => {
     const folderOf = (fullPathTitle, title) => bookmarkFolder({ fullPathTitle, title });
