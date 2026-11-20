@@ -5,10 +5,25 @@
 // never reached a handler, Enter ignored by one completer, results ordered by the background page.
 //
 // Pages come from a local server, so history is made by visiting them. Bookmarks are created
-// through the extension's service worker. Searches go to the browser's default engine (Google), and
-// requests to it are answered locally, so nothing leaves the machine.
+// through the extension's service worker. Searches go to the browser's default engine (Google),
+// whose host never resolves, so nothing leaves the machine: a search shows up as the URL of the tab
+// that failed to load it. Request interception can't stand in for this: Chrome doesn't report the
+// navigation chrome.search.query makes, only its redirects.
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// The query of the web search the tab running the test tried to open, or null if there is none.
+async function searchedQuery(worker) {
+  for (let waited = 0; waited < 2000; waited += 100) {
+    const urls = await worker.evaluate(async () =>
+      (await chrome.tabs.query({ url: "*://*.google.com/*" })).map((tab) => tab.url)
+    );
+    const query = urls.map((url) => new URL(url).searchParams.get("q")).find((q) => q != null);
+    if (query != null) return query;
+    await sleep(100);
+  }
+  return null;
+}
 
 const pages = {
   "/": "Start page",
@@ -99,23 +114,23 @@ test("o: clicking a result opens it", async ({ page, base }) => {
   assertEqual(base + "/b.html", page.url());
 });
 
-test("t: Enter with no matches searches the web", async ({ page, base }) => {
+test("t: Enter with no matches searches the web", async ({ page, base, worker }) => {
   await page.goto(base + "/");
   const frame = await openVomnibar(page, "t", "zzqq nomatch");
   assertEqual([{ text: "zzqq nomatch", selected: true, kind: "web" }], await rows(frame));
-  await Promise.all([page.waitForNavigation(), page.keyboard.press("Enter")]);
-  const url = new URL(page.url());
-  assertEqual(["www.google.com", "zzqq nomatch"], [url.hostname, url.searchParams.get("q")]);
+  await page.keyboard.press("Enter");
+  assertEqual("zzqq nomatch", await searchedQuery(worker));
 });
 
 // In b (bookmarks) the selection starts empty, and nothing but this row is offered.
-test("b: Down then Enter reaches the web search when nothing matches", async ({ page, base }) => {
+test("b: Down then Enter reaches the web search when nothing matches", async (ctx) => {
+  const { page, base, worker } = ctx;
   await page.goto(base + "/");
   const frame = await openVomnibar(page, "b", "zzqq nomatch");
   await page.keyboard.press("ArrowDown");
   assertEqual([{ text: "zzqq nomatch", selected: true, kind: "web" }], await rows(frame));
-  await Promise.all([page.waitForNavigation(), page.keyboard.press("Enter")]);
-  assertEqual("zzqq nomatch", new URL(page.url()).searchParams.get("q"));
+  await page.keyboard.press("Enter");
+  assertEqual("zzqq nomatch", await searchedQuery(worker));
 });
 
 test("t: an open tab that matches strongly comes before the web search", async (ctx) => {
@@ -155,7 +170,7 @@ test("t: a results page or a bookmark's folder never outranks the web search", a
 });
 
 test("t: Alt+Enter searches the web even when a page is selected", async (ctx) => {
-  const { page, base, browser } = ctx;
+  const { page, base, browser, worker } = ctx;
   const rustTab = await browser.newPage();
   await rustTab.goto(base + "/rust.html");
   await page.bringToFront();
@@ -163,9 +178,9 @@ test("t: Alt+Enter searches the web even when a page is selected", async (ctx) =
   const frame = await openVomnibar(page, "t", "rust");
   assertEqual("page", (await rows(frame))[0].kind, "a page is selected");
   await page.keyboard.down("Alt");
-  await Promise.all([page.waitForNavigation(), page.keyboard.press("Enter")]);
+  await page.keyboard.press("Enter");
   await page.keyboard.up("Alt");
-  assertEqual("rust", new URL(page.url()).searchParams.get("q"));
+  assertEqual("rust", await searchedQuery(worker));
   await rustTab.close();
 });
 
@@ -235,7 +250,12 @@ export async function runE2ETests({ puppeteer, extensionPath }) {
     headless: true,
     pipe: true,
     enableExtensions: [extensionPath],
-    args: ["--no-first-run", "--no-default-browser-check"],
+    args: [
+      "--no-first-run",
+      "--no-default-browser-check",
+      // Searches go nowhere; see the comment at the top of this file.
+      "--host-resolver-rules=MAP *.google.com ~NOTFOUND",
+    ],
   });
   let passed = 0;
   let failed = 0;
@@ -245,19 +265,10 @@ export async function runE2ETests({ puppeteer, extensionPath }) {
     );
     const worker = await workerTarget.worker();
 
-    // A fresh tab per test, so one test's failure doesn't leave state for the next. Requests to the
-    // default search engine are answered locally: searches show up as a navigation to its URL.
+    // A fresh tab per test, so one test's failure doesn't leave state for the next.
     const newPage = async () => {
       const page = await browser.newPage();
       await page.setViewport({ width: 1200, height: 800 });
-      await page.setRequestInterception(true);
-      page.on("request", (request) => {
-        if (new URL(request.url()).hostname.endsWith("google.com")) {
-          request.respond({ contentType: "text/html", body: pageHtml("Search results") });
-        } else {
-          request.continue();
-        }
-      });
       return page;
     };
 
