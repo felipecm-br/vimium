@@ -29,6 +29,29 @@ function isAdvancedCommand(command, options) {
     (command.name == "reload" && options.includes("hard"));
 }
 
+// What can be done inside the Vomnibar, which the commands that open it don't tell: its own keys,
+// and what OmniSearch (t) lists when its query starts with a prefix. These are fixed, unlike the
+// commands, so they don't come from the user's key mappings.
+function vomnibarKeys() {
+  const copy = KeyboardUtils.platform === "Mac" ? "⌘ C" : "Ctrl C";
+  return {
+    keys: [
+      ["Alt ↵", "Search the web for what you typed"],
+      ["→", "Type in the address shown after what you typed"],
+      ["⇧ ↵", "Open the selected result in a new tab"],
+      [copy, "Copy the selected result's URL"],
+      ["⇧ Del", "Forget a visited page, or close a tab"],
+    ],
+    // Typed first in OmniSearch.
+    prefixes: [
+      [">", "Run one of Vimium's commands"],
+      ["@", "Reopen a recently closed tab"],
+      ["theme", "Change the Vomnibar's look"],
+      ["effects", "Change how much it animates"],
+    ],
+  };
+}
+
 const HelpDialogPage = {
   dialogElement: null,
 
@@ -123,6 +146,33 @@ const HelpDialogPage = {
     return rowEl;
   },
 
+  // A row for one of the Vomnibar's own keys: `key` is shown as typed.
+  getVomnibarKeyRowEl(key, description) {
+    const rowEl = document.querySelector("template#row").content.cloneNode(true);
+    const keyEl = document.querySelector("template#keys").content.cloneNode(true);
+    keyEl.querySelector(".key").textContent = key;
+    rowEl.querySelector(".key-bindings").appendChild(keyEl);
+    rowEl.querySelector(".help-description").textContent = description;
+    return rowEl;
+  },
+
+  renderVomnibarKeys() {
+    const container = this.dialogElement.querySelector("#vomnibar-keys");
+    const { keys, prefixes } = vomnibarKeys();
+    const note = (text) => {
+      const el = document.createElement("div");
+      el.className = "vomnibar-keys-note";
+      el.textContent = text;
+      return el;
+    };
+    container.replaceChildren(
+      ...keys.map(([key, description]) => this.getVomnibarKeyRowEl(key, description)),
+      note("Typed first in OmniSearch (t):"),
+      ...prefixes.map(([key, description]) => this.getVomnibarKeyRowEl(key, description)),
+      note("OmniSearch learns: what you open for what you type comes first the next time."),
+    );
+  },
+
   async show() {
     document.getElementById("vimium-version").textContent = Utils.getCurrentVersion();
 
@@ -139,6 +189,7 @@ const HelpDialogPage = {
       }
     }
 
+    this.renderVomnibarKeys();
     this.showAdvancedCommands(this.getShowAdvancedCommands());
 
     // "Click" the dialog element (so that it becomes scrollable).

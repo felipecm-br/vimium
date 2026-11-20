@@ -38,6 +38,16 @@ context("help dialog", () => {
     assert.equal(["reload", "hard", ["b", "c"]], [rows[1][0].name, rows[1][1], rows[1][2]]);
   });
 
+  should("list the Vomnibar's own keys and OmniSearch's prefixes, once", async () => {
+    HelpDialogPage.init();
+    await HelpDialogPage.show();
+    await HelpDialogPage.show();
+    const keys = Array.from(HelpDialogPage.dialogElement.querySelectorAll("#vomnibar-keys .key"))
+      .map((e) => e.textContent);
+    assert.equal(1, keys.filter((k) => k == ">").length);
+    assert.isTrue(["Alt ↵", "→", "@", "theme", "effects"].every((k) => keys.includes(k)));
+  });
+
   should("have a section in the help dialog for every group", async () => {
     // This test is to prevent code editing errors, where a command is added but doesn't have a
     // corresponding group in the help dialog.
