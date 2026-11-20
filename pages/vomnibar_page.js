@@ -105,6 +105,16 @@ const DEFAULT_ITEMS_PER_PAGE = 7;
 const GOOGLE_MODE_KEY = "Alt";
 export const GOOGLE_MODE_HOLD_MS = 150;
 
+// The sources Shift-Delete forgets a result of (it leaves the history).
+const forgettableSources = ["history", "topSite", "domain"];
+
+// The chord that copies: Cmd-C on a Mac, Ctrl-C elsewhere.
+const isCopyChord = (event) =>
+  KeyboardUtils.platform === "Mac"
+    ? event.metaKey && !event.ctrlKey && !event.altKey
+    : event.ctrlKey && !event.metaKey && !event.altKey;
+const copyKeyLabel = () => KeyboardUtils.platform === "Mac" ? "⌘C" : "Ctrl C";
+
 class VomnibarUI {
   constructor() {
     this.onKeyEvent = this.onKeyEvent.bind(this);
@@ -492,6 +502,11 @@ class VomnibarUI {
       return "remove";
     } else if (event.ctrlKey && (key === "d")) {
       return "closeTab";
+    } else if (
+      isCopyChord(event) && (key === "c") && (this.input.selectionStart === this.input.selectionEnd)
+    ) {
+      // With text selected in the input, the browser copies that instead.
+      return "copy";
     } else if (KeyboardUtils.isBackspace(event)) {
       return "delete";
     }
@@ -606,10 +621,13 @@ class VomnibarUI {
           tabIdToBeRemoved: completion.tabId,
         });
         this.removeSelectedCompletion();
-      } else if (["history", "topSite", "domain"].includes(completion?.description)) {
+      } else if (forgettableSources.includes(completion?.description)) {
         chrome.runtime.sendMessage({ handler: "removeHistoryEntry", url: completion.url });
         this.removeSelectedCompletion();
       }
+    } else if (action === "copy") {
+      if (!this.completions[this.selection]?.url) return; // Nothing to copy: leave it to the page.
+      this.copySelectedUrl();
     } else if ((action === "closeTab") && (this.selection >= 0)) {
       const completion = this.completions[this.selection];
       if (completion.tabId != null) {
@@ -940,9 +958,40 @@ class VomnibarUI {
 
   renderCompletions(completions) {
     this.completionList.innerHTML = completions.map((c, index) =>
-      `<li data-index="${index}">${c.html}</li>`
+      `<li data-index="${index}">${c.html}${this.rowActionsHtml(c)}</li>`
     ).join("");
     this.completionList.style.display = completions.length > 0 ? "block" : "";
+  }
+
+  // What can be done with a result besides opening it, and the keys for it, shown on the selected
+  // row so they can be found without the docs: closing an open tab (Ctrl-D), forgetting a visited
+  // page (Shift-Delete) or else opening it in a new tab (Shift-Enter), and copying its URL.
+  rowActionsHtml(completion) {
+    if (!completion.url || completion.webSearchQuery != null) return "";
+    let action = null;
+    if (completion.tabId != null) action = ["Ctrl D", "close"];
+    else if (forgettableSources.includes(completion.description)) action = ["⇧Del", "forget"];
+    else if (!this.forceNewTab) action = ["⇧↵", "new tab"];
+    const actions = [action, [copyKeyLabel(), "copy"]].filter((a) => a != null);
+    const html = actions.map(([key, label]) =>
+      `<span class="row-action"><kbd>${key}</kbd>${label}</span>`
+    ).join("");
+    return `<span class="row-actions" aria-hidden="true">${html}</span>`;
+  }
+
+  // Copies the selected result's URL, and says so where the position in the list shows.
+  async copySelectedUrl() {
+    const url = this.completions[this.selection]?.url;
+    if (!url) return;
+    await navigator.clipboard.writeText(url);
+    this.positionIndicator.textContent = "Copied";
+    this.positionIndicator.classList.add("visible");
+    this.status.textContent = "Copied";
+    clearTimeout(this.copiedTimer);
+    this.copiedTimer = setTimeout(() => {
+      this.updatePositionIndicator();
+      this.status.textContent = "";
+    }, 1200);
   }
 
   // The button on an open tab's row, which switches to that tab.
@@ -1052,6 +1101,7 @@ class VomnibarUI {
     this.completionList = this.box.querySelector("ul");
     this.completionList.style.display = "";
     this.positionIndicator = document.getElementById("vomnibar-position-indicator");
+    this.status = document.getElementById("vomnibar-status");
     // Clicking a result opens it, as Enter would; ctrl/cmd/shift-click or a middle click opens it in
     // a new tab. One listener for the list, its rows and their buttons, since the rows are
     // re-rendered on every keystroke.

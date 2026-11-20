@@ -591,6 +591,40 @@ ul {
   color: var(--vomnibar-accent-color);
 }
 
+/* Read out by screen readers ("Copied"), not shown: the position indicator shows it. */
+#vomnibar-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* What can be done with the selected result besides opening it, and the keys for it. Only on the
+   selected row, muted: there for whoever looks, out of the way of whoever doesn't. */
+#vomnibar li .row-actions {
+  display: none;
+  flex-shrink: 0;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--vomnibar-secondary-text);
+  white-space: nowrap;
+}
+
+#vomnibar li.selected .row-actions {
+  display: flex;
+}
+
+#vomnibar li .row-action kbd {
+  font-family: inherit;
+  font-size: 10px;
+  padding: 1px 5px;
+  margin-right: 4px;
+  border: 1px solid var(--vomnibar-border-color);
+  border-radius: 4px;
+}
+
 /* Key that runs a row from anywhere (Alt+Enter on the web search row). */
 #vomnibar li .shortcut-hint {
   flex-shrink: 0;

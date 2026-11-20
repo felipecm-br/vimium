@@ -465,6 +465,56 @@ context("vomnibar page", () => {
     );
   });
 
+  context("row actions", () => {
+    const row = (description, extra = {}) =>
+      new Suggestion({
+        queryTerms: [],
+        description,
+        url: "https://a.example/",
+        relevancyFunction: () => 1,
+        ...extra,
+      });
+    const labels = (completion) => {
+      const container = document.createElement("div");
+      container.innerHTML = ui.rowActionsHtml(completion);
+      return [...container.querySelectorAll(".row-action")].map((a) => a.textContent);
+    };
+
+    should("name what each kind of result can do besides opening", () => {
+      stub(KeyboardUtils, "platform", "Linux");
+      assert.equal(["Ctrl Dclose", "Ctrl Ccopy"], labels(row("tab", { tabId: 3 })));
+      assert.equal(["⇧Delforget", "Ctrl Ccopy"], labels(row("history")));
+      assert.equal(["⇧↵new tab", "Ctrl Ccopy"], labels(row("bookmark")));
+      ui.setForceNewTab(true);
+      assert.equal(["Ctrl Ccopy"], labels(row("bookmark")));
+      assert.equal([], labels(row("search", { url: "", webSearchQuery: "q" })));
+    });
+
+    should("copy the selected result's URL, unless text is selected in the input", async () => {
+      stub(KeyboardUtils, "platform", "Linux");
+      const copied = [];
+      // Deno's navigator has no clipboard to stub.
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText: async (text) => copied.push(text) },
+        configurable: true,
+      });
+      ui.setQuery("exa");
+      ui.allCompletions = [row("history")];
+      ui.currentPage = 0;
+      ui.renderCurrentPage();
+      ui.globalSelection = 0;
+      ui.updatePageAndSelection();
+      await ui.onKeyEvent(newKeyEvent({ key: "c", ctrlKey: true }));
+      assert.equal(["https://a.example/"], copied);
+      assert.equal("Copied", ui.positionIndicator.textContent);
+      assert.equal("Copied", ui.status.textContent);
+      ui.input.setSelectionRange(0, 2);
+      await ui.onKeyEvent(newKeyEvent({ key: "c", ctrlKey: true }));
+      assert.equal(1, copied.length);
+      delete navigator.clipboard;
+    });
+  });
+
   should("switch to an open tab with the button on its row", async () => {
     const sent = [];
     stub(chrome.runtime, "sendMessage", withPromise((m) => sent.push(m)));

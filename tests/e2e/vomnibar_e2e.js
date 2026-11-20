@@ -168,6 +168,27 @@ test("t: the rest of the first result's address shows after the text; Right type
   await closeVomnibar(page);
 });
 
+// The clipboard can't be read back here (Chrome won't grant an extension's origin the permission
+// through DevTools), so this checks the copy went through: writeText resolved.
+test("t: Ctrl-C copies the selected result's URL", async ({ page, base }) => {
+  await page.goto(base + "/");
+  const frame = await openVomnibar(page, "t", "pagina");
+  const index = (await rows(frame)).findIndex((r) => r.text === "Pagina B");
+  for (let i = 0; i < index; i++) await page.keyboard.press("ArrowDown");
+  const selected = await frame.evaluate(() =>
+    document.querySelector("#vomnibar-results li.selected .row-actions")?.textContent
+  );
+  if (!selected?.includes("copy")) throw new Error(`The selected row offers no copy: ${selected}`);
+  await page.keyboard.down("Control");
+  await page.keyboard.press("c");
+  await page.keyboard.up("Control");
+  await frame.waitForFunction(
+    () => document.querySelector("#vomnibar-position-indicator").textContent === "Copied",
+    { timeout: 2000 },
+  );
+  await closeVomnibar(page);
+});
+
 test("t: Enter with no matches searches the web", async ({ page, base, worker }) => {
   await page.goto(base + "/");
   const frame = await openVomnibar(page, "t", "zzqq nomatch");
