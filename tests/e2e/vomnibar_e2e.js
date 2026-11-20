@@ -189,6 +189,47 @@ test("t: Ctrl-C copies the selected result's URL", async ({ page, base }) => {
   await closeVomnibar(page);
 });
 
+test("t: @ lists the recently closed tabs, and Enter reopens one", async (ctx) => {
+  const { page, base, browser, worker } = ctx;
+  const closing = await browser.newPage();
+  await closing.goto(base + "/react.html");
+  await closing.close();
+  await page.bringToFront();
+  await page.goto(base + "/");
+  const frame = await openVomnibar(page, "t", "@react");
+  assertEqual({ text: "React Hooks Guide", selected: true, kind: "page" }, (await rows(frame))[0]);
+  await page.keyboard.press("Enter");
+  let reopened = [];
+  for (let waited = 0; waited < 3000 && reopened.length === 0; waited += 100) {
+    await sleep(100);
+    reopened = await worker.evaluate(
+      async (url) => (await chrome.tabs.query({ url })).map((t) => t.id),
+      base + "/react.html",
+    );
+  }
+  assertEqual(1, reopened.length, "tabs on the reopened page");
+  await worker.evaluate((ids) => chrome.tabs.remove(ids), reopened);
+});
+
+test("t: > lists Vimium's commands, and Enter runs one", async ({ page, base, worker }) => {
+  await page.goto(base + "/");
+  const tabCount = () => worker.evaluate(async () => (await chrome.tabs.query({})).length);
+  const before = await tabCount();
+  const frame = await openVomnibar(page, "t", ">create new tab");
+  assertEqual("Create new tab", (await rows(frame))[0].text);
+  await page.keyboard.press("Enter");
+  let after = before;
+  for (let waited = 0; waited < 3000 && after === before; waited += 100) {
+    await sleep(100);
+    after = await tabCount();
+  }
+  assertEqual(before + 1, after, "tabs after running the command");
+  const created = await worker.evaluate(async () =>
+    (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0].id
+  );
+  await worker.evaluate((id) => chrome.tabs.remove(id), created);
+});
+
 test("t: Enter with no matches searches the web", async ({ page, base, worker }) => {
   await page.goto(base + "/");
   const frame = await openVomnibar(page, "t", "zzqq nomatch");

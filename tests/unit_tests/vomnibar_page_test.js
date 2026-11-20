@@ -515,6 +515,42 @@ context("vomnibar page", () => {
     });
   });
 
+  context("OmniSearch lists", () => {
+    should("reopen a recently closed tab with Enter", async () => {
+      const sent = [];
+      stub(chrome.runtime, "sendMessage", withPromise((m) => sent.push(m)));
+      ui.setCompleterName("omniSearch");
+      ui.setQuery("@rust");
+      ui.allCompletions = [
+        new Suggestion({
+          queryTerms: [],
+          description: "closedTab",
+          url: "https://rust-lang.org/",
+          title: "Rust",
+          sessionId: "t1",
+          relevancy: 1,
+        }),
+      ];
+      ui.currentPage = 0;
+      ui.renderCurrentPage();
+      ui.globalSelection = 0;
+      ui.updatePageAndSelection();
+      await ui.onKeyEvent(newKeyEvent({ type: "keypress", key: "Enter" }));
+      ui.onHidden();
+      assert.equal([{ handler: "restoreSession", sessionId: "t1" }], sent);
+    });
+
+    should("not offer a web search when nothing in a list matches", async () => {
+      ui.setCompleterName("omniSearch");
+      ui.setQuery("> zzqq");
+      await ui.update();
+      assert.equal(0, ui.allCompletions.length);
+      ui.setQuery("zzqq");
+      await ui.update();
+      assert.equal("zzqq", ui.allCompletions[0].webSearchQuery);
+    });
+  });
+
   should("switch to an open tab with the button on its row", () => {
     const sent = [];
     stub(chrome.runtime, "sendMessage", withPromise((m) => sent.push(m)));

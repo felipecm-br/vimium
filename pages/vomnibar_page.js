@@ -243,7 +243,7 @@ class VomnibarUI {
     const placeholder = (name == "omni")
       ? ""
       : (name == "omniSearch")
-      ? "Search tabs, bookmarks, history..."
+      ? "Search · > commands · @ closed tabs"
       : capitalize(name);
     this.input.setAttribute("placeholder", placeholder);
     this.reset();
@@ -786,6 +786,10 @@ class VomnibarUI {
           count: this.prefixCount,
         });
       });
+    } else if (completion.sessionId != null) {
+      // "@" in OmniSearch: reopen the closed tab or window, with its history.
+      const { sessionId } = completion;
+      this.hide(() => chrome.runtime.sendMessage({ handler: "restoreSession", sessionId }));
     } else {
       this.rememberChoice({ url: completion.url });
       this.hide(() => this.openCompletion(completion, openInNewTab));
@@ -932,7 +936,9 @@ class VomnibarUI {
     // Nothing matched: offer to search the web for the query, as a regular result so the arrows,
     // Enter and a click all reach it.
     const typed = this.input.value.trim();
-    if (results.length === 0 && typed.length > 0 && !this.isThemeMode) {
+    // Not for OmniSearch's ">" and "@" lists, which aren't searches (completers.js has them).
+    const isOmniSearchList = this.completerName === "omniSearch" && /^[>@]/.test(typed);
+    if (results.length === 0 && typed.length > 0 && !this.isThemeMode && !isOmniSearchList) {
       results = [webSearchCompletion(typed)];
     }
 
@@ -971,7 +977,7 @@ class VomnibarUI {
     let action = null;
     if (completion.tabId != null) action = ["Ctrl D", "close"];
     else if (forgettableSources.includes(completion.description)) action = ["⇧Del", "forget"];
-    else if (!this.forceNewTab) action = ["⇧↵", "new tab"];
+    else if (!this.forceNewTab && completion.sessionId == null) action = ["⇧↵", "new tab"];
     const actions = [action, [copyKeyLabel(), "copy"]].filter((a) => a != null);
     const html = actions.map(([key, label]) =>
       `<span class="row-action"><kbd>${key}</kbd>${label}</span>`

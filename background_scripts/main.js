@@ -778,6 +778,11 @@ const sendRequestHandlers = {
     completer.cancel();
   },
 
+  // "@" in OmniSearch lists the recently closed tabs and windows; this reopens one.
+  async restoreSession({ sessionId }) {
+    await chrome.sessions.restore(sessionId);
+  },
+
   // OmniSearch learns what the user opens for what they type (see completion/choices.js), but not
   // in incognito windows, which mustn't leave a trace.
   async rememberVomnibarChoice(request, sender) {

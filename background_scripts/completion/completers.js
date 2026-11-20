@@ -69,6 +69,8 @@ export class Suggestion {
   // For OmniSearchCompleter's "search the web" row: the query to hand to the browser's default
   // search engine.
   webSearchQuery;
+  // For a recently closed tab or window ("@" in OmniSearch): what chrome.sessions.restore reopens.
+  sessionId;
 
   constructor(options) {
     Object.seal(this);
@@ -97,7 +99,7 @@ export class Suggestion {
     // Source badge on the favicon (Material Symbols ligatures, from the bundled font subset). Only
     // for sources that change what Enter does or that the user chose to keep; history, domains and
     // top sites, the common case, get none, so the badges that do show stand out.
-    const badgeIcons = { tab: "tab", bookmark: "star", search: "search" };
+    const badgeIcons = { tab: "tab", bookmark: "star", search: "search", closedTab: "history_2" };
     const badgeIcon = badgeIcons[this.description] || (this.isCustomSearch ? "search" : null);
     const badgeHtml = badgeIcon
       ? `<span class="type-badge material-symbols-outlined">${badgeIcon}</span>`
@@ -1056,10 +1058,19 @@ export function bookmarkFolder(bookmark) {
   return parent.split("/").slice(1).join("/");
 }
 
+// The prefixes that make OmniSearch list something else, filtered by what follows: ">" Vimium's
+// commands, to run one, and "@" the recently closed tabs, to reopen one. Null for a plain query.
+export function omniSearchPrefix(query) {
+  const match = /^\s*([>@])(.*)$/s.exec(query ?? "");
+  if (!match) return null;
+  return { prefix: match[1], queryTerms: match[2].trim().split(/\s+/).filter((t) => t) };
+}
+
 export class OmniSearchCompleter {
   constructor() {
     this.bookmarksCache = null;
     this.bookmarksMap = null;
+    this.commandCompleter = new CommandCompleter();
   }
 
   refresh() {
@@ -1212,6 +1223,50 @@ export class OmniSearchCompleter {
     });
   }
 
+  // What ">" and "@" list (see omniSearchPrefix), in their own order: commands as in the help
+  // dialog, closed tabs most recent first.
+  async filterPrefixed({ prefix, queryTerms }) {
+    const suggestions = prefix === ">"
+      ? await this.commandCompleter.filter({ queryTerms })
+      : await this.recentlyClosed(queryTerms);
+    for (const s of suggestions) {
+      s.computeRelevancy();
+      s.generateHtml();
+    }
+    return suggestions;
+  }
+
+  // The recently closed tabs and windows that match `queryTerms`. A window is one row, named after
+  // its first tab and matched by all of them, since restoring it reopens them all.
+  async recentlyClosed(queryTerms) {
+    const sessions = (await chrome.sessions?.getRecentlyClosed()) ?? [];
+    const suggestions = [];
+    for (const session of sessions) {
+      const tabs = (session.tab ? [session.tab] : session.window?.tabs ?? []).filter((t) => t.url);
+      if (tabs.length === 0) continue;
+      const matches = queryTerms.length === 0 || ranking.matches(
+        queryTerms,
+        tabs.map((t) => t.url).join(" "),
+        tabs.map((t) => t.title).join(" "),
+      );
+      if (!matches) continue;
+      const others = tabs.length - 1;
+      const more = others === 0 ? "" : `, and ${others} more ${others === 1 ? "tab" : "tabs"}`;
+      suggestions.push(
+        new Suggestion({
+          queryTerms,
+          description: "closedTab",
+          url: tabs[0].url,
+          title: (tabs[0].title || tabs[0].url) + more,
+          sessionId: (session.tab ?? session.window).sessionId,
+          deDuplicate: false,
+          relevancy: 1,
+        }),
+      );
+    }
+    return suggestions;
+  }
+
   // A suggestion for a page chosen before for this text that the query alone didn't bring up (it
   // was typed for, not matched): its open tab, else its bookmark, else its history entry. A page in
   // none of them is gone, and isn't suggested.
@@ -1330,6 +1385,9 @@ export class OmniSearchCompleter {
   async filter(request) {
     const { queryTerms } = request;
     RegexpCache.clear();
+
+    const prefixed = omniSearchPrefix(request.query);
+    if (prefixed) return await this.filterPrefixed(prefixed);
 
     // Load all dependencies in parallel (like omniSearchHandler)
     const [tabs, topSites, choices] = await Promise.all([
