@@ -208,6 +208,13 @@ globalThis.chrome = {
     MAX_SESSION_RESULTS: 25,
   },
 
+  history: {
+    search: () => [],
+    deleteUrl() {},
+    onVisited: { addListener() {}, removeListener() {} },
+    onVisitRemoved: { addListener() {}, removeListener() {} },
+  },
+
   storage: {
     onChanged: {
       addListener(func) {

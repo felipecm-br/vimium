@@ -593,10 +593,20 @@ class VomnibarUI {
     this.updateSelection();
   }
 
+  // Tells the background page what OmniSearch's user chose for what they typed (a page's `url`, or
+  // `search` for searching the web), so the same choice comes first next time. See
+  // background_scripts/completion/choices.js.
+  rememberChoice(choice) {
+    if (this.completerName !== "omniSearch") return;
+    const query = this.previousInputValue ?? this.input.value;
+    chrome.runtime.sendMessage({ handler: "rememberVomnibarChoice", query, ...choice });
+  }
+
   // Searches the web for what was typed, with the browser's default engine.
   searchTheWeb(openInNewTab) {
     const query = this.input.value.trim();
     if (query.length === 0) return;
+    this.rememberChoice({ search: true });
     this._deactivateGoogleMode();
     this.hide(() =>
       chrome.runtime.sendMessage({ handler: "launchSearchQuery", query, openInNewTab })
@@ -608,6 +618,7 @@ class VomnibarUI {
     if (this.isGoogleSearchMode) {
       const query = this.input.value.trim();
       if (query.length === 0) return;
+      this.rememberChoice({ search: true });
       this._deactivateGoogleMode();
       this.hide(() => {
         chrome.runtime.sendMessage({
@@ -695,6 +706,7 @@ class VomnibarUI {
       }
     } else if (completion.webSearchQuery != null) {
       // OmniSearch's "search the web" row: the browser's default engine, with the query as typed.
+      this.rememberChoice({ search: true });
       this.hide(() =>
         chrome.runtime.sendMessage({ handler: "launchSearchQuery", query, openInNewTab })
       );
@@ -710,6 +722,7 @@ class VomnibarUI {
         });
       });
     } else {
+      this.rememberChoice({ url: completion.url });
       this.hide(() => this.openCompletion(completion, openInNewTab));
     }
   }
@@ -891,6 +904,8 @@ class VomnibarUI {
         e.preventDefault();
         const tabId = parseInt(btn.dataset.tabId, 10);
         if (tabId) {
+          const url = this.completions.find((c) => c.tabId === tabId)?.url;
+          if (url) this.rememberChoice({ url });
           chrome.runtime.sendMessage({ handler: "switchTabFromVomnibar", tabIdToSwitch: tabId });
           this.hide();
         }

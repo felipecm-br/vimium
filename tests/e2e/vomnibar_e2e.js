@@ -184,6 +184,23 @@ test("t: Alt+Enter searches the web even when a page is selected", async (ctx) =
   await rustTab.close();
 });
 
+test("t: a page opened after typing a letter comes first the next time", async ({ page, base }) => {
+  await page.goto(base + "/");
+  let frame = await openVomnibar(page, "t", "p");
+  const before = await rows(frame);
+  // The last page listed, so the choice has to move it up. Not the page the tab is on.
+  const index = before.findLastIndex((r) => r.kind === "page" && r.text !== "Start page");
+  if (index < 1) {
+    throw new Error(`Nothing to choose below the first row: ${JSON.stringify(before)}`);
+  }
+  for (let i = 0; i < index; i++) await page.keyboard.press("ArrowDown");
+  await Promise.all([page.waitForNavigation(), page.keyboard.press("Enter")]);
+  await page.goto(base + "/");
+  frame = await openVomnibar(page, "t", "p");
+  assertEqual({ text: before[index].text, selected: true, kind: "page" }, (await rows(frame))[0]);
+  await closeVomnibar(page);
+});
+
 test("t: shift-delete forgets a visited page", async ({ page, base, worker }) => {
   await page.goto(base + "/");
   const frame = await openVomnibar(page, "t", "react hooks");

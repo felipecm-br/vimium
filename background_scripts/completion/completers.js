@@ -18,6 +18,7 @@ import * as ranking from "./ranking.js";
 import { allCommands } from "../all_commands.js";
 import { Commands, RegistryEntry } from "../commands.js";
 import { RegexpCache } from "./ranking.js";
+import { Choices } from "./choices.js";
 
 // Set this to true to render relevancy when debugging the ranking scores.
 const showRelevancy = false;
@@ -976,18 +977,31 @@ export function looksLikeWebSearch(queryTerms, suggestions) {
   return !suggestions.some((suggestion) => isNavigationalMatch(queryTerms, suggestion));
 }
 
+// What Choices.lookup returns when nothing was chosen before.
+const noChoices = { pages: new Map(), search: 0 };
+
+// A choice this strong decides between searching the web and opening a page by itself: from about a
+// third of the text typed when chosen once, or less when chosen more often.
+const DECISIVE_CHOICE = 0.3;
+
 // Puts the "search the web" row first when that is the likely intent (so it is what Enter opens), and
-// last otherwise (one Up from the first result reaches it, since the selection wraps).
-export function placeWebSearch(queryTerms, suggestions, webSearch) {
-  return looksLikeWebSearch(queryTerms, suggestions)
-    ? [webSearch, ...suggestions]
-    : [...suggestions, webSearch];
+// last otherwise (one Up from the first result reaches it, since the selection wraps). What the user
+// chose before for this text, if decisive, tells the intent; otherwise the query and results do.
+export function placeWebSearch(queryTerms, suggestions, webSearch, choices = noChoices) {
+  const chosenPage = Math.max(0, ...suggestions.map((s) => choices.pages.get(s.url) ?? 0));
+  const searchFirst = Math.max(choices.search, chosenPage) >= DECISIVE_CHOICE
+    ? choices.search > chosenPage
+    : looksLikeWebSearch(queryTerms, suggestions);
+  return searchFirst ? [webSearch, ...suggestions] : [...suggestions, webSearch];
 }
 
 // How much each source is worth when everything else is equal: an open tab is the cheapest to go
 // back to, then what the user chose to keep or visits most, then the rest of history.
 const SOURCE_WEIGHTS = { tab: 1.15, bookmark: 1.1, topSite: 1.05, history: 1 };
 const NAVIGATIONAL_BOOST = 1.3;
+// What a past choice (from 0 to 1, see choices.js) adds to a score. A page chosen once for this
+// text moves up a lot; chosen a few times, it leads.
+const CHOICE_WEIGHT = 1;
 // A page of search results matches the words of an old search, but is rarely where the user means
 // to go: it drops below real pages that match as well.
 const SEARCH_RESULTS_PENALTY = 0.6;
@@ -1019,14 +1033,15 @@ export function omniSearchScore(queryTerms, suggestion) {
   return base * (SOURCE_WEIGHTS[suggestion.description] ?? 1) * boost;
 }
 
-// Orders `suggestions` by omniSearchScore, best first; ties keep their order (tabs, top sites,
-// bookmarks, history).
-export function rankOmniSearch(queryTerms, suggestions) {
+// Orders `suggestions` by omniSearchScore plus what was chosen for this text before (`chosen` maps
+// URLs to how strongly), best first; ties keep their order (tabs, top sites, bookmarks, history).
+export function rankOmniSearch(queryTerms, suggestions, chosen = noChoices.pages) {
   return suggestions
     .map((suggestion, index) => ({
       suggestion,
       index,
-      score: omniSearchScore(queryTerms, suggestion),
+      score: omniSearchScore(queryTerms, suggestion) +
+        CHOICE_WEIGHT * (chosen.get(suggestion.url) ?? 0),
     }))
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .map(({ suggestion }) => suggestion);
@@ -1197,6 +1212,40 @@ export class OmniSearchCompleter {
     });
   }
 
+  // A suggestion for a page chosen before for this text that the query alone didn't bring up (it
+  // was typed for, not matched): its open tab, else its bookmark, else its history entry. A page in
+  // none of them is gone, and isn't suggested.
+  chosenSuggestion(url, queryTerms, tabs) {
+    const tab = tabs.find((t) => t.url === url && !t.active);
+    if (tab) {
+      return new Suggestion({
+        queryTerms,
+        description: "tab",
+        url,
+        title: tab.title,
+        tabId: tab.id,
+        deDuplicate: false,
+        relevancy: 0,
+      });
+    }
+    const bookmark = this.bookmarksMap.get(url);
+    if (bookmark) return this.createBookmarkSuggestion(bookmark, queryTerms);
+    const history = HistoryCache.history;
+    // binarySearch can't search an empty array.
+    const entry = history.length > 0
+      ? history[HistoryCache.binarySearch({ url }, history, HistoryCache.compareHistoryByUrl)]
+      : null;
+    if (entry?.url !== url) return null;
+    return new Suggestion({
+      queryTerms,
+      description: "history",
+      url,
+      title: entry.title,
+      relevancyFunction: (s) => ranking.wordRelevancy(s.queryTerms, s.url, s.title),
+      relevancyData: { lastVisitTime: entry.lastVisitTime },
+    });
+  }
+
   // Whether a cache built from HistoryCache.history is still current.
   isHistoryCacheCurrent(cache) {
     return cache != null && cache.history === HistoryCache.history &&
@@ -1283,12 +1332,13 @@ export class OmniSearchCompleter {
     RegexpCache.clear();
 
     // Load all dependencies in parallel (like omniSearchHandler)
-    const [tabs, topSites] = await Promise.all([
+    const [tabs, topSites, choices] = await Promise.all([
       (async () => {
         await bgUtils.tabRecency.init();
         return chrome.tabs.query({});
       })(),
       chrome.topSites?.get() || Promise.resolve([]),
+      queryTerms.length > 0 ? Choices.lookup(request.query ?? queryTerms.join(" ")) : noChoices,
       HistoryCache.onLoaded(),
       this.loadBookmarks(),
     ]);
@@ -1339,9 +1389,20 @@ export class OmniSearchCompleter {
       ...bookmarkSuggestions,
       ...historySuggestions,
     ];
+    // Pages chosen before for this text join in, even when the query doesn't match them. Not the
+    // page the tab is on: going there again would only reload it.
+    choices.pages.delete(request.tab?.url);
+    const listed = new Set(allSuggestions.map((s) => s.url));
+    for (const url of choices.pages.keys()) {
+      if (listed.has(url)) continue;
+      const suggestion = this.chosenSuggestion(url, queryTerms, tabs);
+      if (suggestion) allSuggestions.push(suggestion);
+    }
     // With a query, the best match leads whatever its source. Without one, the order above stands:
     // recent tabs first.
-    if (queryTerms.length > 0) allSuggestions = rankOmniSearch(queryTerms, allSuggestions);
+    if (queryTerms.length > 0) {
+      allSuggestions = rankOmniSearch(queryTerms, allSuggestions, choices.pages);
+    }
     allSuggestions = allSuggestions.slice(
       0,
       query ? omniSearchMaxResults - 1 : omniSearchMaxResults,
@@ -1356,7 +1417,7 @@ export class OmniSearchCompleter {
         relevancy: 1,
         deDuplicate: false,
       });
-      allSuggestions = placeWebSearch(queryTerms, allSuggestions, webSearch);
+      allSuggestions = placeWebSearch(queryTerms, allSuggestions, webSearch, choices);
     }
 
     for (const s of allSuggestions) {

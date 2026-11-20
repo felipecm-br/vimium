@@ -22,6 +22,7 @@ import {
   SearchEngineCompleter,
   TabCompleter,
 } from "./completion/completers.js";
+import { Choices } from "./completion/choices.js";
 
 // NOTE(philc): This file has many superfluous return statements in its functions, as a result of
 // converting from coffeescript to es6. Many can be removed, but I didn't take the time to
@@ -51,6 +52,9 @@ const completionSources = {
   tabs: new TabCompleter(),
   searchEngines: new SearchEngineCompleter(),
 };
+
+// Removing pages from the history, or clearing it, forgets what OmniSearch learned about them.
+chrome.history.onVisitRemoved.addListener((removed) => Choices.onVisitRemoved(removed));
 
 const completers = {
   omni: new MultiCompleter([
@@ -774,7 +778,15 @@ const sendRequestHandlers = {
     completer.cancel();
   },
 
-  // Shift-Delete in the Vomnibar. HistoryCache follows through chrome.history.onVisitRemoved.
+  // OmniSearch learns what the user opens for what they type (see completion/choices.js), but not
+  // in incognito windows, which mustn't leave a trace.
+  async rememberVomnibarChoice(request, sender) {
+    if (sender.tab.incognito) return;
+    await Choices.record(request);
+  },
+
+  // Shift-Delete in the Vomnibar. HistoryCache and Choices follow through
+  // chrome.history.onVisitRemoved.
   async removeHistoryEntry(request) {
     await chrome.history.deleteUrl({ url: request.url });
   },
