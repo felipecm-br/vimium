@@ -985,14 +985,20 @@ class VomnibarUI {
     return `<span class="row-actions" aria-hidden="true">${html}</span>`;
   }
 
-  // Copies the selected result's URL, and says so where the position in the list shows.
+  // Copies the selected result's URL, and says whether it did where the position in the list shows.
   async copySelectedUrl() {
     const url = this.completions[this.selection]?.url;
     if (!url) return;
-    await navigator.clipboard.writeText(url);
-    this.positionIndicator.textContent = "Copied";
+    let message = "Copied";
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // The browser can refuse, e.g. when the page's permissions policy blocks the clipboard.
+      message = "Not copied";
+    }
+    this.positionIndicator.textContent = message;
     this.positionIndicator.classList.add("visible");
-    this.status.textContent = "Copied";
+    this.status.textContent = message;
     clearTimeout(this.copiedTimer);
     this.copiedTimer = setTimeout(() => {
       this.updatePositionIndicator();

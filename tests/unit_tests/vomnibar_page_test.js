@@ -513,6 +513,23 @@ context("vomnibar page", () => {
       assert.equal(1, copied.length);
       delete navigator.clipboard;
     });
+
+    should("say when the browser refuses to copy", async () => {
+      stub(KeyboardUtils, "platform", "Linux");
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText: () => Promise.reject(new Error("Blocked by permissions policy")) },
+        configurable: true,
+      });
+      ui.setQuery("exa");
+      ui.allCompletions = [row("history")];
+      ui.currentPage = 0;
+      ui.renderCurrentPage();
+      ui.globalSelection = 0;
+      ui.updatePageAndSelection();
+      await ui.copySelectedUrl();
+      assert.equal("Not copied", ui.positionIndicator.textContent);
+      delete navigator.clipboard;
+    });
   });
 
   context("OmniSearch lists", () => {
