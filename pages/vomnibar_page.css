@@ -328,6 +328,36 @@ ul {
   padding: 0;
 }
 
+/* The input, and over it the rest of the selected result's address as it would be typed: the text
+   typed is laid out again, invisibly, so the rest starts where the typed text ends. */
+#vomnibar-input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+#vomnibar-ghost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  overflow: hidden;
+  white-space: pre;
+  /* As the input's. */
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+#vomnibar-ghost .typed {
+  visibility: hidden;
+}
+
+#vomnibar-ghost .rest {
+  color: var(--vomnibar-secondary-text);
+}
+
 #vomnibar input::placeholder {
   color: var(--vomnibar-secondary-text);
   opacity: 0.7;

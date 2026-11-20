@@ -400,6 +400,71 @@ context("vomnibar page", () => {
     assert.equal("zzqq nothing", message?.query);
   });
 
+  context("address completion", () => {
+    const { addressCompletion } = vomnibarPage;
+
+    should("complete the host, or the path once it is being typed", () => {
+      assert.equal("hub.com", addressCompletion("git", "https://www.github.com/philc"));
+      assert.equal("ilc", addressCompletion("github.com/ph", "https://github.com/philc"));
+      assert.equal("hub.com", addressCompletion("GIT", "https://github.com/"));
+      assert.equal("ithub.com", addressCompletion("www.g", "https://www.github.com/"));
+    });
+
+    should("complete nothing that doesn't start the address, or isn't a web page", () => {
+      assert.equal(null, addressCompletion("hub", "https://github.com/"));
+      assert.equal(null, addressCompletion("rust book", "https://rust.org/book"));
+      assert.equal(null, addressCompletion("github.com", "https://github.com/"));
+      assert.equal(null, addressCompletion("java", "javascript:alert(1)"));
+      assert.equal(null, addressCompletion("", "https://github.com/"));
+    });
+
+    should(
+      "show the rest of the first result's address after the text, and type it in",
+      async () => {
+        const sent = [];
+        stub(
+          chrome.runtime,
+          "sendMessage",
+          withPromise((m) => {
+            sent.push(m);
+            return m.handler == "filterCompletions" ? [] : undefined;
+          }),
+        );
+        ui.setCompleterName("omniSearch");
+        ui.setQuery("git");
+        ui.allCompletions = ["https://github.com/philc", "https://gitlab.com/"].map((url) =>
+          new Suggestion({
+            queryTerms: [],
+            description: "history",
+            url,
+            relevancyFunction: () => 1,
+          })
+        );
+        ui.currentPage = 0;
+        ui.renderCurrentPage();
+        ui.globalSelection = 0;
+        ui.updatePageAndSelection();
+        const ghost = () => [ui.ghostTyped.textContent, ui.ghostRest.textContent];
+        assert.equal(["git", "hub.com"], ghost());
+
+        // Not for a result Enter wouldn't open, nor with the caret before the end.
+        await ui.onKeyEvent(newKeyEvent({ key: "ArrowDown" }));
+        assert.equal(["", ""], ghost());
+        await ui.onKeyEvent(newKeyEvent({ key: "ArrowUp" }));
+        assert.equal(["git", "hub.com"], ghost());
+        ui.input.setSelectionRange(1, 1);
+        ui.updateGhost();
+        assert.equal(["", ""], ghost());
+        ui.input.setSelectionRange(3, 3);
+        ui.updateGhost();
+
+        await ui.onKeyEvent(newKeyEvent({ key: "ArrowRight" }));
+        assert.equal("github.com", ui.input.value);
+        assert.equal("github.com", sent.findLast((m) => m.handler == "filterCompletions").query);
+      },
+    );
+  });
+
   should("switch to an open tab with the button on its row", async () => {
     const sent = [];
     stub(chrome.runtime, "sendMessage", withPromise((m) => sent.push(m)));

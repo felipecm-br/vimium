@@ -15,9 +15,12 @@
   <div id="vomnibar">
     <div id="vomnibar-search-area">
       <span class="search-icon material-symbols-outlined" aria-hidden="true">search</span>
-      <input type="text" autocomplete="off" placeholder="Search tabs, bookmarks, history..."
-        role="combobox" aria-label="Search" aria-autocomplete="list" aria-expanded="false"
-        aria-controls="vomnibar-results">
+      <div id="vomnibar-input-wrap">
+        <input type="text" autocomplete="off" placeholder="Search tabs, bookmarks, history..."
+          role="combobox" aria-label="Search" aria-autocomplete="list" aria-expanded="false"
+          aria-controls="vomnibar-results">
+        <div id="vomnibar-ghost" aria-hidden="true"><span class="typed"></span><span class="rest"></span></div>
+      </div>
       <span id="vomnibar-position-indicator"></span>
     </div>
     <ul id="vomnibar-results" role="listbox" aria-label="Results"></ul>

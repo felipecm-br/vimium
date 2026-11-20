@@ -130,6 +130,44 @@ test("the Vomnibar's frame loads, hidden, before its first use on a page", async
   assertEqual(true, page.frames().some((f) => f.url().includes("vomnibar_page.html")));
 });
 
+test("t: the rest of the first result's address shows after the text; Right types it", async (ctx) => {
+  const { page, base } = ctx;
+  await page.goto(base + "/");
+  const frame = await openVomnibar(page, "t", "loc");
+  const host = new URL(base).host; // localhost:port
+  const ghost = () =>
+    frame.evaluate(() => {
+      const input = document.querySelector("#vomnibar input");
+      const typed = document.querySelector("#vomnibar-ghost .typed");
+      const rest = document.querySelector("#vomnibar-ghost .rest");
+      // Where the typed text ends in the input, measured with the input's own font.
+      const context = document.createElement("canvas").getContext("2d");
+      context.font = getComputedStyle(input).font;
+      const inputLeft = input.getBoundingClientRect().left;
+      return {
+        rest: rest.textContent,
+        restStartsAt: Math.round(rest.getBoundingClientRect().left - inputLeft),
+        typedEndsAt: Math.round(context.measureText(input.value).width),
+        typedIsHidden: getComputedStyle(typed).visibility === "hidden",
+      };
+    });
+  const shown = await ghost();
+  assertEqual(host.slice("loc".length), shown.rest);
+  assertEqual(true, shown.typedIsHidden);
+  if (Math.abs(shown.restStartsAt - shown.typedEndsAt) > 1) {
+    throw new Error(
+      `The rest starts at ${shown.restStartsAt}px, the text ends at ${shown.typedEndsAt}px`,
+    );
+  }
+  await page.keyboard.press("ArrowRight");
+  await frame.waitForFunction(
+    (h) => document.querySelector("#vomnibar input").value === h,
+    { timeout: 2000 },
+    host,
+  );
+  await closeVomnibar(page);
+});
+
 test("t: Enter with no matches searches the web", async ({ page, base, worker }) => {
   await page.goto(base + "/");
   const frame = await openVomnibar(page, "t", "zzqq nomatch");

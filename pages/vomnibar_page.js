@@ -79,6 +79,19 @@ export function webSearchCompletion(query) {
   };
 }
 
+// The rest of the address of `url` after `typed`, when `typed` starts it as an address would be
+// typed: without the scheme, without "www." unless that was typed, and only up to the end of the
+// host unless the path is being typed. Null otherwise: "git" gets "hub.com" for
+// https://www.github.com/philc, "github.com/ph" gets "ilc", "rust book" gets nothing.
+export function addressCompletion(typed, url) {
+  if (!typed || /\s/.test(typed) || !/^https?:\/\//i.test(url ?? "")) return null;
+  let address = url.replace(/^https?:\/\//i, "");
+  if (!/^www\./i.test(typed)) address = address.replace(/^www\./i, "");
+  if (!typed.includes("/")) address = address.split("/")[0];
+  const starts = address.toLowerCase().startsWith(typed.toLowerCase());
+  return starts && address.length > typed.length ? address.slice(typed.length) : null;
+}
+
 // Theme command prefix for triggering theme selection in OmniSearch
 const THEME_COMMAND_PREFIX = "theme";
 // Typing this in OmniSearch lists the effects levels, picked the same way as themes.
@@ -186,6 +199,7 @@ class VomnibarUI {
     this.box.classList.add("google-search-mode");
     // Hide the results list immediately
     this.completionList.style.display = "none";
+    this.updateGhost();
   }
 
   _deactivateGoogleMode() {
@@ -196,6 +210,7 @@ class VomnibarUI {
     if (this.completions.length > 0) {
       this.completionList.style.display = "block";
     }
+    this.updateGhost();
   }
 
   setQuery(query) {
@@ -312,6 +327,7 @@ class VomnibarUI {
     this.box.classList.remove("theme-preview", "theme-mode");
     this._deactivateGoogleMode();
     this.updatePositionIndicator();
+    this.updateGhost();
   }
 
   updateSelection() {
@@ -351,6 +367,7 @@ class VomnibarUI {
 
     // Update position indicator
     this.updatePositionIndicator();
+    this.updateGhost();
 
     // Preview theme when in theme mode and selection changes
     if (this.isThemeMode && this.selection >= 0) {
@@ -376,6 +393,26 @@ class VomnibarUI {
 
     this.positionIndicator.textContent = `${this.globalSelection + 1}/${totalItems}`;
     this.positionIndicator.classList.add("visible");
+  }
+
+  // Shows, after what was typed, the rest of the address of the result Enter would open when what
+  // was typed starts it, the way an address bar completes it inline (see addressCompletion). Only
+  // for the first result, with the caret at the end; Right arrow or End types it in.
+  updateGhost() {
+    const typed = this.input.value;
+    const completion = this.globalSelection === 0 && this.selection === 0
+      ? this.completions[0]
+      : null;
+    const caretAtEnd = this.input.selectionStart === typed.length &&
+      this.input.selectionEnd === typed.length;
+    const shows = completion?.webSearchQuery == null && caretAtEnd && !this.isThemeMode &&
+      !this.isGoogleSearchMode && !this.isUserSearchEngineActive() &&
+      this.previousInputValue == null;
+    let rest = shows ? addressCompletion(typed, completion?.url) : null;
+    // Text wider than the input scrolls it, and the rest would no longer follow it.
+    if (rest && this.input.scrollWidth > this.input.clientWidth) rest = null;
+    this.ghostTyped.textContent = rest ? typed : "";
+    this.ghostRest.textContent = rest ?? "";
   }
 
   updatePageAndSelection() {
@@ -418,6 +455,12 @@ class VomnibarUI {
     // translation (see #2915 and #2934).
     if ((event.type === "keypress") && (key !== "enter")) return null;
     if ((event.type === "keydown") && (key === "enter") && !this.isGoogleSearchMode) return null;
+    const hasModifier = event.shiftKey || event.ctrlKey || event.altKey || event.metaKey;
+    if (
+      ((key === "right") || (event.key === "End")) && !hasModifier && this.ghostRest.textContent
+    ) {
+      return "accept-ghost";
+    }
     // Theme mode: left/right change the border speed, ctrl-left/right rotate its angle.
     if (
       this.isThemeMode && this.pickerKind() === "theme" && ((key === "left") || (key === "right"))
@@ -476,6 +519,10 @@ class VomnibarUI {
       else if (action === "border-rotate-cw") borderMotion.rotate(1);
       else if (action === "border-rotate-ccw") borderMotion.rotate(-1);
       this.updateThemeFooter();
+    } else if (action === "accept-ghost") {
+      this.input.value += this.ghostRest.textContent;
+      this.input.setSelectionRange(this.input.value.length, this.input.value.length);
+      this.onInput();
     } else if (action === "dismiss") {
       // In theme mode, cancel preview and revert to previous theme
       if (this.isThemeMode && themeManager.isInPreviewMode()) {
@@ -944,6 +991,8 @@ class VomnibarUI {
     }
 
     this._updateGoogleModeState();
+    // At once, against the results shown until the new ones come: typing what's shown keeps it.
+    this.updateGhost();
     this.update();
   }
 
@@ -992,9 +1041,14 @@ class VomnibarUI {
     this.isHiding = false;
 
     this.input = this.box.querySelector("input");
+    this.ghostTyped = this.box.querySelector("#vomnibar-ghost .typed");
+    this.ghostRest = this.box.querySelector("#vomnibar-ghost .rest");
     this.input.addEventListener("input", this.onInput);
     this.input.addEventListener("keydown", this.onKeyEvent);
     this.input.addEventListener("keypress", this.onKeyEvent);
+    // The completed address shows only with the caret at the end.
+    this.input.addEventListener("keyup", () => this.updateGhost());
+    this.input.addEventListener("mouseup", () => this.updateGhost());
     this.completionList = this.box.querySelector("ul");
     this.completionList.style.display = "";
     this.positionIndicator = document.getElementById("vomnibar-position-indicator");
