@@ -668,11 +668,11 @@ class VomnibarUI {
     this.updateSelection();
   }
 
-  // Tells the background page what OmniSearch's user chose for what they typed (a page's `url`, or
+  // Tells the background page what the user chose for what they typed (a page's `url`, or
   // `search` for searching the web), so the same choice comes first next time. See
   // background_scripts/completion/choices.js.
   rememberChoice(choice) {
-    if (this.completerName !== "omniSearch") return;
+    if (this.completerName !== "omniSearch" && this.completerName !== "omni") return;
     const query = this.previousInputValue ?? this.input.value;
     chrome.runtime.sendMessage({ handler: "rememberVomnibarChoice", query, ...choice });
   }

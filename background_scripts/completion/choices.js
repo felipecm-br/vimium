@@ -95,4 +95,15 @@ export const Choices = {
     this.entries = kept;
     await this.save();
   },
+
+  async count() {
+    await this.load();
+    return this.entries.length;
+  },
+
+  async clear() {
+    this.entries = [];
+    this.loading = null;
+    await this.save();
+  },
 };

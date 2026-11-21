@@ -1,16 +1,65 @@
 // Utilities which help us compute a relevancy score for a given item.
 
+// deno-lint-ignore no-control-regex
+const nonAsciiRegexp = /[^\x00-\x7f]/;
+const combiningDiacriticsRegexp = /[\u0300-\u036f]/g;
+const isCombiningMark = (code) => code >= 0x0300 && code <= 0x036f;
+
+// Strips diacritical marks ("Relatório" -> "Relatorio") so ASCII queries match accented titles
+// and URLs. Pure ASCII strings skip normalization with zero allocation.
+export function foldDiacritics(string) {
+  if (!string || !nonAsciiRegexp.test(string)) return string;
+  return string.normalize("NFD").replace(combiningDiacriticsRegexp, "");
+}
+
+// True when `string` contains characters with diacritical marks (used for smart diacritics:
+// typing an explicit accent like "café" stays strict, while "cafe" matches both).
+export function hasDiacritics(string) {
+  return Boolean(string && nonAsciiRegexp.test(string) && foldDiacritics(string) !== string);
+}
+
+// Folds `string` while keeping a mapping from each folded code-unit index back to the exact
+// [start, end) range in `string`, so match highlighting stays aligned on both NFC and NFD text.
+export function foldDiacriticsWithMap(string) {
+  let folded = "";
+  const starts = [];
+  const ends = [];
+  for (let i = 0; i < string.length;) {
+    const start = i;
+    const cp = string.codePointAt(i);
+    i += cp > 0xffff ? 2 : 1;
+    while (i < string.length && isCombiningMark(string.charCodeAt(i))) i++;
+    const chunk = string.slice(start, i);
+    const piece = nonAsciiRegexp.test(chunk)
+      ? chunk.normalize("NFD").replace(combiningDiacriticsRegexp, "")
+      : chunk;
+    for (let k = 0; k < piece.length; k++) {
+      folded += piece[k];
+      starts.push(start);
+      ends.push(i);
+    }
+  }
+  return { folded, starts, ends };
+}
+
 // Whether the given things (usually URLs or titles) match any one of the query terms.
 // This is used to prune out irrelevant suggestions before we try to rank them, and for
 // calculating word relevancy. Every term must match at least one thing.
 export function matches(queryTerms, ...things) {
+  let foldedThings = null;
   for (const term of queryTerms) {
     const regexp = RegexpCache.get(term);
+    const fold = !hasDiacritics(term);
     let matchedTerm = false;
-    for (const thing of things) {
+    for (let i = 0; i < things.length; i++) {
       // test(), not match(): no match array is allocated. These regexps have no "g" flag, so
       // test() is stateless.
       if (!matchedTerm) {
+        let thing = things[i];
+        if (fold && thing && nonAsciiRegexp.test(thing)) {
+          foldedThings ??= things.map(foldDiacritics);
+          thing = foldedThings[i];
+        }
         matchedTerm = regexp.test(thing);
       }
     }
@@ -39,6 +88,7 @@ const matchWeights = {
 // The score is in the range [0, matchWeights.maximumScore], see above.
 // Returns: [ score, count ], where count is the number of matched characters in string.
 function scoreTerm(term, string) {
+  const target = hasDiacritics(term) ? string : foldDiacritics(string);
   let score = 0;
   let count = 0;
   // Count the non-overlapping occurrences without allocating (this used string.split(), which
@@ -48,27 +98,27 @@ function scoreTerm(term, string) {
   // An empty term would match the empty string forever, so it keeps the original arithmetic.
   let matched;
   if (term.length === 0) {
-    const nonMatching = string.split(RegexpCache.get(term));
+    const nonMatching = target.split(RegexpCache.get(term));
     matched = nonMatching.length > 1;
-    count = nonMatching.reduce((p, c) => p - c.length, string.length);
+    count = nonMatching.reduce((p, c) => p - c.length, target.length);
   } else {
-    const occurrences = RegexpCache.countMatches(term, string);
+    const occurrences = RegexpCache.countMatches(term, target);
     matched = occurrences > 0;
     count = occurrences * term.length;
   }
   if (matched) {
     // Have match.
     score = matchWeights.matchAnywhere;
-    if (RegexpCache.get(term, "\\b").test(string)) {
+    if (RegexpCache.get(term, "\\b").test(target)) {
       // Have match at start of word.
       score += matchWeights.matchStartOfWord;
-      if (RegexpCache.get(term, "\\b", "\\b").test(string)) {
+      if (RegexpCache.get(term, "\\b", "\\b").test(target)) {
         // Have match of whole word.
         score += matchWeights.matchWholeWord;
       }
     }
   }
-  return [score, count < string.length ? count : string.length];
+  return [score, count < target.length ? count : target.length];
 }
 
 // Returns a number between [0, 1] indicating how often the query terms appear in the url and title.

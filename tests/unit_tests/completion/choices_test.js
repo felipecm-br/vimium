@@ -4,9 +4,14 @@ import "../../../background_scripts/bg_utils.js";
 import { Choices, normalize, strength } from "../../../background_scripts/completion/choices.js";
 import {
   HistoryCache,
+  HistoryCompleter,
+  isStrongMatch,
+  MultiCompleter,
   OmniSearchCompleter,
   placeWebSearch,
   rankOmniSearch,
+  Suggestion,
+  TabCompleter,
 } from "../../../background_scripts/completion/completers.js";
 
 const day = 24 * 60 * 60 * 1000;
@@ -186,6 +191,47 @@ context("OmniSearch with choices", () => {
     should("not bring up a chosen page that is no longer anywhere", async () => {
       await Choices.record({ query: "gmail", url: "https://gone.example/" });
       assert.equal(["search"], await urls("gm"));
+    });
+
+    should("count and clear learned choices", async () => {
+      assert.equal(0, await Choices.count());
+      await Choices.record({ query: "gi", url: "https://github.com/" });
+      await Choices.record({ query: "gl", url: "https://gitlab.com/" });
+      assert.equal(2, await Choices.count());
+      await Choices.clear();
+      assert.equal(0, await Choices.count());
+    });
+
+    should("highlight accented titles accurately when matched with plain ASCII terms", () => {
+      const nfc = new Suggestion({
+        queryTerms: ["relatorio", "acao"],
+        title: "Relatório & Ação",
+        url: "https://a.example",
+      });
+      assert.equal(
+        "<span class='match'>Relatório</span> &amp; <span class='match'>Ação</span>",
+        nfc.highlightQueryTerms(Utils.escapeHtml(nfc.title)),
+      );
+      const nfd = new Suggestion({
+        queryTerms: ["cafe"],
+        title: "Cafe\u0301",
+        url: "https://a.example",
+      });
+      assert.equal("<span class='match'>Cafe\u0301</span>", nfd.highlightQueryTerms(nfd.title));
+      assert.isTrue(
+        isStrongMatch(["relatorio"], { title: "Relatório Mensal", url: "https://a.example" }),
+      );
+    });
+
+    should("boost learned choices in MultiCompleter (o) as well as OmniSearch", async () => {
+      const multi = new MultiCompleter([new HistoryCompleter(), new TabCompleter()]);
+      const gmail = "https://mail.google.com/";
+      const mastodon = "https://mastodon.social/";
+      const before = await multi.filter({ queryTerms: ["ma"], query: "ma" });
+      assert.equal([mastodon, gmail], before.map((s) => s.url));
+      await Choices.record({ query: "ma", url: gmail });
+      const after = await multi.filter({ queryTerms: ["ma"], query: "ma" });
+      assert.equal([gmail, mastodon], after.map((s) => s.url));
     });
   });
 });

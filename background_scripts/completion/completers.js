@@ -203,6 +203,10 @@ ${switchButtonHtml}`;
 
   // Push the ranges within `string` which match `term` onto `ranges`.
   pushMatchingRanges(string, term, ranges) {
+    const fold = !ranking.hasDiacritics(term) && ranking.hasDiacritics(string);
+    const { folded, starts, ends } = fold
+      ? ranking.foldDiacriticsWithMap(string)
+      : { folded: string };
     let textPosition = 0;
     // Split `string` into a (flat) list of pairs:
     //   - for i=0,2,4,6,...
@@ -214,13 +218,16 @@ ${switchButtonHtml}`;
     //   - term = "a"
     //   - splits = [ "", "A",    "b", "a",    "c", "a",    b" ]
     //                UM   M       UM   M       UM   M      UM      (M=Matched, UM=Unmatched)
-    const splits = string.split(RegexpCache.get(term, "(", ")"));
+    const splits = folded.split(RegexpCache.get(term, "(", ")"));
     for (let index = 0, end = splits.length - 2; index <= end; index += 2) {
       const unmatchedText = splits[index];
       const matchedText = splits[index + 1];
       // Add the indices spanning `matchedText` to `ranges`.
       textPosition += unmatchedText.length;
-      ranges.push([textPosition, textPosition + matchedText.length]);
+      if (matchedText.length > 0) {
+        const matchEnd = textPosition + matchedText.length;
+        ranges.push(fold ? [starts[textPosition], ends[matchEnd - 1]] : [textPosition, matchEnd]);
+      }
       textPosition += matchedText.length;
     }
   }
@@ -803,16 +810,23 @@ export class MultiCompleter {
 
     RegexpCache.clear();
 
-    const promises = completers.map((c) => c.filter(request));
-    let results = (await Promise.all(promises)).flat(1);
-    results = this.postProcessSuggestions(request, queryTerms, results);
+    const useChoices = queryTerms.length > 0 && !queryMatchesUserSearchEngine &&
+      this.completers.length > 1;
+    const [completerResults, choices] = await Promise.all([
+      Promise.all(completers.map((c) => c.filter(request))),
+      useChoices ? Choices.lookup(query ?? queryTerms.join(" ")) : noChoices,
+    ]);
+    let results = completerResults.flat(1);
+    results = this.postProcessSuggestions(request, queryTerms, results, choices.pages);
     return results;
   }
 
   // Rank them, simplify the URLs, and de-duplicate suggestions with the same simplified URL.
-  postProcessSuggestions(request, queryTerms, suggestions) {
+  postProcessSuggestions(request, queryTerms, suggestions, chosenPages = noChoices.pages) {
     for (const s of suggestions) {
       s.computeRelevancy(queryTerms);
+      const boost = chosenPages.get(s.url);
+      if (boost) s.relevancy += boost * 10;
     }
     suggestions.sort((a, b) => b.relevancy - a.relevancy);
 
@@ -938,9 +952,13 @@ const hostnameOf = (url) => {
 export function isStrongMatch(queryTerms, suggestion) {
   const title = suggestion.pageTitle ?? suggestion.title ?? "";
   const text = `${title} ${siteName(hostnameOf(suggestion.url))}`;
+  let foldedText = null;
   return queryTerms.every((term) => {
     const wordEnd = term.length <= 2 ? "(?=$|[^\\p{L}\\p{N}])" : "";
-    return new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(term)}${wordEnd}`, "iu").test(text);
+    const target = ranking.hasDiacritics(term)
+      ? text
+      : (foldedText ??= ranking.foldDiacritics(text));
+    return new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(term)}${wordEnd}`, "iu").test(target);
   });
 }
 

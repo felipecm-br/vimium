@@ -116,6 +116,18 @@ context("matches", () => {
   should("every query term must match at least one thing (not matching)", () => {
     assert.isTrue(!ranking.matches(["cat", "dog", "wolf"], "catapult", "hound dog"));
   });
+
+  should("match accented text with plain ASCII terms (smart diacritics)", () => {
+    assert.isTrue(ranking.matches(["relatorio"], "Relatório Mensal"));
+    assert.isTrue(ranking.matches(["configuracao"], "Configuração do Servidor"));
+    assert.isTrue(ranking.matches(["cafe"], "Café"));
+    assert.isTrue(ranking.matches(["cafe"], "Cafe\u0301"));
+    // Explicit diacritics stay strict, like smartcase.
+    assert.isTrue(ranking.matches(["café"], "Café"));
+    assert.isFalse(ranking.matches(["café"], "Cafe"));
+    // Relevancy scores match diacritics too.
+    assert.isTrue(ranking.wordRelevancy(["relatorio"], "https://a.com", "Relatório") > 0);
+  });
 });
 
 context("RegexpCache", () => {
