@@ -48,15 +48,15 @@
   --vomnibar-bg-color: rgba(0, 0, 0, 0.4);
   --vomnibar-inner-bg: #1c1f2b;
   --vomnibar-text-color: #ffffff;
-  --vomnibar-secondary-text: #8b949e;
+  --vomnibar-secondary-text: #a3aebc;
 
   /* Interactive States */
   --vomnibar-selected-bg: rgba(102, 81, 161, 0.35);
   --vomnibar-hover-bg: rgba(255, 255, 255, 0.08);
 
   /* Borders & Accents */
-  --vomnibar-border-color: rgba(75, 75, 75, 0.8);
-  --vomnibar-accent-color: #6651a1;
+  --vomnibar-border-color: #565e76;
+  --vomnibar-accent-color: #9e86e6;
 
   /* Text Colors */
   --vomnibar-url-color: #58a6ff;
@@ -162,8 +162,9 @@ ul {
   animation: none;
 
   box-shadow:
-    0 25px 50px -12px rgba(0, 0, 0, 0.5),
-    0 0 6px 0px color-mix(in srgb, var(--vomnibar-gradient-1) 30%, transparent);
+    0 0 0 1px color-mix(in srgb, var(--vomnibar-border-color) 85%, transparent),
+    0 25px 50px -12px rgba(0, 0, 0, 0.55),
+    0 0 8px 0px color-mix(in srgb, var(--vomnibar-gradient-1) 30%, transparent);
 
   /* Ensure vomnibar is below hint markers and help dialog */
   z-index: 2139999999;
@@ -334,6 +335,9 @@ ul {
   position: relative;
   flex: 1;
   min-width: 0;
+  /* Inside #vomnibar-search-area padding, so corners stay clear of the border ring while giving the
+     input an opaque surface for subpixel text rendering and computed-contrast checks. */
+  background-color: var(--vomnibar-inner-bg);
 }
 
 #vomnibar-ghost {

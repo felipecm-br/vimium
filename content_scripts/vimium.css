@@ -108,23 +108,29 @@ div#vimium-hint-marker-container {
   --vimium-hint-text: #302505;
   --vimium-hint-match: #d4ac3a;
   --vimium-hint-active-text: #a07555;
+  --vimium-hint-text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* Themed hints drop the legacy yellow-hint white drop shadow so dark badges stay sharp. */
+div#vimium-hint-marker-container[class*="vimium-theme-"] {
+  --vimium-hint-text-shadow: none;
 }
 
 div#vimium-hint-marker-container.vimium-theme-default {
-  --vimium-hint-bg-start: #7b5cff;
-  --vimium-hint-bg-end: #2f6bff;
-  --vimium-hint-border: #6651a1;
-  --vimium-hint-text: #f5f7ff;
-  --vimium-hint-match: #9cc4ff;
+  --vimium-hint-bg-start: #5b3fd6;
+  --vimium-hint-bg-end: #2952cc;
+  --vimium-hint-border: #3d2c8a;
+  --vimium-hint-text: #ffffff;
+  --vimium-hint-match: #c4b5fd;
   --vimium-hint-active-text: #ffffff;
 }
 
 div#vimium-hint-marker-container.vimium-theme-midnight-glass {
-  --vimium-hint-bg-start: #1f6feb;
-  --vimium-hint-bg-end: #388bfd;
+  --vimium-hint-bg-start: #1557b0;
+  --vimium-hint-bg-end: #1d68c4;
   --vimium-hint-border: #30363d;
-  --vimium-hint-text: #e6edf3;
-  --vimium-hint-match: #79c0ff;
+  --vimium-hint-text: #ffffff;
+  --vimium-hint-match: #a5d6ff;
   --vimium-hint-active-text: #ffffff;
 }
 
@@ -139,27 +145,27 @@ div#vimium-hint-marker-container.vimium-theme-paper-light {
 
 div#vimium-hint-marker-container.vimium-theme-ocean-depth {
   --vimium-hint-bg-start: #023e8a;
-  --vimium-hint-bg-end: #0096c7;
+  --vimium-hint-bg-end: #006d94;
   --vimium-hint-border: #1e3a4c;
-  --vimium-hint-text: #e2fbff;
+  --vimium-hint-text: #ffffff;
   --vimium-hint-match: #90e0ef;
   --vimium-hint-active-text: #ffffff;
 }
 
 div#vimium-hint-marker-container.vimium-theme-forest {
   --vimium-hint-bg-start: #1b5e20;
-  --vimium-hint-bg-end: #4caf50;
+  --vimium-hint-bg-end: #26732b;
   --vimium-hint-border: #2d4a32;
-  --vimium-hint-text: #effff0;
-  --vimium-hint-match: #a5d6a7;
+  --vimium-hint-text: #ffffff;
+  --vimium-hint-match: #b9f6ca;
   --vimium-hint-active-text: #ffffff;
 }
 
 div#vimium-hint-marker-container.vimium-theme-sunset {
-  --vimium-hint-bg-start: #b71c1c;
-  --vimium-hint-bg-end: #f44336;
+  --vimium-hint-bg-start: #9e1919;
+  --vimium-hint-bg-end: #c62828;
   --vimium-hint-border: #4a2030;
-  --vimium-hint-text: #fff4f4;
+  --vimium-hint-text: #ffffff;
   --vimium-hint-match: #ffcdd2;
   --vimium-hint-active-text: #ffffff;
 }
@@ -174,30 +180,30 @@ div#vimium-hint-marker-container.vimium-theme-purple-haze {
 }
 
 div#vimium-hint-marker-container.vimium-theme-dracula {
-  --vimium-hint-bg-start: #44475a;
-  --vimium-hint-bg-end: #bd93f9;
+  --vimium-hint-bg-start: #bd93f9;
+  --vimium-hint-bg-end: #d6b4ff;
   --vimium-hint-border: #6272a4;
-  --vimium-hint-text: #f8f8f2;
-  --vimium-hint-match: #50fa7b;
-  --vimium-hint-active-text: #ffffff;
+  --vimium-hint-text: #1e1f29;
+  --vimium-hint-match: #4a356e;
+  --vimium-hint-active-text: #1e1f29;
 }
 
 div#vimium-hint-marker-container.vimium-theme-nord {
-  --vimium-hint-bg-start: #5e81ac;
-  --vimium-hint-bg-end: #88c0d0;
+  --vimium-hint-bg-start: #88c0d0;
+  --vimium-hint-bg-end: #81a1c1;
   --vimium-hint-border: #3b4252;
-  --vimium-hint-text: #eceff4;
-  --vimium-hint-match: #a3be8c;
-  --vimium-hint-active-text: #ffffff;
+  --vimium-hint-text: #1f242d;
+  --vimium-hint-match: #344459;
+  --vimium-hint-active-text: #1f242d;
 }
 
 div#vimium-hint-marker-container.vimium-theme-monokai {
-  --vimium-hint-bg-start: #75715e;
-  --vimium-hint-bg-end: #66d9ef;
+  --vimium-hint-bg-start: #66d9ef;
+  --vimium-hint-bg-end: #a6e22e;
   --vimium-hint-border: #49483e;
-  --vimium-hint-text: #f8f8f2;
-  --vimium-hint-match: #f92672;
-  --vimium-hint-active-text: #ffffff;
+  --vimium-hint-text: #1e1f1a;
+  --vimium-hint-match: #384a20;
+  --vimium-hint-active-text: #1e1f1a;
 }
 
 div#vimium-hint-marker-container.vimium-theme-tokyo-night {
@@ -441,7 +447,7 @@ div.internal-vimium-hint-marker span {
   font-family: Helvetica, Arial, sans-serif;
   font-weight: bold;
   font-size: 11px;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+  text-shadow: var(--vimium-hint-text-shadow);
 }
 
 div.internal-vimium-hint-marker > .matchingCharacter {
@@ -586,6 +592,11 @@ iframe.vimium-non-clickable {
   pointer-events: none;
 }
 
+body.vimium-body {
+  background-color: var(--vimium-background-color);
+  color: var(--vimium-background-text-color);
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --vimium-background-color: #1d1d1f;
@@ -606,7 +617,7 @@ iframe.vimium-non-clickable {
   /* Dark mode CSS for options page and exclusions */
 
   body.vimium-body {
-    background-color: var(--vomnibar-background-color);
+    background-color: var(--vimium-background-color);
     color: var(--vimium-background-text-color);
   }
 
@@ -616,14 +627,15 @@ iframe.vimium-non-clickable {
   }
 
   body.vimium-body textarea,
-  body.vimium-body input {
+  body.vimium-body input,
+  body.vimium-body select {
     background-color: var(--vimium-foreground-color);
     border-color: var(--vimium-foreground-color);
     color: var(--vimium-foreground-text-color);
   }
 
   body.vimium-body div.example {
-    color: #8a9096;
+    color: #9aa0a6;
   }
 }
 
