@@ -28,6 +28,7 @@ async function searchedQuery(worker) {
 const pages = {
   "/": "Start page",
   "/b.html": "Pagina B",
+  "/config.html": "Configuração do Servidor",
   // Not "Rust Book": once Chrome counts it as a top site, it would rightly win "rust book" below.
   "/rust.html": "The Rust Programming Language",
   "/react.html": "React Hooks Guide",
@@ -387,6 +388,69 @@ for (const [level, expectedAnimations] of [["Fast", []], ["Quick", ["border-rota
     await sleep(300);
   });
 }
+
+test("o: Down selects the first result rather than skipping to the second", async ({ page, base }) => {
+  await page.goto(base + "/");
+  const frame = await openVomnibar(page, "o", "html");
+  const before = await rows(frame);
+  if (before.length < 2) throw new Error(`Expected >= 2 results, got ${JSON.stringify(before)}`);
+  assertEqual(false, before.some((r) => r.selected), "nothing selected initially in o");
+  await page.keyboard.press("ArrowDown");
+  const after = await rows(frame);
+  assertEqual(true, after[0].selected, "ArrowDown must select the first row");
+  await closeVomnibar(page);
+});
+
+test("t: plain ASCII query matches and highlights an accented title", async ({ page, base }) => {
+  await page.goto(base + "/");
+  const frame = await openVomnibar(page, "t", "configuracao");
+  const list = await rows(frame);
+  const index = list.findIndex((r) => r.text === "Configuração do Servidor");
+  if (index < 0) throw new Error(`Accented page not found: ${JSON.stringify(list)}`);
+  const highlighted = await frame.evaluate(
+    (i) =>
+      document.querySelectorAll("#vomnibar-results li")[i].querySelector(".title .match")
+        ?.textContent,
+    index,
+  );
+  assertEqual("Configuração", highlighted);
+  await closeVomnibar(page);
+});
+
+test("t: Ctrl+Shift+Enter opens the selected result in a new background tab", async (ctx) => {
+  const { page, base, worker } = ctx;
+  await page.goto(base + "/");
+  const frame = await openVomnibar(page, "t", "pagina");
+  const index = (await rows(frame)).findIndex((r) => r.text === "Pagina B");
+  if (index < 0) throw new Error("Pagina B not listed");
+  for (let i = 0; i < index; i++) await page.keyboard.press("ArrowDown");
+  await page.keyboard.down("Control");
+  await page.keyboard.down("Shift");
+  await page.keyboard.press("Enter");
+  await page.keyboard.up("Shift");
+  await page.keyboard.up("Control");
+  let opened = null;
+  for (let waited = 0; waited < 3000 && !opened; waited += 100) {
+    await sleep(100);
+    opened = await worker.evaluate(async (url) => {
+      const tabs = await chrome.tabs.query({ url });
+      return tabs[0] ? { id: tabs[0].id, active: tabs[0].active } : null;
+    }, base + "/b.html");
+  }
+  if (!opened) throw new Error("Background tab was never created.");
+  assertEqual(false, opened.active, "new tab should open in background");
+  assertEqual(base + "/", page.url(), "current tab should stay on /");
+  await worker.evaluate((id) => chrome.tabs.remove(id), opened.id);
+});
+
+test("t: 'theme park' falls through to OmniSearch rather than trapping in an empty picker", async (ctx) => {
+  const { page, base, worker } = ctx;
+  await page.goto(base + "/");
+  const frame = await openVomnibar(page, "t", "theme park");
+  assertEqual([{ text: "theme park", selected: true, kind: "web" }], await rows(frame));
+  await page.keyboard.press("Enter");
+  assertEqual("theme park", await searchedQuery(worker));
+});
 
 // Runs the tests above. `puppeteer` is the module make.js uses; returns whether all passed.
 export async function runE2ETests({ puppeteer, extensionPath }) {
