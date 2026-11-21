@@ -1,6 +1,7 @@
 import "./all_content_scripts.js";
 import * as UIComponentMessenger from "./ui_component_messenger.js";
 import { allCommands } from "../background_scripts/all_commands.js";
+import { themeManager } from "./vomnibar_themes.js";
 
 // The ordering we show key bindings is alphanumerical, except that special keys sort to the end.
 function compareKeys(a, b) {
@@ -268,6 +269,7 @@ const testEnv = globalThis.window == null;
 if (!testEnv) {
   document.addEventListener("DOMContentLoaded", async () => {
     await Settings.onLoaded();
+    themeManager.init();
     DomUtils.injectUserCss(); // Manually inject custom user styles.
   });
   init();

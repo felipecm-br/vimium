@@ -4,6 +4,7 @@ import "../lib/settings.js";
 
 import * as bgUtils from "../background_scripts/bg_utils.js";
 import { ExclusionRulesEditor } from "./exclusion_rules_editor.js";
+import { themeManager } from "./vomnibar_themes.js";
 
 const ActionPage = {
   async init() {
@@ -164,5 +165,6 @@ const ActionPage = {
 
 document.addEventListener("DOMContentLoaded", async () => {
   await Settings.onLoaded();
+  themeManager.init();
   ActionPage.init();
 });

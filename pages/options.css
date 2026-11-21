@@ -466,3 +466,96 @@ input#upload-backup {
     background-color: #222127;
   }
 }
+
+/* Active Vomnibar theme integration (set by themeManager.init() on options.html & action.html). */
+:root[data-vomnibar-theme] body.vimium-body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--vomnibar-inner-bg);
+  color: var(--vomnibar-text-color);
+}
+
+:root[data-vomnibar-theme] header {
+  border-bottom: 1px solid var(--vomnibar-border-color);
+  color: var(--vomnibar-text-color);
+  font-weight: 600;
+}
+
+:root[data-vomnibar-theme] body.vimium-body a,
+:root[data-vomnibar-theme] body.vimium-body a:visited {
+  color: var(--vomnibar-url-color);
+}
+
+:root[data-vomnibar-theme] body.vimium-body div.example,
+:root[data-vomnibar-theme] .exclusion-header-text,
+:root[data-vomnibar-theme] #learned-choices-count {
+  color: var(--vomnibar-secondary-text);
+}
+
+:root[data-vomnibar-theme] pre {
+  border-left-color: var(--vomnibar-border-color);
+}
+
+:root[data-vomnibar-theme] body.vimium-body textarea,
+:root[data-vomnibar-theme] body.vimium-body input[type="text"],
+:root[data-vomnibar-theme] body.vimium-body input[type="number"],
+:root[data-vomnibar-theme] body.vimium-body select {
+  background-color: color-mix(in srgb, var(--vomnibar-inner-bg) 88%, var(--vomnibar-text-color));
+  border: 1px solid var(--vomnibar-border-color);
+  border-radius: 6px;
+  color: var(--vomnibar-input-text);
+  padding: 6px 8px;
+}
+
+:root[data-vomnibar-theme] body.vimium-body textarea:focus,
+:root[data-vomnibar-theme] body.vimium-body input[type="text"]:focus,
+:root[data-vomnibar-theme] body.vimium-body input[type="number"]:focus,
+:root[data-vomnibar-theme] body.vimium-body select:focus,
+:root[data-vomnibar-theme] body.vimium-body button:focus {
+  border-color: var(--vomnibar-accent-color);
+}
+
+:root[data-vomnibar-theme] body.vimium-body button {
+  background-image: none;
+  background-color: var(--vomnibar-selected-bg);
+  border: 1px solid var(--vomnibar-border-color);
+  border-radius: 6px;
+  color: var(--vomnibar-text-color);
+  padding: 5px 12px;
+  text-shadow: none;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+:root[data-vomnibar-theme] body.vimium-body button:hover:not([disabled]) {
+  background-image: none;
+  border-color: var(--vomnibar-accent-color);
+  box-shadow: none;
+  color: var(--vomnibar-text-color);
+}
+
+:root[data-vomnibar-theme] body.vimium-body button[disabled],
+:root[data-vomnibar-theme] body.vimium-body button[disabled]:hover {
+  background-image: none;
+  background-color: transparent;
+  border-color: var(--vomnibar-border-color);
+  color: var(--vomnibar-secondary-text);
+  box-shadow: none;
+  text-shadow: none;
+  opacity: 0.7;
+  cursor: default;
+}
+
+:root[data-vomnibar-theme] footer {
+  background-color: color-mix(in srgb, var(--vomnibar-inner-bg) 92%, var(--vomnibar-text-color));
+  border-top: 1px solid var(--vomnibar-border-color);
+  color: var(--vomnibar-text-color);
+}
+
+:root[data-vomnibar-theme] #exclusion-rules .remove {
+  color: var(--vomnibar-secondary-text);
+  background: transparent;
+}
+
+:root[data-vomnibar-theme] #exclusion-rules .remove:hover {
+  color: var(--vomnibar-accent-color);
+}

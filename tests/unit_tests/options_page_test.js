@@ -120,4 +120,14 @@ context("options page", () => {
     );
     assert.isTrue(btn.disabled);
   });
+
+  should("apply and live-preview the active Vomnibar theme on the options page", () => {
+    assert.equal("Default", document.documentElement.getAttribute("data-vomnibar-theme"));
+    assert.equal("dark", document.documentElement.getAttribute("data-vomnibar-scheme"));
+    const select = optionsPage.getOptionEl("vomnibarTheme");
+    select.value = "Paper Light";
+    select.dispatchEvent(new document.defaultView.Event("change", { bubbles: true }));
+    assert.equal("Paper Light", document.documentElement.getAttribute("data-vomnibar-theme"));
+    assert.equal("light", document.documentElement.getAttribute("data-vomnibar-scheme"));
+  });
 });

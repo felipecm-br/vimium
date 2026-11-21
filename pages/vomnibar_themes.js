@@ -10,6 +10,38 @@ const LEGACY_THEME_STORAGE_KEY = "vimium.vomnibarTheme";
 
 import "../lib/settings.js";
 
+// Default dark theme tokens (mirrors :root in pages/vomnibar_page.css) so every Vimium extension
+// page (HUD, Help dialog, Options, Action popup) can inherit the active theme without loading
+// vomnibar_page.css.
+export const defaultThemeVars = {
+  "--vomnibar-bg-color": "rgba(0, 0, 0, 0.4)",
+  "--vomnibar-inner-bg": "#1c1f2b",
+  "--vomnibar-text-color": "#ffffff",
+  "--vomnibar-secondary-text": "#a3aebc",
+  "--vomnibar-selected-bg": "rgba(102, 81, 161, 0.35)",
+  "--vomnibar-hover-bg": "rgba(255, 255, 255, 0.08)",
+  "--vomnibar-border-color": "#565e76",
+  "--vomnibar-accent-color": "#9e86e6",
+  "--vomnibar-url-color": "#58a6ff",
+  "--vomnibar-match-color": "#79c0ff",
+  "--vomnibar-input-text": "#ffffff",
+  "--vomnibar-icon-color": "rgba(255, 255, 255, 0.7)",
+  "--vomnibar-gradient-1": "#ff00c1",
+  "--vomnibar-gradient-2": "#3d009d",
+  "--vomnibar-gradient-3": "#04d9ff",
+};
+
+// Returns true when a theme's surface background is light (relative luminance > 0.4), used to
+// align native browser controls (scrollbars, checkboxes, selects) via `color-scheme`.
+export function isLightHex(hex) {
+  if (!hex || !hex.startsWith("#")) return false;
+  const h = hex.length === 4 ? hex.slice(1).split("").map((c) => c + c).join("") : hex.slice(1);
+  const r = parseInt(h.slice(0, 2), 16) / 255;
+  const g = parseInt(h.slice(2, 4), 16) / 255;
+  const b = parseInt(h.slice(4, 6), 16) / 255;
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.45;
+}
+
 /**
  * Theme definitions using CSS custom properties.
  * Each theme overrides the :root variables defined in vomnibar_page.css.
@@ -811,11 +843,15 @@ export class ThemeManager {
 
     this.clearThemeVars();
     const root = document.documentElement;
-    for (const [key, value] of Object.entries(theme.vars)) {
+    const resolved = { ...defaultThemeVars, ...theme.vars };
+    for (const [key, value] of Object.entries(resolved)) {
       root.style.setProperty(key, value);
     }
-    // Set data attribute for per-theme CSS selectors (e.g. Google badge colors)
+    const scheme = isLightHex(resolved["--vomnibar-inner-bg"]) ? "light" : "dark";
+    // Set data attributes for per-theme CSS selectors (e.g. Google badge, Options, Help, HUD).
     root.setAttribute("data-vomnibar-theme", themeName);
+    root.setAttribute("data-vomnibar-scheme", scheme);
+    root.style.colorScheme = scheme;
     this.currentTheme = themeName;
 
     if (save && !this.isPreviewMode) this.persist(themeName);
@@ -827,6 +863,7 @@ export class ThemeManager {
    */
   clearThemeVars() {
     const root = document.documentElement;
+    for (const key of Object.keys(defaultThemeVars)) root.style.removeProperty(key);
     for (const theme of themeDefinitions) {
       for (const key of Object.keys(theme.vars)) root.style.removeProperty(key);
     }

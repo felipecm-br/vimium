@@ -56,7 +56,13 @@ const KeystrokePopup = {
 
     const popup = DomUtils.createElement("div");
     popup.id = "vimium-keystroke-popup";
-    popup.className = effectsAreInstant() ? "vimium-reset no-motion" : "vimium-reset";
+    const themeName = globalThis.Settings?.isLoaded?.()
+      ? (Settings.get("vomnibarTheme") || "Default")
+      : "Default";
+    const themeClass = `vimium-theme-${themeName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+    popup.className = effectsAreInstant()
+      ? `vimium-reset no-motion ${themeClass}`
+      : `vimium-reset ${themeClass}`;
     let html = `<span class="keystroke-prefix">${Utils.escapeHtml(prefixKey)} +</span>`;
     for (const [key, desc] of Object.entries(options)) {
       html += `

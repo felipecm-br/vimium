@@ -1,6 +1,6 @@
 import "./test_helper.js";
 import "../../tests/unit_tests/test_chrome_stubs.js";
-import { themeDefinitions } from "../../pages/vomnibar_themes.js";
+import { defaultThemeVars, themeDefinitions } from "../../pages/vomnibar_themes.js";
 
 function parseColor(value, bg = [0, 0, 0]) {
   const color = value.trim();
@@ -109,4 +109,39 @@ context("Vomnibar and link-hint theme WCAG AA contrast", () => {
     assert.equal(themeDefinitions.length, count);
     assert.equal([], failures);
   });
+
+  should(
+    "keep defaultThemeVars in sync with vomnibar_page.css :root and cover every keystroke popup theme",
+    () => {
+      const vomnibarCss = Deno.readTextFileSync(
+        new URL("../../pages/vomnibar_page.css", import.meta.url),
+      );
+      const rootDefaults = parseRootDefaults(vomnibarCss);
+      for (const [key, value] of Object.entries(defaultThemeVars)) {
+        assert.equal(rootDefaults[key], value, `defaultThemeVars drift on ${key}`);
+      }
+
+      const vimiumCss = Deno.readTextFileSync(
+        new URL("../../content_scripts/vimium.css", import.meta.url),
+      );
+      const kpPattern = /#vimium-keystroke-popup\.vimium-theme-([a-z0-9-]+)\s*\{([^}]*)\}/g;
+      const slugs = new Set();
+      const failures = [];
+      for (const [, slug, body] of vimiumCss.matchAll(kpPattern)) {
+        slugs.add(slug);
+        const vars = Object.fromEntries(
+          [...body.matchAll(/(--kp-[a-z-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]),
+        );
+        const bg = parseColor(vars["--kp-bg"]);
+        const text = parseColor(vars["--kp-text"], bg);
+        const muted = parseColor(vars["--kp-muted"], bg);
+        const accent = parseColor(vars["--kp-accent"], bg);
+        if (contrastRatio(text, bg) < 4.5) failures.push(`${slug} text`);
+        if (contrastRatio(muted, bg) < 4.5) failures.push(`${slug} muted`);
+        if (contrastRatio(accent, bg) < 3.0) failures.push(`${slug} accent`);
+      }
+      assert.equal(themeDefinitions.length, slugs.size);
+      assert.equal([], failures);
+    },
+  );
 });

@@ -2,7 +2,7 @@ import "./all_content_scripts.js";
 import { ExclusionRulesEditor } from "./exclusion_rules_editor.js";
 import { Commands, KeyMappingsParser } from "../background_scripts/commands.js";
 import * as userSearchEngines from "../background_scripts/user_search_engines.js";
-import { themeDefinitions } from "./vomnibar_themes.js";
+import { themeDefinitions, themeManager } from "./vomnibar_themes.js";
 import { effectLevels } from "./vomnibar_effects.js";
 import { ANGLE_STEP, borderSpeeds } from "./vomnibar_border.js";
 
@@ -83,6 +83,7 @@ async function refreshLearnedChoicesUI() {
 
 export async function init() {
   await Settings.onLoaded();
+  themeManager.init();
   populateVomnibarSelectors();
 
   const shortcutLabel = document.querySelector("#shortcut-to-save-all");
@@ -101,7 +102,12 @@ export async function init() {
     // the HTML element's "input" event here rather than the "change" event (plus "change" for
     // <select> elements).
     el.addEventListener("input", () => onUpdated());
-    if (el.tagName === "SELECT") el.addEventListener("change", () => onUpdated());
+    if (el.tagName === "SELECT") {
+      el.addEventListener("change", () => {
+        if (el.name === "vomnibarTheme") themeManager.previewTheme(el.value);
+        onUpdated();
+      });
+    }
     el.addEventListener("blur", () => {
       showValidationErrors();
     });
@@ -359,6 +365,10 @@ export async function saveOptions() {
   }
 
   await Settings.setSettings(getSettingsFromForm());
+  if (themeManager.isInPreviewMode()) {
+    themeManager.isPreviewMode = false;
+    themeManager.previousTheme = null;
+  }
   const el = document.querySelector("#save");
   el.disabled = true;
   el.textContent = "Saved";

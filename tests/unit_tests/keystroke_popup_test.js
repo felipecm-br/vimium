@@ -62,4 +62,13 @@ context("keystroke popup", () => {
     KeystrokePopup.show("s", {});
     assert.equal(null, KeystrokePopup.element);
   });
+
+  should("apply the active Vomnibar theme class to the popup", async () => {
+    await Settings.onLoaded();
+    await Settings.set("vomnibarTheme", "Tokyo Night");
+    KeystrokePopup.show("g", { g: "Scroll to top" });
+    const popup = KeystrokePopup.element.shadowRoot.getElementById("vimium-keystroke-popup");
+    assert.isTrue(popup.classList.contains("vimium-theme-tokyo-night"));
+    await Settings.set("vomnibarTheme", "Default");
+  });
 });

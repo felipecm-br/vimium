@@ -5,6 +5,7 @@ import "../lib/settings.js";
 import "../lib/keyboard_utils.js";
 import "../lib/find_mode_history.js";
 import * as UIComponentMessenger from "./ui_component_messenger.js";
+import { themeManager } from "./vomnibar_themes.js";
 
 let findMode = null;
 
@@ -224,6 +225,7 @@ function init() {
   // Manually inject custom user styles.
   document.addEventListener("DOMContentLoaded", async () => {
     await Settings.onLoaded();
+    themeManager.init();
     DomUtils.injectUserCss();
   });
 

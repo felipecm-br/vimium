@@ -50,3 +50,11 @@
     color: white;
   }
 }
+
+:root[data-vomnibar-theme] .key {
+  background-color: var(--vomnibar-selected-bg);
+  border: 1px solid var(--vomnibar-border-color);
+  box-shadow: none;
+  color: var(--vomnibar-text-color);
+  border-radius: 4px;
+}

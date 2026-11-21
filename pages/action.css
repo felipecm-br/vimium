@@ -56,6 +56,11 @@ footer {
   position: inherit;
 }
 
+:root[data-vomnibar-theme] footer {
+  background-color: color-mix(in srgb, var(--vomnibar-inner-bg) 92%, var(--vomnibar-text-color));
+  border-top: 1px solid var(--vomnibar-border-color);
+}
+
 footer .options-message {
   flex-grow: 1;
 }
