@@ -142,6 +142,10 @@ context("OmniSearch web search intent", () => {
     assert.isTrue(isStrongMatch(["rust"], page("The Rust Book", "https://doc.example.com")));
     assert.isTrue(isStrongMatch(["rust"], page("Docs", "https://www.rust-lang.org/learn")));
     assert.isTrue(isStrongMatch(["git", "vim"], page("philc/vimium", "https://github.com")));
+    assert.isTrue(
+      isStrongMatch(["gh", "vim"], page("GitHub - philc/vimium", "https://github.com")),
+    );
+    assert.isFalse(isStrongMatch(["gc"], page("Google", "https://www.google.com/")));
     assert.isFalse(isStrongMatch(["rust"], page("Reviews", "https://trustpilot.com/rust")));
   });
 

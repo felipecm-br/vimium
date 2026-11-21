@@ -48,6 +48,19 @@ context("OmniSearch prefixes", () => {
       assert.isFalse(results.some((s) => s.webSearchQuery != null));
     });
 
+    should("match Vimium commands by word initials after > and highlight them", async () => {
+      const cnt = await filter(">cnt");
+      const createTab = cnt.find((s) => s.command.registryEntry.command === "createTab");
+      assert.isTrue(createTab != null);
+      assert.isTrue(
+        createTab.html.includes(
+          "<span class='match'>C</span>reate <span class='match'>n</span>ew <span class='match'>t</span>ab",
+        ),
+      );
+      const dt = await filter(">dt");
+      assert.isTrue(dt.some((s) => s.command.registryEntry.command === "duplicateTab"));
+    });
+
     should("list the recently closed tabs after @, a window as one row", async () => {
       const results = await filter("@");
       assert.equal(["t1", "w1"], results.map((s) => s.sessionId));

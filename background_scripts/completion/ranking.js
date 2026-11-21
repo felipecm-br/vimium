@@ -42,6 +42,146 @@ export function foldDiacriticsWithMap(string) {
   return { folded, starts, ends };
 }
 
+// Splits `string` into word and CamelCase segments with exact [start, end) offsets in the
+// original string. HTML entities (e.g. "&amp;") are skipped so match highlighting on escaped HTML
+// never matches inside an entity name.
+const htmlEntityRegexp = /&(?:#\d+|#x[\da-f]+|[a-z]+);/iy;
+const wordCharRegexp = /[\p{L}\p{N}]/u;
+const upperCharRegexp = /\p{Lu}/u;
+const lowerOrDigitRegexp = /[\p{Ll}\p{N}]/u;
+const acronymTermRegexp = /^[\p{L}\p{N}]{2,12}$/u;
+
+function splitWordSegments(string, fold) {
+  const { folded, starts, ends } = fold
+    ? foldDiacriticsWithMap(string)
+    : { folded: string, starts: null, ends: null };
+  const segments = [];
+  let i = 0;
+  while (i < folded.length) {
+    // Skip HTML entities in already-escaped display strings.
+    if (folded[i] === "&") {
+      htmlEntityRegexp.lastIndex = i;
+      const entity = htmlEntityRegexp.exec(folded);
+      if (entity) {
+        i = htmlEntityRegexp.lastIndex;
+        continue;
+      }
+    }
+    if (!wordCharRegexp.test(folded[i])) {
+      i++;
+      continue;
+    }
+    const segStart = i;
+    i++;
+    while (i < folded.length && wordCharRegexp.test(folded[i])) {
+      const prev = folded[i - 1];
+      const curr = folded[i];
+      const next = i + 1 < folded.length ? folded[i + 1] : "";
+      // Split CamelCase boundaries: "Git|Hub" (lower->Upper) and "VS|Code" (Upper->Upper+lower).
+      const lowerToUpper = lowerOrDigitRegexp.test(prev) && upperCharRegexp.test(curr);
+      const acronymToWord = upperCharRegexp.test(prev) && upperCharRegexp.test(curr) &&
+        next && lowerOrDigitRegexp.test(next);
+      if (lowerToUpper || acronymToWord) break;
+      i++;
+    }
+    segments.push({
+      text: folded.slice(segStart, i),
+      origStart: (idx) => (starts ? starts[segStart + idx] : segStart + idx),
+      origEnd: (idx) => (ends ? ends[segStart + idx] : segStart + idx + 1),
+    });
+  }
+  return segments;
+}
+
+// Matches `term` against word/CamelCase segment initials and segment prefixes (e.g. "gh" ->
+// "GitHub", "vsc" -> "Visual Studio Code" or "VSCode", "cnt" -> "Create new tab").
+// Requires spanning at least two segments (1-segment matches are already substrings).
+// With `allowSkip: false` (default, for tabs/bookmarks/titles), transitions only move to the
+// immediately adjacent segment so unrelated words across a URL never create false positives.
+// With `allowSkip: true` (for Vimium's ~65 commands), later word initials may also match.
+export function acronymRanges(term, string, { allowSkip = false } = {}) {
+  if (!term || !string || string.length < term.length || !acronymTermRegexp.test(term)) {
+    return null;
+  }
+  const fold = !hasDiacritics(term);
+  const caseSensitive = Utils.hasUpperCase(term);
+  const needle = caseSensitive ? term : term.toLowerCase();
+  const segments = splitWordSegments(string, fold);
+  if (segments.length < 2) return null;
+
+  const segTexts = caseSensitive
+    ? segments.map((s) => s.text)
+    : segments.map((s) => s.text.toLowerCase());
+  const ranges = [];
+
+  const search = (ti, segIdx, charIdx, segCount) => {
+    if (ti === needle.length) return segCount >= 2;
+    const ch = needle[ti];
+    // Option 1: continue matching contiguously inside the current segment.
+    if (charIdx < segTexts[segIdx].length && segTexts[segIdx][charIdx] === ch) {
+      const seg = segments[segIdx];
+      ranges.push([seg.origStart(charIdx), seg.origEnd(charIdx)]);
+      if (search(ti + 1, segIdx, charIdx + 1, segCount)) return true;
+      ranges.pop();
+    }
+    // Option 2: jump to the start of the next segment (or any later segment when allowSkip is on).
+    const maxNext = allowSkip ? segments.length - 1 : Math.min(segments.length - 1, segIdx + 1);
+    for (let nextSeg = segIdx + 1; nextSeg <= maxNext; nextSeg++) {
+      if (segTexts[nextSeg][0] === ch) {
+        const seg = segments[nextSeg];
+        ranges.push([seg.origStart(0), seg.origEnd(0)]);
+        if (search(ti + 1, nextSeg, 1, segCount + 1)) return true;
+        ranges.pop();
+        if (allowSkip) break; // Prefer the earliest matching word initial.
+      }
+    }
+    return false;
+  };
+
+  for (let startSeg = 0; startSeg < segments.length - 1; startSeg++) {
+    if (segTexts[startSeg][0] !== needle[0]) continue;
+    ranges.length = 0;
+    const seg = segments[startSeg];
+    ranges.push([seg.origStart(0), seg.origEnd(0)]);
+    if (search(1, startSeg, 1, 1)) return ranges;
+  }
+  return null;
+}
+
+// Like matches(), but falls back to controlled segment-initial/acronym matching when a term isn't
+// a contiguous substring (e.g. "gh vim" matching "GitHub" + "vimium", or ">cnt" matching
+// "Create new tab"). Fast substring check always runs first.
+export function fuzzyMatches(queryTerms, options, ...things) {
+  let foldedThings = null;
+  for (const term of queryTerms) {
+    const regexp = RegexpCache.get(term);
+    const fold = !hasDiacritics(term);
+    let matchedTerm = false;
+    for (let i = 0; i < things.length; i++) {
+      let thing = things[i];
+      if (!thing) continue;
+      if (fold && nonAsciiRegexp.test(thing)) {
+        foldedThings ??= things.map(foldDiacritics);
+        thing = foldedThings[i];
+      }
+      if (regexp.test(thing)) {
+        matchedTerm = true;
+        break;
+      }
+    }
+    if (!matchedTerm) {
+      for (const thing of things) {
+        if (thing && acronymRanges(term, thing, options) != null) {
+          matchedTerm = true;
+          break;
+        }
+      }
+    }
+    if (!matchedTerm) return false;
+  }
+  return true;
+}
+
 // Whether the given things (usually URLs or titles) match any one of the query terms.
 // This is used to prune out irrelevant suggestions before we try to rank them, and for
 // calculating word relevancy. Every term must match at least one thing.
@@ -117,6 +257,11 @@ function scoreTerm(term, string) {
         score += matchWeights.matchWholeWord;
       }
     }
+  } else if (acronymRanges(term, string) != null) {
+    // Segment-initial match scores below word-start substring matches (2.0) so exact substrings
+    // always outrank acronyms when both match.
+    score = 1.5;
+    count = term.length;
   }
   return [score, count < target.length ? count : target.length];
 }

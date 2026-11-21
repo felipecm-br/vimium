@@ -196,3 +196,41 @@ context("RegexpCache.get", () => {
     assert.equal("", RegexpCache.get("Abc").flags);
   });
 });
+
+context("acronymRanges and fuzzyMatches", () => {
+  should("match CamelCase and adjacent word initials with exact ranges", () => {
+    assert.equal([[0, 1], [3, 4]], ranking.acronymRanges("gh", "GitHub"));
+    assert.equal([[0, 1], [3, 4], [4, 5], [5, 6]], ranking.acronymRanges("ghub", "GitHub"));
+    assert.equal([[0, 1], [1, 2], [2, 3]], ranking.acronymRanges("vsc", "VSCode"));
+    assert.equal([[0, 1], [7, 8], [14, 15]], ranking.acronymRanges("vsc", "Visual Studio Code"));
+    assert.equal([[0, 1], [3, 4]], ranking.acronymRanges("yt", "YouTube"));
+    assert.equal([[0, 1], [5, 6]], ranking.acronymRanges("rl", "rust-lang"));
+  });
+
+  should("not match unrelated non-adjacent words by default, avoiding noisy hits", () => {
+    assert.equal(null, ranking.acronymRanges("gh", "google search high"));
+    assert.equal(null, ranking.acronymRanges("g", "GitHub")); // single letter ignored
+    assert.equal(null, ranking.acronymRanges("gh", "github")); // single segment
+    // HTML entities in escaped strings must never be treated as word segments.
+    assert.equal(null, ranking.acronymRanges("ga", "Git &amp; Code"));
+  });
+
+  should("allow skipping words in command-palette mode when allowSkip is true", () => {
+    assert.equal(null, ranking.acronymRanges("dt", "Duplicate current tab"));
+    assert.equal(
+      [[0, 1], [18, 19]],
+      ranking.acronymRanges("dt", "Duplicate current tab", { allowSkip: true }),
+    );
+    assert.equal(
+      [[0, 1], [7, 8], [11, 12]],
+      ranking.acronymRanges("cnt", "Create new tab", { allowSkip: true }),
+    );
+  });
+
+  should("rank exact substring matches above acronym-only matches", () => {
+    const exact = ranking.wordRelevancy(["gh"], "https://gh.example", "gh CLI");
+    const acronym = ranking.wordRelevancy(["gh"], "https://github.com", "GitHub");
+    assert.isTrue(acronym > 0);
+    assert.isTrue(exact > acronym);
+  });
+});

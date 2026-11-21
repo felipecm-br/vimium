@@ -238,7 +238,12 @@ ${switchButtonHtml}`;
     let ranges = [];
     const escapedTerms = this.queryTerms.map((term) => Utils.escapeHtml(term));
     for (const term of escapedTerms) {
+      const before = ranges.length;
       this.pushMatchingRanges(string, term, ranges);
+      if (ranges.length === before) {
+        const fuzzy = ranking.acronymRanges(term, string, { allowSkip: Boolean(this.command) });
+        if (fuzzy) ranges.push(...fuzzy);
+      }
     }
 
     if (ranges.length === 0) {
@@ -357,7 +362,13 @@ export class BookmarkCompleter {
           bookmark.shortUrl = "javascript:...";
         }
         const suggestionUrl = bookmark.shortUrl != null ? bookmark.shortUrl : bookmark.url;
-        return ranking.matches(queryTerms, suggestionUrl, suggestionTitle);
+        return ranking.matches(queryTerms, suggestionUrl, suggestionTitle) ||
+          ranking.fuzzyMatches(
+            queryTerms,
+            { allowSkip: false },
+            urlForAcronym(bookmark.url),
+            suggestionTitle,
+          );
       });
     } else {
       results = [];
@@ -455,10 +466,16 @@ export class CommandCompleter {
       });
     };
 
-    const matchingCommands = allCommands.filter((c) => ranking.matches(queryTerms, c.desc));
+    const matchingCommands = allCommands
+      .filter((c) => ranking.fuzzyMatches(queryTerms, { allowSkip: true }, c.desc))
+      .sort((a, b) =>
+        Number(ranking.matches(queryTerms, b.desc)) - Number(ranking.matches(queryTerms, a.desc))
+      );
 
     const suggestions = [];
     for (const commandInfo of matchingCommands) {
+      const isSubstring = ranking.matches(queryTerms, commandInfo.desc);
+      const relevancy = isSubstring ? 1 : 0.75;
       const variations = commandToOptionsToKeys[commandInfo.name] || {};
 
       // Whether the default action of the command (no additional options) is bound to a key.
@@ -477,7 +494,7 @@ export class CommandCompleter {
               registryEntry: createUnboundRegistryEntry(commandInfo),
               keys: [],
             },
-            relevancy: 1,
+            relevancy,
           }),
         );
       }
@@ -494,7 +511,7 @@ export class CommandCompleter {
               registryEntry: Commands.keyToRegistryEntry[keys[0]],
               keys: keys,
             },
-            relevancy: 1,
+            relevancy,
           }),
         );
       }
@@ -646,7 +663,10 @@ export class TabCompleter {
     await bgUtils.tabRecency.init();
     // We search all tabs, not just those in the current window.
     const tabs = await chrome.tabs.query({});
-    const results = tabs.filter((tab) => ranking.matches(queryTerms, tab.url, tab.title));
+    const results = tabs.filter((tab) =>
+      ranking.matches(queryTerms, tab.url, tab.title) ||
+      ranking.fuzzyMatches(queryTerms, { allowSkip: false }, urlForAcronym(tab.url), tab.title)
+    );
     const suggestions = results
       .map((tab) => {
         const suggestion = new Suggestion({
@@ -944,6 +964,18 @@ const hostnameOf = (url) => {
   }
 };
 
+// The meaningful parts of a URL for segment-initial/acronym matching: site name (no "www." or
+// TLD) plus pathname (no scheme or noisy query parameters), so "gc" never matches "google.com"
+// and "gh" never matches "google.com/search?q=high".
+const urlForAcronym = (url) => {
+  try {
+    const parsed = new URL(url);
+    return `${siteName(parsed.hostname)} ${parsed.pathname}`;
+  } catch {
+    return "";
+  }
+};
+
 // Whether every query term starts a word in the page's title or site name: "rust" in "The Rust Book"
 // or "rust-lang.org", but not in "trustpilot.com". Bookmark folders don't count ("book" must not
 // match every bookmark under "Bookmarks bar"). A suggestion matched only inside words is
@@ -958,7 +990,10 @@ export function isStrongMatch(queryTerms, suggestion) {
     const target = ranking.hasDiacritics(term)
       ? text
       : (foldedText ??= ranking.foldDiacritics(text));
-    return new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(term)}${wordEnd}`, "iu").test(target);
+    if (new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(term)}${wordEnd}`, "iu").test(target)) {
+      return true;
+    }
+    return ranking.acronymRanges(term, text) != null;
   });
 }
 
@@ -1166,9 +1201,17 @@ export class OmniSearchCompleter {
         return true;
       }
 
-      // Check against title, URL, and bookmark path if available
+      // Check against title, URL, and bookmark path if available. Adjacent-segment acronyms match
+      // titles and site/path names (e.g. "gh vim" -> "GitHub" + "/philc/vimium") without TLD noise.
       const bookmarkPath = tab.bookmark?.fullPathTitle || "";
-      return ranking.matches(queryTerms, tab.url, tab.title, bookmarkPath);
+      return ranking.matches(queryTerms, tab.url, tab.title, bookmarkPath) ||
+        ranking.fuzzyMatches(
+          queryTerms,
+          { allowSkip: false },
+          urlForAcronym(tab.url),
+          tab.title,
+          bookmarkPath,
+        );
     });
 
     return filteredTabs.map((tab, index) => {
@@ -1191,7 +1234,13 @@ export class OmniSearchCompleter {
     const filteredSites = topSites.filter((site) => {
       if (excludeUrls.has(site.url)) return false;
       if (queryTerms.length === 0) return true;
-      return ranking.matches(queryTerms, site.url, site.title);
+      return ranking.matches(queryTerms, site.url, site.title) ||
+        ranking.fuzzyMatches(
+          queryTerms,
+          { allowSkip: false },
+          urlForAcronym(site.url),
+          site.title,
+        );
     });
 
     return filteredSites.slice(0, omniSearchMaxResultsPerCategory).map((site) => {
@@ -1220,7 +1269,19 @@ export class OmniSearchCompleter {
     // Match the query terms against title, URL and full path; rank by relevancy of the full path.
     const scored = topK(this.bookmarksCache, omniSearchMaxResultsPerCategory, (bookmark) => {
       if (excludeUrls.has(bookmark.url)) return null;
-      if (!ranking.matches(queryTerms, bookmark.url, bookmark.title, bookmark.fullPathTitle)) {
+      const matched = ranking.matches(
+        queryTerms,
+        bookmark.url,
+        bookmark.title,
+        bookmark.fullPathTitle,
+      ) || ranking.fuzzyMatches(
+        queryTerms,
+        { allowSkip: false },
+        urlForAcronym(bookmark.url),
+        bookmark.title,
+        bookmark.fullPathTitle,
+      );
+      if (!matched) {
         return null;
       }
       return ranking.wordRelevancy(queryTerms, bookmark.url, bookmark.fullPathTitle);
