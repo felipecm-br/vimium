@@ -700,4 +700,100 @@ context("vomnibar page", () => {
     const keys = Array.from(ui.completionList.querySelectorAll(".key")).map((x) => x.textContent);
     assert.equal(["K", "gt"], keys);
   });
+
+  should("select the first result on Down/Tab when nothing is selected yet", async () => {
+    stub(
+      chrome.runtime,
+      "sendMessage",
+      withPromise((message) => {
+        if (message.handler == "filterCompletions") {
+          return ["https://first.example", "https://second.example"].map((url) =>
+            new Suggestion({
+              queryTerms: [],
+              description: "history",
+              url,
+              title: url,
+              relevancyFunction: () => 1,
+            })
+          );
+        }
+      }),
+    );
+    ui.setQuery("ex");
+    await ui.update();
+    assert.equal(-1, ui.selection);
+    assert.equal(-1, ui.globalSelection);
+    await ui.onKeyEvent(newKeyEvent({ key: "ArrowDown" }));
+    assert.equal(0, ui.selection);
+    assert.equal(0, ui.globalSelection);
+    await ui.onKeyEvent(newKeyEvent({ key: "ArrowDown" }));
+    assert.equal(1, ui.selection);
+    assert.equal(1, ui.globalSelection);
+  });
+
+  should(
+    "not hijack queries like 'themeforest', 'theme park', or 'effective' into pickers",
+    async () => {
+      ui.setCompleterName("omniSearch");
+      const savedTheme = themeManager.getCurrentTheme();
+      for (
+        const query of ["themeforest", "themes", "effective rust", "theme park", "effects of sleep"]
+      ) {
+        ui.setQuery(query);
+        await ui.update();
+        assert.isFalse(ui.isThemeMode, `should not enter picker for "${query}"`);
+        assert.equal(query, ui.allCompletions[0]?.webSearchQuery);
+      }
+      // Typing "theme", previewing, then extending into "theme park" reverts the preview cleanly.
+      ui.setQuery("theme");
+      await ui.update();
+      await ui.onKeyEvent(newKeyEvent({ key: "ArrowDown" }));
+      assert.isTrue(themeManager.isInPreviewMode());
+      ui.setQuery("theme park");
+      await ui.update();
+      assert.isFalse(ui.isThemeMode);
+      assert.isFalse(themeManager.isInPreviewMode());
+      assert.equal(savedTheme, themeManager.getCurrentTheme());
+    },
+  );
+
+  should("honor forceNewTab and Shift in Alt-hold Google search mode", async () => {
+    ui.setCompleterName("omniSearch");
+    ui.setForceNewTab(true);
+    ui.setQuery("vimium");
+    altDown();
+    await waitPastHold();
+    assert.isTrue(ui.isGoogleSearchMode);
+    let message = null;
+    stub(chrome.runtime, "sendMessage", withPromise((m) => (message = m)));
+    await ui.onKeyEvent(newKeyEvent({ type: "keydown", key: "Enter" }));
+    ui.onHidden();
+    assert.equal({ handler: "launchSearchQuery", query: "vimium", openInNewTab: true }, message);
+  });
+
+  should("ignore key events while an IME is composing", () => {
+    assert.equal(null, ui.actionFromKeyEvent(newKeyEvent({ key: "Enter", isComposing: true })));
+    assert.equal(null, ui.actionFromKeyEvent(newKeyEvent({ key: "Escape", keyCode: 229 })));
+  });
+
+  should("clear ghost completion when Ctrl-Enter fills the input with a URL", async () => {
+    ui.setCompleterName("omniSearch");
+    ui.setQuery("git");
+    ui.allCompletions = [
+      new Suggestion({
+        queryTerms: [],
+        description: "history",
+        url: "https://github.com/philc",
+        relevancyFunction: () => 1,
+      }),
+    ];
+    ui.currentPage = 0;
+    ui.renderCurrentPage();
+    ui.globalSelection = 0;
+    ui.updatePageAndSelection();
+    assert.equal("hub.com", ui.ghostRest.textContent);
+    await ui.onKeyEvent(newKeyEvent({ type: "keypress", ctrlKey: true, key: "enter" }));
+    assert.equal("https://github.com/philc", ui.input.value);
+    assert.equal("", ui.ghostRest.textContent);
+  });
 });

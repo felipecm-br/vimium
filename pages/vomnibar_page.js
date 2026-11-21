@@ -259,11 +259,16 @@ class VomnibarUI {
   }
 
   // Which picker the query opens in OmniSearch: "theme", "effects", or null for a normal search.
+  // Word-bounded so queries like "themeforest" or "effective" still search normally.
   pickerKind() {
     if (this.completerName !== "omniSearch") return null;
     const query = this.input.value.trim().toLowerCase();
-    if (query.startsWith(EFFECTS_COMMAND_PREFIX)) return "effects";
-    if (query.startsWith(THEME_COMMAND_PREFIX)) return "theme";
+    if (query === EFFECTS_COMMAND_PREFIX || query.startsWith(EFFECTS_COMMAND_PREFIX + " ")) {
+      return "effects";
+    }
+    if (query === THEME_COMMAND_PREFIX || query.startsWith(THEME_COMMAND_PREFIX + " ")) {
+      return "theme";
+    }
     return null;
   }
 
@@ -320,6 +325,8 @@ class VomnibarUI {
   }
 
   reset() {
+    clearTimeout(this.copiedTimer);
+    this.copiedTimer = null;
     this._releaseGoogleModeModifier();
     this.input.value = "";
     this.completions = [];
@@ -328,7 +335,7 @@ class VomnibarUI {
     this.previousInputValue = null;
     this.activeUserSearchEngine = null;
     this.selection = this.initialSelectionValue;
-    this.globalSelection = 0;
+    this.globalSelection = this.initialSelectionValue;
     this.currentPage = 0;
     this.seenTabToOpenCompletionList = false;
     this.lastRequestId = null;
@@ -455,6 +462,8 @@ class VomnibarUI {
   // support the arrow keys and various other shortcuts, and this function hides the event-decoding
   // complexity.
   actionFromKeyEvent(event) {
+    // Do not intercept keys while an IME (dead-key accents, CJK) is composing text.
+    if (event.isComposing || event.keyCode === 229) return null;
     const key = KeyboardUtils.getKeyChar(event);
     // Alt+Enter searches the web, with or without Google mode showing. Handled on keydown, since
     // Alt+Enter may not produce a keypress.
@@ -594,6 +603,7 @@ class VomnibarUI {
         }
         this.input.value = this.completions[this.selection]?.url;
         this.input.scrollLeft = this.input.scrollWidth;
+        this.updateGhost();
       }
     } else if (action === "delete") {
       if (this.isUserSearchEngineActive() && (this.input.selectionEnd === 0)) {
@@ -679,19 +689,9 @@ class VomnibarUI {
   }
 
   async handleEnterKey(event) {
-    // Alt-hold Google Search mode: search the web at once
+    // Alt-hold Google Search mode: search the web at once, honoring new-tab intent (T / Shift).
     if (this.isGoogleSearchMode) {
-      const query = this.input.value.trim();
-      if (query.length === 0) return;
-      this.rememberChoice({ search: true });
-      this._deactivateGoogleMode();
-      this.hide(() => {
-        chrome.runtime.sendMessage({
-          handler: "launchSearchQuery",
-          query,
-          openInNewTab: false,
-        });
-      });
+      this.searchTheWeb(this.forceNewTab || event.shiftKey || event.ctrlKey || event.metaKey);
       return;
     }
 
@@ -886,33 +886,44 @@ class VomnibarUI {
   }
 
   async updateCompletions() {
-    // Check if this is a theme command (OmniSearch only)
-    if (this.isThemeCommand()) {
-      this.isThemeMode = true;
+    // Check if this is a theme/effects command (OmniSearch only). If the user typed words after
+    // "theme " or "effects " that match no theme/level (e.g. "theme park" or "effects of sleep"),
+    // fall through to normal OmniSearch rather than trapping them in an empty picker.
+    const pickerKind = this.pickerKind();
+    if (pickerKind) {
       const searchQuery = this.getThemeSearchQuery();
-      this.themeCompletions = this.pickerKind() === "effects"
+      const matches = pickerKind === "effects"
         ? this.getEffectCompletions(searchQuery)
         : this.getThemeCompletions(searchQuery);
+      if (matches.length > 0 || !searchQuery) {
+        this.isThemeMode = true;
+        this.themeCompletions = matches;
 
-      // Create fake completions for rendering (use allCompletions for consistency)
-      this.allCompletions = this.themeCompletions.map((theme, index) => ({
-        html: theme.html,
-        isTheme: true,
-        themeIndex: index,
-      }));
-      this.currentPage = 0;
-      this.completions = this.allCompletions.slice(0, this.itemsPerPage);
+        // Create fake completions for rendering (use allCompletions for consistency)
+        this.allCompletions = this.themeCompletions.map((theme, index) => ({
+          html: theme.html,
+          isTheme: true,
+          themeIndex: index,
+        }));
+        this.currentPage = 0;
+        this.completions = this.allCompletions.slice(0, this.itemsPerPage);
 
-      this.globalSelection = 0; // Auto-select first theme
-      this.selection = 0;
-      this.renderThemeCompletions();
-      this.updateSelection();
-      this.box.classList.add("theme-mode");
-      this.updateThemeFooter();
-      return;
+        this.globalSelection = 0; // Auto-select first theme
+        this.selection = 0;
+        this.renderThemeCompletions();
+        this.updateSelection();
+        this.box.classList.add("theme-mode");
+        this.updateThemeFooter();
+        return;
+      }
     }
 
-    // Not in theme mode
+    // Leaving theme/effects mode (e.g. user kept typing "theme park"): revert any live preview.
+    if (this.isThemeMode) {
+      if (themeManager.isInPreviewMode()) themeManager.cancelPreview();
+      borderMotion.cancelPreview();
+      effectsManager.cancelPreview();
+    }
     this.isThemeMode = false;
     this.themeCompletions = [];
     this.box.classList.remove("theme-preview", "theme-mode");
@@ -951,7 +962,6 @@ class VomnibarUI {
 
     // Set initial selection
     const autoSelect = this.allCompletions[0]?.autoSelect;
-    this.globalSelection = 0;
     this.selection = autoSelect ? 0 : this.initialSelectionValue;
 
     this.renderCompletions(this.completions);
@@ -959,6 +969,7 @@ class VomnibarUI {
       this.completions.length - 1,
       Math.max(this.initialSelectionValue, this.selection),
     );
+    this.globalSelection = this.selection;
     this.updateSelection();
   }
 
