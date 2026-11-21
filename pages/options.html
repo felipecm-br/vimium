@@ -96,6 +96,43 @@ b: http://b.com/?q=%s description
           >here</a>.
         </div>
 
+        <header>Vomnibar &amp; Appearance</header>
+
+        <h2>Theme</h2>
+        <select name="vomnibarTheme" aria-label="Vomnibar theme"></select>
+        <div class="example">
+          Applies to the Vomnibar and link-hint badges.<br>
+          Also previewable live by typing <code>theme</code> in OmniSearch (<code>t</code>).
+        </div>
+
+        <h2>Effects level</h2>
+        <select name="vomnibarEffects" aria-label="Vomnibar effects level"></select>
+        <div class="example">
+          Controls Vomnibar motion and backdrop blur.<br>
+          Also previewable live by typing <code>effects</code> in OmniSearch (<code>t</code>).
+        </div>
+
+        <h2>Border motion</h2>
+        <div class="border-motion-controls">
+          <label>Speed <select name="vomnibarBorderSpeed" aria-label="Border rotation speed"></select></label>
+          <label>Angle <select name="vomnibarBorderAngle" aria-label="Border gradient angle"></select></label>
+        </div>
+        <div class="example">
+          Rotation speed and starting angle of the Vomnibar border.<br>
+          Adjustable live in <code>theme</code> mode with <code>←</code>/<code>→</code> and
+          <code>Ctrl+←</code>/<code>→</code>.
+        </div>
+
+        <h2>Learned shortcuts</h2>
+        <div class="learned-choices-controls">
+          <button id="clear-learned-choices" type="button">Clear learned shortcuts</button>
+          <span id="learned-choices-count"></span>
+        </div>
+        <div class="example">
+          The Vomnibar learns which pages you open for what you type (never in incognito). Clearing
+          browser history forgets them automatically.
+        </div>
+
         <header>Advanced Options</header>
 
         <h2>Scroll step size</h2>

@@ -790,6 +790,14 @@ const sendRequestHandlers = {
     await Choices.record(request);
   },
 
+  getLearnedChoicesCount() {
+    return Choices.count();
+  },
+
+  clearLearnedChoices() {
+    return Choices.clear();
+  },
+
   // Shift-Delete in the Vomnibar. HistoryCache and Choices follow through
   // chrome.history.onVisitRemoved.
   async removeHistoryEntry(request) {

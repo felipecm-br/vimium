@@ -2,6 +2,9 @@ import "./all_content_scripts.js";
 import { ExclusionRulesEditor } from "./exclusion_rules_editor.js";
 import { Commands, KeyMappingsParser } from "../background_scripts/commands.js";
 import * as userSearchEngines from "../background_scripts/user_search_engines.js";
+import { themeDefinitions } from "./vomnibar_themes.js";
+import { effectLevels } from "./vomnibar_effects.js";
+import { ANGLE_STEP, borderSpeeds } from "./vomnibar_border.js";
 
 const options = {
   filterLinkHints: "boolean",
@@ -23,11 +26,64 @@ const options = {
   settingsVersion: "string", // This is a hidden field.
   smoothScroll: "boolean",
   userDefinedLinkHintCss: "string",
+  vomnibarEffects: "select",
+  vomnibarTheme: "select",
   waitForEnterForFilteredHints: "boolean",
 };
 
+function populateVomnibarSelectors() {
+  const fillSelect = (name, items) => {
+    const select = getOptionEl(name);
+    if (!select) return;
+    select.replaceChildren(
+      ...items.map(({ value, label }) => {
+        const opt = document.createElement("option");
+        opt.value = String(value);
+        opt.textContent = label;
+        return opt;
+      }),
+    );
+  };
+  fillSelect(
+    "vomnibarTheme",
+    themeDefinitions.map((t) => ({ value: t.name, label: `${t.name} — ${t.description}` })),
+  );
+  fillSelect(
+    "vomnibarEffects",
+    effectLevels.map((l) => ({ value: l.name, label: `${l.name} — ${l.description}` })),
+  );
+  fillSelect(
+    "vomnibarBorderSpeed",
+    borderSpeeds.map((s) => ({
+      value: s.label,
+      label: s.seconds == null ? s.label : `${s.label} (${s.seconds}s)`,
+    })),
+  );
+  const angles = [];
+  for (let a = 0; a < 360; a += ANGLE_STEP) angles.push({ value: a, label: `${a}°` });
+  fillSelect("vomnibarBorderAngle", angles);
+}
+
+async function refreshLearnedChoicesUI() {
+  const countEl = document.querySelector("#learned-choices-count");
+  const clearBtn = document.querySelector("#clear-learned-choices");
+  if (!countEl || !clearBtn) return;
+  try {
+    const count = await chrome.runtime.sendMessage({ handler: "getLearnedChoicesCount" });
+    if (typeof count === "number") {
+      countEl.textContent = count === 0
+        ? "No shortcuts learned yet."
+        : `${count} learned ${count === 1 ? "shortcut" : "shortcuts"} saved.`;
+      clearBtn.disabled = count === 0;
+    }
+  } catch {
+    // Background unavailable (e.g. unit tests without message handler).
+  }
+}
+
 export async function init() {
   await Settings.onLoaded();
+  populateVomnibarSelectors();
 
   const shortcutLabel = document.querySelector("#shortcut-to-save-all");
   shortcutLabel.textContent = KeyboardUtils.platform == "Mac" ? "Cmd-Enter" : "Ctrl-Enter";
@@ -40,16 +96,26 @@ export async function init() {
     saveButton.textContent = "Save changes";
   };
 
-  for (const el of document.querySelectorAll("input, textarea")) {
+  for (const el of document.querySelectorAll("input, textarea, select")) {
     // We want to immediately enable the save button when a setting is changed, so we want to use
-    // the HTML element's "input" event here rather than the "change" event.
+    // the HTML element's "input" event here rather than the "change" event (plus "change" for
+    // <select> elements).
     el.addEventListener("input", () => onUpdated());
+    if (el.tagName === "SELECT") el.addEventListener("change", () => onUpdated());
     el.addEventListener("blur", () => {
       showValidationErrors();
     });
   }
 
   saveButton.addEventListener("click", () => saveOptions());
+
+  const clearChoicesBtn = document.querySelector("#clear-learned-choices");
+  if (clearChoicesBtn) {
+    clearChoicesBtn.addEventListener("click", async () => {
+      await chrome.runtime.sendMessage({ handler: "clearLearnedChoices" });
+      await refreshLearnedChoicesUI();
+    });
+  }
 
   getOptionEl("filterLinkHints").addEventListener(
     "click",
@@ -63,7 +129,7 @@ export async function init() {
   );
   document.querySelector("#upload-backup").addEventListener(
     "change",
-    () => onUploadBackupClicked(),
+    (event) => onUploadBackupClicked(event),
   );
 
   for (const el of document.querySelectorAll(".reset-link a")) {
@@ -96,6 +162,7 @@ export async function init() {
 
   const settings = Settings.getSettings();
   setFormFromSettings(settings);
+  await refreshLearnedChoicesUI();
 }
 
 export function getOptionEl(optionName) {
@@ -125,6 +192,7 @@ function setFormFromSettings(settings) {
         el.value = value;
         break;
       case "string":
+      case "select":
         el.value = value;
         break;
       case "option": {
@@ -136,6 +204,13 @@ function setFormFromSettings(settings) {
         throw new Error(`Unrecognized option type ${optionType}`);
     }
   }
+
+  const borderMotion = settings["vomnibarBorderMotion"] ??
+    Settings.defaultOptions.vomnibarBorderMotion;
+  const speedEl = getOptionEl("vomnibarBorderSpeed");
+  const angleEl = getOptionEl("vomnibarBorderAngle");
+  if (speedEl) speedEl.value = borderMotion.speed ?? "Normal";
+  if (angleEl) angleEl.value = String(borderMotion.angle ?? 0);
 
   ExclusionRulesEditor.setForm(settings["exclusionRules"]);
 
@@ -159,6 +234,9 @@ function getSettingsFromForm() {
       case "string":
         value = el.value.trim();
         break;
+      case "select":
+        value = el.value;
+        break;
       case "option": {
         const optionEl = document.querySelector(`input[name="${optionName}"]:checked`);
         value = optionEl.value;
@@ -170,6 +248,14 @@ function getSettingsFromForm() {
     if (value !== null) {
       settings[optionName] = value;
     }
+  }
+  const speedEl = getOptionEl("vomnibarBorderSpeed");
+  const angleEl = getOptionEl("vomnibarBorderAngle");
+  if (speedEl && angleEl) {
+    settings["vomnibarBorderMotion"] = {
+      speed: speedEl.value,
+      angle: parseInt(angleEl.value, 10) || 0,
+    };
   }
   if (settings["linkHintCharacters"] != null) {
     settings["linkHintCharacters"] = settings["linkHintCharacters"].toLowerCase();
@@ -331,7 +417,7 @@ function onDownloadBackupClicked() {
   document.querySelector("#download-backup").href = URL.createObjectURL(blob);
 }
 
-function onUploadBackupClicked() {
+function onUploadBackupClicked(event) {
   if (document.activeElement) {
     document.activeElement.blur();
   }

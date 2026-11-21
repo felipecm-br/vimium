@@ -76,5 +76,48 @@ context("options page", () => {
       const settings = JSON.parse(optionsPage.prepareBackupSettings());
       assert.equal([rule], settings["exclusionRules"]);
     });
+
+    should("include non-default Vomnibar theme, effects, and border motion", async () => {
+      optionsPage.getOptionEl("vomnibarTheme").value = "Omarchy";
+      optionsPage.getOptionEl("vomnibarEffects").value = "Quick";
+      optionsPage.getOptionEl("vomnibarBorderSpeed").value = "Fast";
+      optionsPage.getOptionEl("vomnibarBorderAngle").value = "90";
+      const settings = JSON.parse(optionsPage.prepareBackupSettings());
+      assert.equal("Omarchy", settings.vomnibarTheme);
+      assert.equal("Quick", settings.vomnibarEffects);
+      assert.equal({ speed: "Fast", angle: 90 }, settings.vomnibarBorderMotion);
+      await optionsPage.saveOptions();
+      assert.equal("Omarchy", Settings.get("vomnibarTheme"));
+      assert.equal("Quick", Settings.get("vomnibarEffects"));
+      assert.equal({ speed: "Fast", angle: 90 }, Settings.get("vomnibarBorderMotion"));
+    });
+  });
+
+  should("show learned shortcut count and clear it on click", async () => {
+    let count = 3;
+    let cleared = false;
+    stub(chrome.runtime, "sendMessage", (msg) => {
+      if (msg.handler === "getLearnedChoicesCount") return Promise.resolve(count);
+      if (msg.handler === "clearLearnedChoices") {
+        cleared = true;
+        count = 0;
+        return Promise.resolve();
+      }
+    });
+    await optionsPage.init();
+    assert.equal(
+      "3 learned shortcuts saved.",
+      document.querySelector("#learned-choices-count").textContent,
+    );
+    const btn = document.querySelector("#clear-learned-choices");
+    assert.isFalse(btn.disabled);
+    btn.click();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.isTrue(cleared);
+    assert.equal(
+      "No shortcuts learned yet.",
+      document.querySelector("#learned-choices-count").textContent,
+    );
+    assert.isTrue(btn.disabled);
   });
 });
