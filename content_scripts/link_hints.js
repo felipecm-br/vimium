@@ -1153,164 +1153,114 @@ const spanWrap = (hintString) => {
   return innerHTML.join("");
 };
 
+const clickableRoles = new Set([
+  "button",
+  "tab",
+  "link",
+  "checkbox",
+  "menuitem",
+  "menuitemcheckbox",
+  "menuitemradio",
+  "radio",
+  "textbox",
+]);
+const buttonClassRegexp = /button|btn/i;
+
 const LocalHints = {
   // Returns an array of LocalHints if the element is visible and clickable, and computes the rect
   // which bounds this element in the viewport. We return an array because there may be more than
   // one part of element which is clickable (for example, if it's an image); if so, each LocalHint
   // represents one of the clickable rectangles of the element.
   getLocalHintsForElement(element) {
+    const hints = [];
+    this.collectLocalHintsForElement(element, hints);
+    return hints;
+  },
+
+  collectLocalHintsForElement(element, hints) {
     // Get the tag name. However, `element.tagName` can be an element (not a string, see #2035), so
     // we guard against that.
     const tagName = element.tagName.toLowerCase?.() || "";
+    const hasAttrs = element.hasAttributes();
     let isClickable = false;
     let onlyHasTabIndex = false;
     let possibleFalsePositive = false;
-    const hints = [];
-    const imageMapAreas = [];
+    let imageMapAreas = null;
     let reason = null;
 
-    // Insert area elements that provide click functionality to an img.
-    if (tagName === "img") {
-      let mapName = element.getAttribute("usemap");
-      if (mapName) {
-        const imgClientRects = element.getClientRects();
-        mapName = mapName.replace(/^#/, "").replace('"', '\\"');
-        const map = document.querySelector(`map[name=\"${mapName}\"]`);
-        if (map && (imgClientRects.length > 0)) {
-          isClickable = true;
-          const areas = map.getElementsByTagName("area");
-          let areasAndRects = DomUtils.getClientRectsForAreas(imgClientRects[0], areas);
-          // We use this image property when detecting overlapping links.
-          areasAndRects = areasAndRects.map((o) => Object.assign(o, { image: element }));
-          imageMapAreas.push(...areasAndRects);
-        }
+    // Check aria-disabled first: it vetoes every clickable element (only possible when attributes
+    // exist). Note that we're showing hints for elements with aria-hidden=true. See #3501.
+    if (hasAttrs) {
+      const ariaDisabled = element.getAttribute("aria-disabled");
+      if (ariaDisabled != null && (ariaDisabled === "" || ariaDisabled.toLowerCase() === "true")) {
+        return; // This element should never have a link hint.
       }
     }
 
-    // Check aria properties to see if the element should be ignored.
-    // Note that we're showing hints for elements with aria-hidden=true. See #3501 for discussion.
-    const ariaDisabled = element.getAttribute("aria-disabled");
-    if (ariaDisabled && ["", "true"].includes(ariaDisabled.toLowerCase())) {
-      return []; // This element should never have a link hint.
-    }
-
-    // Check for AngularJS listeners on the element.
-    if (!this.checkForAngularJs) {
-      this.checkForAngularJs = (function () {
-        const angularElements = document.getElementsByClassName("ng-scope");
-        if (angularElements.length === 0) {
-          return () => false;
-        } else {
-          const ngAttributes = [];
-          for (const prefix of ["", "data-", "x-"]) {
-            for (const separator of ["-", ":", "_"]) {
-              ngAttributes.push(`${prefix}ng${separator}click`);
-            }
-          }
-          return function (element) {
-            for (const attribute of ngAttributes) {
-              if (element.hasAttribute(attribute)) return true;
-            }
-            return false;
-          };
-        }
-      })();
-    }
-
-    if (!isClickable) isClickable = this.checkForAngularJs(element);
-
-    if (element.hasAttribute("onclick")) {
-      isClickable = true;
-    } else {
-      const role = element.getAttribute("role");
-      const clickableRoles = [
-        "button",
-        "tab",
-        "link",
-        "checkbox",
-        "menuitem",
-        "menuitemcheckbox",
-        "menuitemradio",
-        "radio",
-        "textbox",
-      ];
-      if (role != null && clickableRoles.includes(role.toLowerCase())) {
-        isClickable = true;
-      } else {
-        const contentEditable = element.getAttribute("contentEditable");
-        if (
-          contentEditable != null &&
-          ["", "contenteditable", "true"].includes(contentEditable.toLowerCase())
-        ) {
-          isClickable = true;
-        }
-      }
-    }
-
-    // Check for jsaction event listeners on the element.
-    if (!isClickable && element.hasAttribute("jsaction")) {
-      const jsactionRules = element.getAttribute("jsaction").split(";");
-      for (const jsactionRule of jsactionRules) {
-        const ruleSplit = jsactionRule.trim().split(":");
-        if ((ruleSplit.length >= 1) && (ruleSplit.length <= 2)) {
-          const [eventType, namespace, actionName] = ruleSplit.length === 1
-            ? ["click", ...ruleSplit[0].trim().split("."), "_"]
-            : [ruleSplit[0], ...ruleSplit[1].trim().split("."), "_"];
-          if (!isClickable) {
-            isClickable = (eventType === "click") && (namespace !== "none") && (actionName !== "_");
-          }
-        }
-      }
-    }
-
-    // Check for tagNames which are natively clickable.
+    // Check natively clickable tagNames before attribute heuristics so common elements (<a>,
+    // <button>, <input>) skip onclick/role/contentEditable/jsaction/class/tabindex lookups.
     switch (tagName) {
       case "a":
         isClickable = true;
         break;
       case "textarea":
-        isClickable ||= !element.disabled && !element.readOnly;
+        isClickable = !element.disabled && !element.readOnly;
         break;
       case "input":
-        isClickable ||= !((element.getAttribute("type")?.toLowerCase() == "hidden") ||
+        isClickable = !((element.getAttribute("type")?.toLowerCase() == "hidden") ||
           element.disabled ||
           (element.readOnly && DomUtils.isSelectable(element)));
         break;
       case "button":
       case "select":
-        isClickable ||= !element.disabled;
+        isClickable = !element.disabled;
         break;
       case "object":
       case "embed":
         isClickable = true;
         break;
       case "label":
-        isClickable ||= (element.control != null) &&
+        isClickable = (element.control != null) &&
           !element.control.disabled &&
           ((this.getLocalHintsForElement(element.control)).length === 0);
         break;
       case "body":
-        isClickable ||= (element === document.body) && !windowIsFocused() &&
-            (globalThis.innerWidth > 3) && (globalThis.innerHeight > 3) &&
-            ((document.body != null ? document.body.tagName.toLowerCase() : undefined) !==
-              "frameset")
-          ? (reason = "Frame.")
-          : undefined;
-        isClickable ||= (element === document.body) && windowIsFocused() &&
-            Scroller.isScrollableElement(element)
-          ? (reason = "Scroll.")
-          : undefined;
+        if (
+          (element === document.body) && !windowIsFocused() &&
+          (globalThis.innerWidth > 3) && (globalThis.innerHeight > 3) &&
+          ((document.body != null ? document.body.tagName.toLowerCase() : undefined) !== "frameset")
+        ) {
+          isClickable = true;
+          reason = "Frame.";
+        }
+        if (
+          !isClickable && (element === document.body) && windowIsFocused() &&
+          Scroller.isScrollableElement(element)
+        ) {
+          isClickable = true;
+          reason = "Scroll.";
+        }
         break;
       case "img":
-        isClickable ||= ["zoom-in", "zoom-out"].includes(element.style.cursor);
-        break;
-      case "div":
-      case "ol":
-      case "ul":
-        isClickable ||=
-          (element.clientHeight < element.scrollHeight) && Scroller.isScrollableElement(element)
-            ? (reason = "Scroll.")
-            : undefined;
+        if (hasAttrs) {
+          let mapName = element.getAttribute("usemap");
+          if (mapName) {
+            const imgClientRects = element.getClientRects();
+            mapName = mapName.replace(/^#/, "").replace('"', '\\"');
+            const map = document.querySelector(`map[name=\"${mapName}\"]`);
+            if (map && (imgClientRects.length > 0)) {
+              isClickable = true;
+              const areas = map.getElementsByTagName("area");
+              let areasAndRects = DomUtils.getClientRectsForAreas(imgClientRects[0], areas);
+              // We use this image property when detecting overlapping links.
+              areasAndRects = areasAndRects.map((o) => Object.assign(o, { image: element }));
+              imageMapAreas = areasAndRects;
+            }
+          }
+          if (!isClickable) {
+            isClickable = ["zoom-in", "zoom-out"].includes(element.style.cursor);
+          }
+        }
         break;
       case "details":
         isClickable = true;
@@ -1318,20 +1268,102 @@ const LocalHints = {
         break;
     }
 
-    // NOTE(smblott) Disabled pending resolution of #2997.
-    // # Detect elements with "click" listeners installed with `addEventListener()`.
-    // isClickable ||= element.hasAttribute "_vimium-has-onclick-listener"
+    // Attribute-based clickability checks only matter when the element isn't already clickable AND
+    // actually has attributes (elements like <p>, <td>, <tr>, <b>, <i> with no attributes skip all
+    // 7+ DOM attribute lookups in one check).
+    if (!isClickable && hasAttrs) {
+      // Check for AngularJS listeners on the element.
+      if (!this.checkForAngularJs) {
+        this.checkForAngularJs = (function () {
+          const angularElements = document.getElementsByClassName("ng-scope");
+          if (angularElements.length === 0) {
+            return () => false;
+          } else {
+            const ngAttributes = [];
+            for (const prefix of ["", "data-", "x-"]) {
+              for (const separator of ["-", ":", "_"]) {
+                ngAttributes.push(`${prefix}ng${separator}click`);
+              }
+            }
+            return function (element) {
+              for (const attribute of ngAttributes) {
+                if (element.hasAttribute(attribute)) return true;
+              }
+              return false;
+            };
+          }
+        })();
+      }
 
-    // An element with a class name containing the text "button" might be clickable. However, real
-    // clickables are often wrapped in elements with such class names. So, when we find clickables
-    // based only on their class name, we mark them as unreliable.
-    if (!isClickable) {
-      const className = element.getAttribute("class")?.toLowerCase();
-      if (className?.includes("button") || className?.includes("btn")) {
+      isClickable = this.checkForAngularJs(element);
+
+      if (!isClickable && element.hasAttribute("onclick")) {
+        isClickable = true;
+      } else if (!isClickable) {
+        const role = element.getAttribute("role");
+        if (role != null && clickableRoles.has(role.toLowerCase())) {
+          isClickable = true;
+        } else {
+          const contentEditable = element.getAttribute("contentEditable");
+          if (contentEditable != null) {
+            const lower = contentEditable.toLowerCase();
+            if (lower === "" || lower === "contenteditable" || lower === "true") {
+              isClickable = true;
+            }
+          }
+        }
+      }
+
+      // Check for jsaction event listeners on the element.
+      if (!isClickable && element.hasAttribute("jsaction")) {
+        const jsactionRules = element.getAttribute("jsaction").split(";");
+        for (const jsactionRule of jsactionRules) {
+          const ruleSplit = jsactionRule.trim().split(":");
+          if ((ruleSplit.length >= 1) && (ruleSplit.length <= 2)) {
+            const [eventType, namespace, actionName] = ruleSplit.length === 1
+              ? ["click", ...ruleSplit[0].trim().split("."), "_"]
+              : [ruleSplit[0], ...ruleSplit[1].trim().split("."), "_"];
+            if (!isClickable) {
+              isClickable = (eventType === "click") && (namespace !== "none") &&
+                (actionName !== "_");
+            }
+          }
+        }
+      }
+    }
+
+    // Scrollable containers are checked only after explicit click/role attributes so a clickable
+    // <div role="button"> or <div onclick> never triggers layout reads or gets labeled "Scroll.".
+    if (!isClickable && (tagName === "div" || tagName === "ol" || tagName === "ul")) {
+      if ((element.clientHeight < element.scrollHeight) && Scroller.isScrollableElement(element)) {
+        isClickable = true;
+        reason = "Scroll.";
+      }
+    }
+
+    if (!isClickable && hasAttrs) {
+      // An element with a class name containing the text "button" might be clickable. However, real
+      // clickables are often wrapped in elements with such class names. So, when we find clickables
+      // based only on their class name, we mark them as unreliable.
+      const className = element.getAttribute("class");
+      if (className && buttonClassRegexp.test(className)) {
         isClickable = true;
         possibleFalsePositive = true;
       }
+
+      // Elements with tabindex are sometimes useful, but usually not. We can treat them as second
+      // class citizens when it improves UX, so take special note of them.
+      if (!isClickable) {
+        const tabIndexValue = element.getAttribute("tabindex");
+        const tabIndex = tabIndexValue ? parseInt(tabIndexValue) : -1;
+        if (!(tabIndex < 0) && !isNaN(tabIndex)) {
+          isClickable = true;
+          onlyHasTabIndex = true;
+        }
+      }
     }
+
+    if (!isClickable) return;
 
     // If the span is clickable but wraps something else that is clickable, we want to instead favor
     // showing hints for descendants which are clickable. Flag the span as a possible false postive.
@@ -1339,46 +1371,34 @@ const LocalHints = {
       possibleFalsePositive = true;
     }
 
-    // Elements with tabindex are sometimes useful, but usually not. We can treat them as second
-    // class citizens when it improves UX, so take special note of them.
-    const tabIndexValue = element.getAttribute("tabindex");
-    const tabIndex = tabIndexValue ? parseInt(tabIndexValue) : -1;
-    if (!isClickable && !(tabIndex < 0) && !isNaN(tabIndex)) {
-      isClickable = true;
-      onlyHasTabIndex = true;
-    }
-
-    if (isClickable) {
-      // An image map has multiple clickable areas, and so can represent multiple LocalHints.
-      if (imageMapAreas.length > 0) {
-        const mapHints = imageMapAreas.map((areaAndRect) => {
-          return new LocalHint({
+    // An image map has multiple clickable areas, and so can represent multiple LocalHints.
+    if (imageMapAreas != null && imageMapAreas.length > 0) {
+      for (const areaAndRect of imageMapAreas) {
+        hints.push(
+          new LocalHint({
             element: areaAndRect.element,
             image: element,
-            // element,
             rect: areaAndRect.rect,
             secondClassCitizen: onlyHasTabIndex,
             possibleFalsePositive,
             reason,
-          });
-        });
-        hints.push(...mapHints);
-      } else {
-        const clientRect = DomUtils.getVisibleClientRect(element, true);
-        if (clientRect !== null) {
-          const hint = new LocalHint({
+          }),
+        );
+      }
+    } else {
+      const clientRect = DomUtils.getVisibleClientRect(element, true);
+      if (clientRect !== null) {
+        hints.push(
+          new LocalHint({
             element,
             rect: clientRect,
             secondClassCitizen: onlyHasTabIndex,
             possibleFalsePositive,
             reason,
-          });
-          hints.push(hint);
-        }
+          }),
+        );
       }
     }
-
-    return hints;
   },
 
   //
@@ -1424,33 +1444,20 @@ const LocalHints = {
       return this.getTextElementHints();
     }
 
-    // Find all elements, recursing into shadow DOM if present.
-    const getAllElements = (root, elements) => {
-      if (elements == null) elements = [];
-      for (const element of Array.from(root.querySelectorAll("*"))) {
-        elements.push(element);
+    // Walk all elements in DOM order (recursing into shadow roots right after each host), without
+    // intermediate Array.from() copies or per-element array allocations.
+    let localHints = [];
+    const collectFromRoot = (root) => {
+      for (const element of root.querySelectorAll("*")) {
+        if (!requireHref || !!element.href) {
+          this.collectLocalHintsForElement(element, localHints);
+        }
         if (element.shadowRoot) {
-          getAllElements(element.shadowRoot, elements);
+          collectFromRoot(element.shadowRoot);
         }
       }
-      return elements;
     };
-
-    const elements = getAllElements(document.documentElement);
-    let localHints = [];
-
-    // The order of elements here is important; they should appear in the order they are in the DOM,
-    // so that we can work out which element is on top when multiple elements overlap. Detecting
-    // elements in this loop is the sensible, efficient way to ensure this happens.
-    // NOTE(mrmr1993): Our previous method (combined XPath and DOM traversal for jsaction) couldn't
-    // provide this, so it's necessary to check whether elements are clickable in order, as we do
-    // below.
-    for (const element of Array.from(elements)) {
-      if (!requireHref || !!element.href) {
-        const hints = this.getLocalHintsForElement(element);
-        localHints.push(...hints);
-      }
-    }
+    collectFromRoot(document.documentElement);
 
     // Traverse the DOM from descendants to ancestors, so later elements show above earlier elements.
     localHints = localHints.reverse();

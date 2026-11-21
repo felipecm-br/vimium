@@ -199,16 +199,23 @@ class FindMode extends Mode {
     }
 
     const textNodes = getAllTextNodes();
-    const matchedNodes = textNodes.filter((node) => {
-      return node.textContent.match(pattern);
-    });
-    const regexMatches = matchedNodes.map((node) => node.textContent.match(pattern));
+    const matchedNodes = [];
+    const regexMatches = [];
+    let matchCount = 0;
+    for (const node of textNodes) {
+      const matches = node.textContent.match(pattern);
+      if (matches) {
+        matchedNodes.push(node);
+        regexMatches.push(matches);
+        matchCount += matches.length;
+      }
+    }
     this.query.regexMatches = regexMatches;
     this.query.regexPattern = pattern;
     this.query.regexMatchedNodes = matchedNodes;
     this.updateActiveRegexIndices();
 
-    return this.query.matchCount = regexMatches != null ? regexMatches.flat().length : null;
+    return this.query.matchCount = matchCount;
   }
 
   // set activeRegexIndices near the latest selection
@@ -486,24 +493,27 @@ const highlight = (textNode, startIndex, length) => {
   return true;
 };
 
+const nonRenderedFindTags = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE"]);
+
 const getAllTextNodes = () => {
   const textNodes = [];
+  const checkVisibility = Element.prototype.checkVisibility;
 
-  function getAllTextNodes(node) {
+  function visit(node) {
     if (node.nodeType === Node.TEXT_NODE) {
       textNodes.push(node);
     } else if (
       node.nodeType === Node.ELEMENT_NODE &&
-      (node.checkVisibility() || node.style.display === "contents")
+      !nonRenderedFindTags.has(node.tagName) &&
+      ((checkVisibility ? checkVisibility.call(node) : true) || node.style.display === "contents")
     ) {
-      const children = node.childNodes;
-      for (const child of children) {
-        getAllTextNodes(child, textNodes);
+      for (const child of node.childNodes) {
+        visit(child);
       }
     }
   }
 
-  getAllTextNodes(document.body);
+  visit(document.body);
   return textNodes;
 };
 
