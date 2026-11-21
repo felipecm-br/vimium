@@ -315,6 +315,26 @@ ul {
   content: "";
 }
 
+/* Pill showing the active custom search engine (e.g. "Wikipedia" after typing "w "). */
+#vomnibar-engine-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background-color: var(--vomnibar-selected-bg);
+  color: var(--vomnibar-text-color);
+  border: 1px solid var(--vomnibar-accent-color);
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#vomnibar-engine-badge[hidden] {
+  display: none;
+}
+
 /* Input Field */
 #vomnibar input {
   font-family: inherit;
@@ -416,6 +436,19 @@ ul {
   background-color: var(--vomnibar-selected-bg);
   /* An accent bar on the left, so the selection reads in themes with a faint selected background. */
   box-shadow: inset 3px 0 0 var(--vomnibar-accent-color);
+}
+
+/* Non-interactive empty state for OmniSearch's ">" commands and "@" closed tabs lists. */
+#vomnibar li.empty-state {
+  cursor: default;
+  padding: 10px 12px;
+  color: var(--vomnibar-secondary-text);
+  font-size: 13px;
+  justify-content: center;
+}
+
+#vomnibar li.empty-state:hover {
+  background-color: transparent;
 }
 
 /* Suggestion Icons Container */

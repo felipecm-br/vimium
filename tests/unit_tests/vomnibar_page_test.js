@@ -796,4 +796,86 @@ context("vomnibar page", () => {
     assert.equal("https://github.com/philc", ui.input.value);
     assert.equal("", ui.ghostRest.textContent);
   });
+
+  should("open the selected result in a background tab on Ctrl+Shift+Enter", async () => {
+    ui.setCompleterName("omniSearch");
+    ui.setQuery("git");
+    ui.allCompletions = [
+      new Suggestion({
+        queryTerms: [],
+        description: "history",
+        url: "https://github.com/philc",
+        relevancyFunction: () => 1,
+      }),
+    ];
+    ui.currentPage = 0;
+    ui.renderCurrentPage();
+    ui.globalSelection = 0;
+    ui.updatePageAndSelection();
+    const sent = [];
+    stub(chrome.runtime, "sendMessage", withPromise((m) => sent.push(m)));
+    await ui.onKeyEvent(
+      newKeyEvent({ type: "keydown", key: "Enter", ctrlKey: true, shiftKey: true }),
+    );
+    ui.onHidden();
+    assert.equal(
+      { handler: "openUrlInNewTab", url: "https://github.com/philc", active: false },
+      sent.find((m) => m.handler === "openUrlInNewTab"),
+    );
+  });
+
+  should(
+    "update the mode icon, show the custom search engine pill, and render empty states",
+    async () => {
+      ui.setCompleterName("omniSearch");
+      ui.setQuery("> zzqq");
+      await ui.update();
+      assert.equal("terminal", ui.searchIcon.textContent);
+      assert.equal(0, ui.allCompletions.length);
+      assert.equal(
+        "No matching commands",
+        ui.completionList.querySelector(".empty-state")?.textContent,
+      );
+      assert.equal("false", ui.input.getAttribute("aria-expanded"));
+
+      ui.setQuery("@ zzqq");
+      await ui.update();
+      assert.equal("history_2", ui.searchIcon.textContent);
+      assert.equal(
+        "No recently closed tabs",
+        ui.completionList.querySelector(".empty-state")?.textContent,
+      );
+
+      userSearchEngines.set("w: https://www.wikipedia.org/?search=%s Wikipedia");
+      ui.setCompleterName("omni");
+      ui.setQuery("w rust");
+      ui.onInput();
+      assert.isFalse(ui.engineBadge.hidden);
+      assert.equal("Wikipedia", ui.engineBadge.textContent);
+      ui.input.setSelectionRange(0, 0);
+      await ui.onKeyEvent(newKeyEvent({ key: "Backspace" }));
+      assert.isTrue(ui.engineBadge.hidden);
+    },
+  );
+
+  should("jump pages with PageDown/PageUp and mouse wheel", async () => {
+    ui.setCompleterName("omniSearch");
+    ui.setQuery("theme");
+    await ui.update();
+    assert.equal(0, ui.currentPage);
+    await ui.onKeyEvent(newKeyEvent({ key: "PageDown" }));
+    assert.equal(1, ui.currentPage);
+    assert.equal(ui.itemsPerPage, ui.globalSelection);
+    await ui.onKeyEvent(newKeyEvent({ key: "PageUp" }));
+    assert.equal(0, ui.currentPage);
+    assert.equal(0, ui.globalSelection);
+
+    ui.lastWheelTurnAt = 0;
+    const wheelDown = Object.assign(new document.defaultView.Event("wheel", { cancelable: true }), {
+      deltaY: 120,
+    });
+    ui.completionList.dispatchEvent(wheelDown);
+    assert.equal(1, ui.currentPage);
+    assert.equal(ui.itemsPerPage, ui.globalSelection);
+  });
 });

@@ -100,3 +100,14 @@ context("TabOperations openUrlInNewTab", () => {
     assert.equal(2, queryInfo.tabId);
   });
 });
+
+context("TabOperations openUrlInNewWindow", () => {
+  should("open a URL in a new window and omit chrome new-tab URL", async () => {
+    const configs = [];
+    stub(chrome.windows, "create", (config) => configs.push(config));
+    await to.openUrlInNewWindow({ url: "https://example.com" });
+    await to.openUrlInNewWindow({ url: UrlUtils.chromeNewTabUrl });
+    assert.equal("https://example.com", configs[0].url);
+    assert.equal(undefined, configs[1].url);
+  });
+});

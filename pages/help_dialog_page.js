@@ -33,14 +33,20 @@ function isAdvancedCommand(command, options) {
 // and what OmniSearch (t) lists when its query starts with a prefix. These are fixed, unlike the
 // commands, so they don't come from the user's key mappings.
 function vomnibarKeys() {
-  const copy = KeyboardUtils.platform === "Mac" ? "⌘ C" : "Ctrl C";
+  const isMac = KeyboardUtils.platform === "Mac";
+  const copy = isMac ? "⌘ C" : "Ctrl C";
+  const openBackground = isMac ? "⌘ ⇧ ↵" : "Ctrl ⇧ ↵";
   return {
     keys: [
       ["Alt ↵", "Search the web for what you typed"],
       ["→", "Type in the address shown after what you typed"],
       ["⇧ ↵", "Open the selected result in a new tab"],
+      [openBackground, "Open the selected result in a background tab"],
+      ["Ctrl ↵", "Edit the selected result's URL in the input"],
       [copy, "Copy the selected result's URL"],
+      ["Ctrl D", "Close the selected open tab"],
       ["⇧ Del", "Forget a visited page, or close a tab"],
+      ["PgUp / PgDn", "Jump between pages of results"],
     ],
     // Typed first in OmniSearch.
     prefixes: [
@@ -169,7 +175,9 @@ const HelpDialogPage = {
       ...keys.map(([key, description]) => this.getVomnibarKeyRowEl(key, description)),
       note("Typed first in OmniSearch (t):"),
       ...prefixes.map(([key, description]) => this.getVomnibarKeyRowEl(key, description)),
-      note("OmniSearch learns: what you open for what you type comes first the next time."),
+      note(
+        "The Vomnibar (t and o) learns: what you open for what you type comes first the next time.",
+      ),
     );
   },
 

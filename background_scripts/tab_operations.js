@@ -22,7 +22,7 @@ export async function openUrlInCurrentTab(request, sender) {
     // subframe with a different origin from being able to run javascript on the main frame's
     // origin.
     const isTopFrame = sender.frameId === 0;
-    const isVimiumPage = sender.url?.startsWith("chrome-extension://");
+    const isVimiumPage = /^(chrome|moz)-extension:\/\//.test(sender.url ?? "");
     if (!isTopFrame && !isVimiumPage) {
       console.warn(
         "openUrlInCurrentTab: error: a javascript: URL was requested from an untrusted frame",
@@ -132,7 +132,7 @@ export async function openUrlInNewWindow(request) {
     winConfig.active = request.active;
   }
   // Firefox does not support "about:newtab" in chrome.tabs.create, so omit it.
-  if (tabConfig["url"] === UrlUtils.chromeNewTabUrl) {
+  if (winConfig["url"] === UrlUtils.chromeNewTabUrl) {
     delete winConfig["url"];
   }
   await chrome.windows.create(winConfig);

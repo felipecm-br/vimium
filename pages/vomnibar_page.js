@@ -228,6 +228,7 @@ class VomnibarUI {
   }
   setActiveUserSearchEngine(userSearchEngine) {
     this.activeUserSearchEngine = userSearchEngine;
+    this.updateModeIndicator();
   }
   setInitialSelectionValue(initialSelectionValue) {
     this.initialSelectionValue = initialSelectionValue;
@@ -345,6 +346,38 @@ class VomnibarUI {
     this._deactivateGoogleMode();
     this.updatePositionIndicator();
     this.updateGhost();
+    this.updateModeIndicator();
+  }
+
+  // Keeps the leading icon and custom search-engine pill aligned with the current mode/prefix.
+  updateModeIndicator() {
+    if (this.searchIcon) {
+      const trimmed = this.input.value.trim();
+      let icon = "search";
+      if (
+        this.completerName === "commands" ||
+        (this.completerName === "omniSearch" && trimmed.startsWith(">"))
+      ) {
+        icon = "terminal";
+      } else if (this.completerName === "omniSearch" && trimmed.startsWith("@")) {
+        icon = "history_2";
+      } else if (this.completerName === "bookmarks") {
+        icon = "bookmark";
+      } else if (this.completerName === "tabs") {
+        icon = "tab";
+      }
+      if (this.searchIcon.textContent !== icon) this.searchIcon.textContent = icon;
+    }
+    if (this.engineBadge) {
+      if (this.activeUserSearchEngine) {
+        this.engineBadge.textContent = this.activeUserSearchEngine.description ||
+          this.activeUserSearchEngine.keyword;
+        this.engineBadge.hidden = false;
+      } else {
+        this.engineBadge.textContent = "";
+        this.engineBadge.hidden = true;
+      }
+    }
   }
 
   updateSelection() {
@@ -366,7 +399,10 @@ class VomnibarUI {
 
     // Highlight the selected entry, and expose it to screen readers: the input is a combobox whose
     // active option follows the selection (focus stays in the input).
+    let optionCount = 0;
     for (const [i, el] of Object.entries(this.completionList.children)) {
+      if (el.classList.contains("empty-state")) continue;
+      optionCount++;
       const selected = i == this.selection;
       // Toggle only "selected" so other classes (e.g. "theme-item") survive.
       el.classList.toggle("selected", selected);
@@ -374,13 +410,13 @@ class VomnibarUI {
       el.id = `vomnibar-option-${i}`;
       el.setAttribute("aria-selected", String(selected));
     }
-    const selectedEl = this.completionList.children[this.selection];
-    if (selectedEl) {
+    const selectedEl = this.selection >= 0 ? this.completionList.children[this.selection] : null;
+    if (selectedEl && !selectedEl.classList.contains("empty-state")) {
       this.input.setAttribute("aria-activedescendant", selectedEl.id);
     } else {
       this.input.removeAttribute("aria-activedescendant");
     }
-    this.input.setAttribute("aria-expanded", String(this.completionList.children.length > 0));
+    this.input.setAttribute("aria-expanded", String(optionCount > 0));
 
     // Update position indicator
     this.updatePositionIndicator();
@@ -470,6 +506,11 @@ class VomnibarUI {
     if ((event.key === "Enter") && event.altKey) {
       return event.type === "keydown" ? "web-search" : null;
     }
+    // Ctrl+Shift+Enter / Cmd+Shift+Enter opens in a new background tab. Handled on keydown for the
+    // same reason as Alt+Enter (browsers often suppress keypress for modified Enter).
+    if ((event.key === "Enter") && event.shiftKey && (event.ctrlKey || event.metaKey)) {
+      return event.type === "keydown" ? "open-background" : null;
+    }
     // Handle <Enter> on "keypress", and other events on "keydown". This avoids interence with CJK
     // translation (see #2915 and #2934).
     if ((event.type === "keypress") && (key !== "enter")) return null;
@@ -479,6 +520,12 @@ class VomnibarUI {
       ((key === "right") || (event.key === "End")) && !hasModifier && this.ghostRest.textContent
     ) {
       return "accept-ghost";
+    }
+    if ((event.key === "PageDown") && !hasModifier) {
+      return "page-down";
+    }
+    if ((event.key === "PageUp") && !hasModifier) {
+      return "page-up";
     }
     // Theme mode: left/right change the border speed, ctrl-left/right rotate its angle.
     if (
@@ -503,7 +550,7 @@ class VomnibarUI {
       (event.ctrlKey && ((key === "j") || (key === "n")))
     ) {
       return "down";
-    } else if (event.ctrlKey && (key === "enter")) {
+    } else if (event.ctrlKey && !event.shiftKey && !event.metaKey && (key === "enter")) {
       return "ctrl-enter";
     } else if (event.key === "Enter") {
       return "enter";
@@ -582,9 +629,21 @@ class VomnibarUI {
         }
         this.updatePageAndSelection();
       }
+    } else if (action === "page-down") {
+      if (this.allCompletions.length > 0) {
+        const start = this.globalSelection < 0 ? 0 : this.globalSelection;
+        this.globalSelection = Math.min(this.allCompletions.length - 1, start + this.itemsPerPage);
+        this.updatePageAndSelection();
+      }
+    } else if (action === "page-up") {
+      if (this.allCompletions.length > 0) {
+        const start = this.globalSelection < 0 ? 0 : this.globalSelection;
+        this.globalSelection = Math.max(0, start - this.itemsPerPage);
+        this.updatePageAndSelection();
+      }
     } else if (action === "web-search") {
       this.searchTheWeb(this.forceNewTab || event.shiftKey || event.ctrlKey || event.metaKey);
-    } else if (action === "enter") {
+    } else if (action === "enter" || action === "open-background") {
       await this.handleEnterKey(event);
     } else if (action === "ctrl-enter") {
       if (this.isGoogleSearchMode) {
@@ -614,6 +673,7 @@ class VomnibarUI {
         this.input.value = keyword + this.input.value.trimStart();
         this.input.selectionStart = this.input.selectionEnd = keyword.length;
         this.activeUserSearchEngine = null;
+        this.updateModeIndicator();
         this.update();
       } else if (this.seenTabToOpenCompletionList && (this.input.value.trim().length === 0)) {
         this.seenTabToOpenCompletionList = false;
@@ -717,8 +777,11 @@ class VomnibarUI {
     const waitingOnCompletions = this.completions.length == 0;
     const completion = this.completions[this.selection];
 
-    // Alt is not here: Alt+Enter searches the web.
+    // Alt is not here: Alt+Enter searches the web. Ctrl+Shift+Enter / Cmd+Shift+Enter opens in a
+    // new background tab without leaving the current page.
+    const openInBackground = Boolean(event.shiftKey && (event.ctrlKey || event.metaKey));
     const openInNewTab = this.forceNewTab || event.shiftKey || event.ctrlKey || event.metaKey;
+    const active = !openInBackground;
 
     // If the user types something and hits enter without selecting a completion from the list,
     // then:
@@ -739,7 +802,7 @@ class VomnibarUI {
       // (waitingOnCompletions).
       if (this.isUserSearchEngineActive()) {
         query = UrlUtils.createSearchUrl(query, this.activeUserSearchEngine.url);
-        this.hide(() => this.launchUrl(query, openInNewTab));
+        this.hide(() => this.launchUrl(query, openInNewTab, active));
         return;
       }
 
@@ -751,14 +814,14 @@ class VomnibarUI {
       const isPrimary = isPrimarySearchSuggestion(firstCompletion);
       if (isPrimary) {
         query = UrlUtils.createSearchUrl(query, firstCompletion.searchUrl);
-        await this.launchUrl(query);
+        await this.launchUrl(query, openInNewTab, active);
       } else {
         // If the query looks like a URL, try to open it directly. Otherwise, pass the query to
         // the user's default search engine.
         // TODO(philc):
         const isUrl = await UrlUtils.isUrl(query);
         if (isUrl) {
-          this.hide(() => this.launchUrl(query, openInNewTab));
+          this.hide(() => this.launchUrl(query, openInNewTab, active));
         } else {
           this.hide(() =>
             chrome.runtime.sendMessage({
@@ -777,7 +840,7 @@ class VomnibarUI {
       );
     } else if (isPrimarySearchSuggestion(completion)) {
       query = UrlUtils.createSearchUrl(query, completion.searchUrl);
-      this.hide(() => this.launchUrl(query, openInNewTab));
+      this.hide(() => this.launchUrl(query, openInNewTab, active));
     } else if (completion.command) {
       this.hide(async () => {
         await chrome.runtime.sendMessage({
@@ -792,7 +855,7 @@ class VomnibarUI {
       this.hide(() => chrome.runtime.sendMessage({ handler: "restoreSession", sessionId }));
     } else {
       this.rememberChoice({ url: completion.url });
-      this.hide(() => this.openCompletion(completion, openInNewTab));
+      this.hide(() => this.openCompletion(completion, openInNewTab, active));
     }
   }
 
@@ -974,6 +1037,20 @@ class VomnibarUI {
   }
 
   renderCompletions(completions) {
+    if (completions.length === 0 && this.completerName === "omniSearch") {
+      const trimmed = this.input.value.trim();
+      const emptyLabel = trimmed.startsWith(">")
+        ? "No matching commands"
+        : trimmed.startsWith("@")
+        ? "No recently closed tabs"
+        : null;
+      if (emptyLabel) {
+        this.completionList.innerHTML =
+          `<li class="empty-state" role="presentation">${emptyLabel}</li>`;
+        this.completionList.style.display = "block";
+        return;
+      }
+    }
     this.completionList.innerHTML = completions.map((c, index) =>
       `<li data-index="${index}">${c.html}${this.rowActionsHtml(c)}</li>`
     ).join("");
@@ -1062,6 +1139,7 @@ class VomnibarUI {
       this.selection = -1;
     }
 
+    this.updateModeIndicator();
     this._updateGoogleModeState();
     // At once, against the results shown until the new ones come: typing what's shown keeps it.
     this.updateGhost();
@@ -1084,34 +1162,40 @@ class VomnibarUI {
   }
 
   async update() {
+    this.updateModeIndicator();
     await this.updateCompletions();
     this.input.focus();
   }
 
-  openCompletion(completion, openInNewTab) {
+  openCompletion(completion, openInNewTab, active = true) {
     if (completion.description == "tab") {
       chrome.runtime.sendMessage({ handler: "selectSpecificTab", id: completion.tabId });
     } else {
-      this.launchUrl(completion.url, openInNewTab);
+      this.launchUrl(completion.url, openInNewTab, active);
     }
   }
 
-  async launchUrl(url, openInNewTab) {
+  async launchUrl(url, openInNewTab, active = true) {
     // If the URL is a bookmarklet (so, prefixed with "javascript:"), then always open it in the
     // current tab.
     if (openInNewTab && UrlUtils.hasJavascriptProtocol(url)) {
       openInNewTab = false;
     }
-    await chrome.runtime.sendMessage({
+    const message = {
       handler: openInNewTab ? "openUrlInNewTab" : "openUrlInCurrentTab",
       url,
-    });
+    };
+    if (openInNewTab && !active) message.active = false;
+    await chrome.runtime.sendMessage(message);
   }
 
   initDom() {
     this.box = document.getElementById("vomnibar");
     this.isHiding = false;
+    this.lastWheelTurnAt = 0;
 
+    this.searchIcon = document.getElementById("vomnibar-search-icon");
+    this.engineBadge = document.getElementById("vomnibar-engine-badge");
     this.input = this.box.querySelector("input");
     this.ghostTyped = this.box.querySelector("#vomnibar-ghost .typed");
     this.ghostRest = this.box.querySelector("#vomnibar-ghost .rest");
@@ -1144,6 +1228,22 @@ class VomnibarUI {
       });
       event.preventDefault();
     });
+    // Allow mouse wheel / trackpad scrolling to turn pages when more than one page of results exists.
+    this.completionList.addEventListener("wheel", (event) => {
+      if (this.allCompletions.length <= this.itemsPerPage || event.deltaY === 0) return;
+      event.preventDefault();
+      const now = Date.now();
+      if (now - this.lastWheelTurnAt < 80) return;
+      this.lastWheelTurnAt = now;
+      const totalPages = Math.ceil(this.allCompletions.length / this.itemsPerPage);
+      const nextPage = Math.max(
+        0,
+        Math.min(totalPages - 1, this.currentPage + (event.deltaY > 0 ? 1 : -1)),
+      );
+      if (nextPage === this.currentPage) return;
+      this.globalSelection = nextPage * this.itemsPerPage;
+      this.updatePageAndSelection();
+    }, { passive: false });
 
     globalThis.addEventListener("focus", () => this.input.focus());
     // A click in the vomnibar itself refocuses the input.
