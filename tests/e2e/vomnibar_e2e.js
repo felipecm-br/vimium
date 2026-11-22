@@ -452,6 +452,58 @@ test("t: 'theme park' falls through to OmniSearch rather than trapping in an emp
   assertEqual("theme park", await searchedQuery(worker));
 });
 
+test("t: '>cnt' finds createTab and 'rpl' finds an open tab by segment initials", async (ctx) => {
+  const { page, base, browser } = ctx;
+  const rustTab = await browser.newPage();
+  await rustTab.goto(base + "/rust.html");
+  await page.bringToFront();
+  await page.goto(base + "/");
+
+  let frame = await openVomnibar(page, "t", ">cnt");
+  const cmdRows = await rows(frame);
+  if (!cmdRows.some((r) => r.text.toLowerCase().includes("create new tab"))) {
+    throw new Error(`Expected 'Create new tab' for '>cnt', got ${JSON.stringify(cmdRows)}`);
+  }
+  await closeVomnibar(page);
+
+  frame = await openVomnibar(page, "t", "rpl");
+  const tabRows = await rows(frame);
+  assertEqual("The Rust Programming Language", tabRows[0]?.text);
+  await closeVomnibar(page);
+  await rustTab.close();
+});
+
+test("theme: picking a theme in Vomnibar updates the Help dialog surface too", async (ctx) => {
+  const { page, base } = ctx;
+  await page.goto(base + "/");
+  await openVomnibar(page, "t", "theme tokyo night");
+  await page.keyboard.press("Enter");
+  await sleep(400);
+
+  await page.keyboard.type("?");
+  let helpFrame = null;
+  for (let waited = 0; waited < 4000 && !helpFrame; waited += 100) {
+    await sleep(100);
+    const f = page.frames().find((fr) => fr.url().includes("help_dialog_page.html"));
+    if (f) {
+      const theme = await f.evaluate(() => document.documentElement.dataset.vomnibarTheme).catch(
+        () => null,
+      );
+      if (theme === "Tokyo Night") helpFrame = f;
+    }
+  }
+  if (!helpFrame) throw new Error("Help dialog did not inherit the Tokyo Night theme.");
+  const scheme = await helpFrame.evaluate(() => document.documentElement.dataset.vomnibarScheme);
+  assertEqual("dark", scheme);
+  await page.keyboard.press("Escape");
+  await sleep(200);
+
+  // Restore Default theme so subsequent tests see a clean baseline.
+  await openVomnibar(page, "t", "theme default");
+  await page.keyboard.press("Enter");
+  await sleep(300);
+});
+
 // Runs the tests above. `puppeteer` is the module make.js uses; returns whether all passed.
 export async function runE2ETests({ puppeteer, extensionPath }) {
   const server = Deno.serve({ port: 0, onListen() {} }, (req) => {
