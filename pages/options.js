@@ -7,6 +7,7 @@ import { effectLevels } from "./vomnibar_effects.js";
 import { ANGLE_STEP, borderSpeeds } from "./vomnibar_border.js";
 
 const options = {
+  customLinkHintSelectors: "string",
   filterLinkHints: "boolean",
   grabBackFocus: "boolean",
   hideHud: "boolean",

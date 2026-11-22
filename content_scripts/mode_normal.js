@@ -12,14 +12,21 @@ class NormalMode extends KeyHandlerMode {
 
     super.init(Object.assign(defaults, options));
 
+    this.globalKeyMapping = {};
+    this.siteKeyMapping = null;
+
     chrome.storage.session.get(
       "normalModeKeyStateMapping",
-      (items) => this.setKeyMapping(items.normalModeKeyStateMapping),
+      (items) => {
+        this.globalKeyMapping = items.normalModeKeyStateMapping || {};
+        this.setKeyMapping(this.siteKeyMapping ?? this.globalKeyMapping);
+      },
     );
 
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === "session" && changes.normalModeKeyStateMapping?.newValue) {
-        this.setKeyMapping(changes.normalModeKeyStateMapping.newValue);
+        this.globalKeyMapping = changes.normalModeKeyStateMapping.newValue;
+        this.setKeyMapping(this.siteKeyMapping ?? this.globalKeyMapping);
       }
     });
 
@@ -28,6 +35,11 @@ class NormalMode extends KeyHandlerMode {
     Utils.addChromeRuntimeOnMessageListener(["runNormalModeCommand"], (request, _sender) => {
       this.commandHandler(request);
     });
+  }
+
+  setSiteKeyMapping(siteKeyMapping) {
+    this.siteKeyMapping = siteKeyMapping || null;
+    this.setKeyMapping(this.siteKeyMapping ?? this.globalKeyMapping ?? {});
   }
 
   commandHandler({ command: registryEntry, count }) {

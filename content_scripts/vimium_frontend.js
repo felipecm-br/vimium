@@ -448,6 +448,9 @@ async function checkIfEnabledForUrl() {
 
   if (normalMode == null) installModes();
   normalMode.setPassKeys(response.passKeys);
+  if (response && typeof response === "object" && "siteKeyStateMapping" in response) {
+    normalMode.setSiteKeyMapping(response.siteKeyStateMapping);
+  }
   // Hide the HUD if we're not enabled.
   if (!isEnabledForUrl) HUD.hide(true, false);
 }

@@ -877,6 +877,7 @@ const sendRequestHandlers = {
       isFirefox: bgUtils.isFirefox(),
       firefoxVersion: await bgUtils.getFirefoxVersion(),
       frameId: sender.frameId,
+      siteKeyStateMapping: Commands.getKeyStateMappingForUrl(sender.tab.url),
     }, enabledState);
 
     return response;

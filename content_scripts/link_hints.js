@@ -1181,7 +1181,36 @@ const LocalHints = {
     return hints;
   },
 
-  collectLocalHintsForElement(element, hints) {
+  // Parses `customLinkHintSelectors` rules active for `currentUrl`.
+  // Returns { include: string[], exclude: string[] } or null when no rules apply.
+  parseCustomSelectors(rawText, currentUrl) {
+    if (!rawText || !rawText.trim()) return null;
+    const include = [];
+    const exclude = [];
+    const sitePrefixRe =
+      /^((?:\/[^/]+\/)|(?:\*\.[a-z0-9.-]+)|(?:https?:\/\/\S+)|(?:[a-z0-9-]+(?:\.[a-z0-9-]+)+)):\s+(.+)$/i;
+    for (const rawLine of rawText.split("\n")) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("#") || line.startsWith('"')) continue;
+      let selector = line;
+      const siteMatch = line.match(sitePrefixRe);
+      if (siteMatch) {
+        if (!UrlUtils.matchesSitePattern(siteMatch[1], currentUrl)) continue;
+        selector = siteMatch[2].trim();
+      }
+      if (!selector) continue;
+      if (selector.startsWith("!")) {
+        const excluded = selector.slice(1).trim();
+        if (excluded) exclude.push(excluded);
+      } else {
+        include.push(selector);
+      }
+    }
+    return include.length > 0 || exclude.length > 0 ? { include, exclude } : null;
+  },
+
+  collectLocalHintsForElement(element, hints, customIncluded = null, customExcluded = null) {
+    if (customExcluded?.has(element)) return;
     // Get the tag name. However, `element.tagName` can be an element (not a string, see #2035), so
     // we guard against that.
     const tagName = element.tagName.toLowerCase?.() || "";
@@ -1367,6 +1396,10 @@ const LocalHints = {
       }
     }
 
+    if (!isClickable && customIncluded?.has(element)) {
+      isClickable = true;
+    }
+
     if (!isClickable) return;
 
     // If the span is clickable but wraps something else that is clickable, we want to instead favor
@@ -1448,13 +1481,44 @@ const LocalHints = {
       return this.getTextElementHints();
     }
 
+    const customRules = typeof Settings !== "undefined" && Settings.isLoaded?.()
+      ? this.parseCustomSelectors(
+        Settings.get("customLinkHintSelectors"),
+        globalThis.location?.href || "",
+      )
+      : null;
+
     // Walk all elements in DOM order (recursing into shadow roots right after each host), without
     // intermediate Array.from() copies or per-element array allocations.
     let localHints = [];
     const collectFromRoot = (root) => {
+      let customIncluded = null;
+      let customExcluded = null;
+      if (customRules) {
+        if (customRules.include.length > 0) {
+          customIncluded = new Set();
+          for (const sel of customRules.include) {
+            try {
+              for (const el of root.querySelectorAll(sel)) customIncluded.add(el);
+            } catch {
+              // Ignore malformed user CSS selectors.
+            }
+          }
+        }
+        if (customRules.exclude.length > 0) {
+          customExcluded = new Set();
+          for (const sel of customRules.exclude) {
+            try {
+              for (const el of root.querySelectorAll(sel)) customExcluded.add(el);
+            } catch {
+              // Ignore malformed user CSS selectors.
+            }
+          }
+        }
+      }
       for (const element of root.querySelectorAll("*")) {
         if (!requireHref || !!element.href) {
-          this.collectLocalHintsForElement(element, localHints);
+          this.collectLocalHintsForElement(element, localHints, customIncluded, customExcluded);
         }
         if (element.shadowRoot) {
           collectFromRoot(element.shadowRoot);

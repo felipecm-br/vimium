@@ -117,6 +117,30 @@ context("KeyMappingsParser", () => {
     assert.equal(1, getErrors("map j createTab invalid-url").length);
   });
 
+  should("parse and validate domain-conditional site rules", async () => {
+    assert.equal(0, getErrors("site github.com map J nextTab").length);
+    assert.equal(0, getErrors("site mail.google.com unmap j").length);
+    assert.equal(1, getErrors("site github.com").length);
+    assert.equal(1, getErrors("site github.com map J unknownCmd").length);
+    assert.equal(1, getErrors("site /[bad/ map J nextTab").length);
+    assert.equal(1, getErrors("site github.com site a.com map J nextTab").length);
+
+    await Commands.loadKeyMappings(
+      "site github.com map J nextTab\nsite mail.google.com unmap j",
+    );
+    assert.equal(null, Commands.getKeyStateMappingForUrl("https://example.com/"));
+
+    const ghMapping = Commands.getKeyStateMappingForUrl("https://github.com/philc/vimium");
+    assert.equal("nextTab", ghMapping["J"]?.command);
+    assert.equal("scrollDown", ghMapping["j"]?.command);
+
+    const gmailMapping = Commands.getKeyStateMappingForUrl("https://mail.google.com/mail/u/0/");
+    assert.equal(undefined, gmailMapping["j"]);
+    assert.equal("previousTab", gmailMapping["J"]?.command);
+
+    await Commands.loadKeyMappings("");
+  });
+
   context("parseLines", () => {
     should("omit whitespace", () => {
       assert.equal(0, parseLines("    \n    \n   ").length);

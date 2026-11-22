@@ -43,11 +43,16 @@
           >
 map j scrollDown
 map z2 setZoom level=2
+site github.com map J nextTab
+site mail.google.com unmap j
 unmap j
 unmapAll
 " this is a comment
 # this is also a comment</pre>
-          <a href="/pages/command_listing.html" target="_blank">See all available commands</a>.
+          <a href="/pages/command_listing.html" target="_blank">See all available commands</a>.<br>
+          For restricted pages (<code>chrome://</code>, <code>about:</code>, PDFs), configure
+          global shortcuts at <code>chrome://extensions/shortcuts</code> (or
+          <code>about:addons</code> in Firefox).
         </div>
 
         <h2>Custom search engines</h2>
@@ -255,6 +260,25 @@ b: http://b.com/?q=%s description
         </div>
         <div class="example">
           The "navigate to next page" command uses these patterns to find the link to follow.
+        </div>
+
+        <h2>Custom link hint selectors</h2>
+        <div>
+          <textarea
+            name="customLinkHintSelectors"
+            class="code"
+            spellcheck="false"
+            placeholder="github.com: [data-testid='issue-row']"
+          ></textarea>
+          <div class="example reset-link"><a href="#">Reset</a></div>
+        </div>
+        <div class="example">
+          Force extra CSS selectors to get link hints, or prefix with <code>!</code> to exclude
+          noisy elements. Scope a rule to a site with <code>domain: selector</code>:<br>
+          <pre>
+[data-action]
+github.com: [data-testid="issue-row"]
+reddit.com: !.decorative-overlay</pre>
         </div>
 
         <h2>CSS for Vimium UI</h2>

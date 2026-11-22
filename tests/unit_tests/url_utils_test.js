@@ -129,3 +129,20 @@ context("formatAsMarkdownLink", () => {
     );
   });
 });
+
+context("matchesSitePattern", () => {
+  should("match bare domains, subdomains, globs, URL globs, and regexes", () => {
+    assert.isTrue(UrlUtils.matchesSitePattern("github.com", "https://github.com/philc/vimium"));
+    assert.isTrue(UrlUtils.matchesSitePattern("github.com", "https://gist.github.com/abc"));
+    assert.isFalse(UrlUtils.matchesSitePattern("github.com", "https://notgithub.com/"));
+    assert.isTrue(UrlUtils.matchesSitePattern("*.google.com", "https://mail.google.com/mail"));
+    assert.isFalse(UrlUtils.matchesSitePattern("*.google.com", "https://google.com/"));
+    assert.isTrue(
+      UrlUtils.matchesSitePattern("https://docs.google.com/*", "https://docs.google.com/document"),
+    );
+    assert.isTrue(
+      UrlUtils.matchesSitePattern("/reddit\\.com\\/r\\/rust/", "https://www.reddit.com/r/rust"),
+    );
+    assert.isFalse(UrlUtils.matchesSitePattern("/[invalid/", "https://example.com"));
+  });
+});

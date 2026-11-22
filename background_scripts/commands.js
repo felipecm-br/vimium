@@ -1,3 +1,4 @@
+import "../lib/url_utils.js";
 import { allCommands } from "./all_commands.js";
 
 // A specification for a command that's currently bound to a key sequence, as defined by the default
@@ -62,10 +63,11 @@ function nthRegexIndex(str, regex, n) {
 
 const KeyMappingsParser = {
   // Parses the text supplied by the user in their "keyMappings" setting.
-  // Returns { keyToRegistryEntry, keyToMappedKey, validationErrors }.
-  parse(configText) {
-    let keyToRegistryEntry = {};
-    let mapKeyRegistry = {};
+  // Returns { keyToRegistryEntry, keyToMappedKey, siteRules, validationErrors }.
+  parse(configText, initialState = null) {
+    let keyToRegistryEntry = initialState ? Object.assign({}, initialState.keyToRegistryEntry) : {};
+    let mapKeyRegistry = initialState ? Object.assign({}, initialState.keyToMappedKey) : {};
+    const siteRules = [];
     let errors = [];
     const configLines = parseLines(configText);
     const commandsByName = Utils.keyBy(allCommands, "name");
@@ -186,6 +188,37 @@ const KeyMappingsParser = {
           }
           break;
         }
+        case "site": {
+          if (tokens.length < 3) {
+            errors.push(
+              `"site" requires a domain/URL pattern and a mapping command on line: ${line}`,
+            );
+            continue;
+          }
+          const pattern = tokens[1];
+          const subStart = nthRegexIndex(line, /\s+/, 2);
+          const subLine = subStart >= 0 ? line.slice(subStart).trim() : "";
+          const subAction = subLine.split(/\s+/)[0]?.toLowerCase();
+          if (subAction === "site") {
+            errors.push(`Nested "site" directives are not allowed on line: ${line}`);
+            continue;
+          }
+          if (pattern.startsWith("/") && pattern.endsWith("/") && pattern.length > 2) {
+            try {
+              new RegExp(pattern.slice(1, -1), "i");
+            } catch {
+              errors.push(`Invalid regular expression pattern "${pattern}" on line: ${line}`);
+              continue;
+            }
+          }
+          const subParsed = this.parse(subLine);
+          if (subParsed.validationErrors.length > 0) {
+            errors = errors.concat(subParsed.validationErrors);
+            continue;
+          }
+          siteRules.push({ pattern, line: subLine });
+          break;
+        }
         default:
           errors.push(`"${action}" is not a valid config command in line: ${line}`);
       }
@@ -194,6 +227,7 @@ const KeyMappingsParser = {
     return {
       keyToRegistryEntry,
       keyToMappedKey: mapKeyRegistry,
+      siteRules,
       validationErrors: errors,
     };
   },
@@ -288,6 +322,8 @@ const Commands = {
   keyToRegistryEntry: null,
   // A map of typed key => key it's mapped to (via the `mapkey` config statement).
   mapKeyRegistry: null,
+  // Domain-conditional rules parsed from `site <pattern> <mapping>` lines.
+  siteRules: [],
 
   async init() {
     await Settings.onLoaded();
@@ -302,6 +338,7 @@ const Commands = {
   async loadKeyMappings(userKeyMappingsConfigText) {
     this.keyToRegistryEntry = {};
     this.mapKeyRegistry = {};
+    this.siteRules = [];
 
     const defaultKeyConfig = Object.keys(defaultKeyMappings).map((key) =>
       `map ${key} ${defaultKeyMappings[key]}`
@@ -312,6 +349,7 @@ const Commands = {
     );
     this.mapKeyRegistry = parsed.keyToMappedKey;
     this.keyToRegistryEntry = parsed.keyToRegistryEntry;
+    this.siteRules = parsed.siteRules;
 
     await chrome.storage.session.set({ mapKeyRegistry: this.mapKeyRegistry });
     await this.installKeyStateMapping();
@@ -328,15 +366,13 @@ const Commands = {
     await chrome.storage.session.set({ passNextKeyKeys: passNextKeys });
   },
 
-  // This generates and installs a nested key-to-command mapping structure. There is an example in
-  // mode_key_handler.js.
-  async installKeyStateMapping() {
+  buildKeyStateMapping(keyToRegistryEntry) {
     const keyStateMapping = {};
     // Descriptions are included so the keystroke popup can list what follows a prefix key using
     // the user's actual mappings.
     const descriptions = Object.fromEntries(allCommands.map((c) => [c.name, c.desc]));
-    for (const keys of Object.keys(this.keyToRegistryEntry || {})) {
-      const registryEntry = this.keyToRegistryEntry[keys];
+    for (const keys of Object.keys(keyToRegistryEntry || {})) {
+      const registryEntry = keyToRegistryEntry[keys];
       let currentMapping = keyStateMapping;
       for (let index = 0; index < registryEntry.keySequence.length; index++) {
         const key = registryEntry.keySequence[index];
@@ -359,6 +395,31 @@ const Commands = {
         }
       }
     }
+    return keyStateMapping;
+  },
+
+  // Returns a URL-specific keyStateMapping when any `site` rule matches `url`, or null otherwise
+  // (so content scripts fall back to the shared global mapping with zero overhead).
+  getKeyStateMappingForUrl(url) {
+    if (!this.siteRules || this.siteRules.length === 0 || !url) return null;
+    const matching = this.siteRules.filter((rule) =>
+      UrlUtils.matchesSitePattern(rule.pattern, url)
+    );
+    if (matching.length === 0) return null;
+    const parsed = KeyMappingsParser.parse(
+      matching.map((rule) => rule.line).join("\n"),
+      {
+        keyToRegistryEntry: this.keyToRegistryEntry,
+        keyToMappedKey: this.mapKeyRegistry,
+      },
+    );
+    return this.buildKeyStateMapping(parsed.keyToRegistryEntry);
+  },
+
+  // This generates and installs a nested key-to-command mapping structure. There is an example in
+  // mode_key_handler.js.
+  async installKeyStateMapping() {
+    const keyStateMapping = this.buildKeyStateMapping(this.keyToRegistryEntry);
     await chrome.storage.session.set({
       normalModeKeyStateMapping: keyStateMapping,
       // Inform `KeyboardUtils.isEscape()` whether `<c-[>` should be interpreted as `Escape` (which it

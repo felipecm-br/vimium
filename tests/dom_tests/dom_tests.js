@@ -1473,4 +1473,18 @@ context("Shadow DOM support in FindMode and Scroller", () => {
     Scroller.scrollBy("y", 50, 1, false);
     assert.isTrue(box.scrollTop > 0);
   });
+
+  should("LocalHints applies customLinkHintSelectors include and !exclude rules", () => {
+    document.getElementById("test-div").innerHTML =
+      `<div class="custom-card" style="width: 100px; height: 24px;">card</div>` +
+      `<a class="skip-me" href="#skip">skip</a>` +
+      `<a class="keep-me" href="#keep">keep</a>`;
+    stubSettings("customLinkHintSelectors", ".custom-card\n!.skip-me\n[invalid-selector");
+
+    const hints = LocalHints.getLocalHints(false);
+    const classes = hints.map((h) => h.element.className);
+    assert.isTrue(classes.includes("custom-card"));
+    assert.isTrue(classes.includes("keep-me"));
+    assert.isFalse(classes.includes("skip-me"));
+  });
 });
