@@ -504,6 +504,57 @@ test("theme: picking a theme in Vomnibar updates the Help dialog surface too", a
   await sleep(300);
 });
 
+test("help dialog (?): '/' filters commands live and Escape clears before closing", async (ctx) => {
+  const { page, base } = ctx;
+  await page.goto(base + "/");
+  let helpFrame = null;
+  for (let attempt = 0; attempt < 10 && !helpFrame; attempt++) {
+    await page.keyboard.type("?");
+    for (let waited = 0; waited < 500 && !helpFrame; waited += 100) {
+      await sleep(100);
+      const f = page.frames().find((fr) => fr.url().includes("help_dialog_page.html"));
+      if (f) {
+        const ready = await f.evaluate(() =>
+          document.querySelectorAll('#dialog [data-group="navigation"] .row').length > 0
+        ).catch(() => false);
+        if (ready) helpFrame = f;
+      }
+    }
+  }
+  if (!helpFrame) throw new Error("Help dialog did not open.");
+
+  // Pressing '/' inside the Help dialog focuses the filter input via handlerStack.
+  await page.keyboard.press("/");
+  await sleep(100);
+  const focusedId = await helpFrame.evaluate(() => document.activeElement?.id);
+  assertEqual("help-filter-input", focusedId);
+
+  await page.keyboard.type("reload");
+  await sleep(150);
+  const filtered = await helpFrame.evaluate(() => ({
+    filtering: document.querySelector("#dialog").classList.contains("filtering"),
+    visible: document.querySelectorAll("#dialog .row:not(.filtered-out)").length,
+    countText: document.querySelector("#help-filter-count").textContent,
+  }));
+  assertEqual(true, filtered.filtering);
+  if (filtered.visible < 1 || filtered.visible > 5) {
+    throw new Error(`Expected narrow reload matches, got ${JSON.stringify(filtered)}`);
+  }
+
+  // First Escape clears the filter without closing the dialog.
+  await page.keyboard.press("Escape");
+  await sleep(150);
+  const cleared = await helpFrame.evaluate(() => ({
+    value: document.querySelector("#help-filter-input").value,
+    filtering: document.querySelector("#dialog").classList.contains("filtering"),
+  }));
+  assertEqual({ value: "", filtering: false }, cleared);
+
+  // Close the dialog cleanly.
+  await page.keyboard.press("Escape");
+  await sleep(200);
+});
+
 // Runs the tests above. `puppeteer` is the module make.js uses; returns whether all passed.
 export async function runE2ETests({ puppeteer, extensionPath }) {
   const server = Deno.serve({ port: 0, onListen() {} }, (req) => {

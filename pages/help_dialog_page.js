@@ -91,30 +91,30 @@ const HelpDialogPage = {
       this.filterInput.addEventListener("input", () => {
         this.applyFilter(this.filterInput.value);
       });
-      this.filterInput.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") {
-          if (this.filterInput.value.length > 0) {
-            event.stopPropagation();
-            event.preventDefault();
-            this.filterInput.value = "";
-            this.applyFilter("");
-          }
-          this.filterInput.blur();
-        }
-      });
     }
 
-    document.addEventListener("keydown", (event) => {
-      if (
-        event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey &&
-        this.filterInput && document.activeElement !== this.filterInput
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-        this.filterInput.focus();
-        this.filterInput.select();
-      }
-    }, true);
+    if (typeof handlerStack !== "undefined" && this.filterInput) {
+      handlerStack.push({
+        _name: "help-dialog-filter",
+        keydown: (event) => {
+          if (
+            event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey &&
+            document.activeElement !== this.filterInput
+          ) {
+            this.filterInput.focus();
+            this.filterInput.select();
+            return handlerStack.suppressEvent;
+          }
+          if (KeyboardUtils.isEscape(event) && this.filterInput.value.length > 0) {
+            this.filterInput.value = "";
+            this.applyFilter("");
+            this.filterInput.blur();
+            return handlerStack.suppressEvent;
+          }
+          return handlerStack.continueBubbling;
+        },
+      });
+    }
 
     const closeButton = this.dialogElement.querySelector("#close");
     closeButton.addEventListener("click", (event) => {
