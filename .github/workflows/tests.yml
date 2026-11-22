@@ -39,7 +39,7 @@ jobs:
       - name: Let Chrome start its sandbox
         run: echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns
 
-      - name: Formatting and lint
+      - name: Formatting, lint, and typecheck
         run: ./make.js check
 
       - name: Unit tests
@@ -55,3 +55,6 @@ jobs:
       # Firefox with the extension installed as a temporary add-on (see tests/e2e/firefox_e2e.js).
       - name: End-to-end tests in Firefox
         run: ./make.js test-e2e-firefox
+
+      - name: Package extension (Chrome and Firefox)
+        run: ./make.js package

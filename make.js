@@ -194,9 +194,12 @@ async function buildStorePackage() {
     "MIT-LICENSE.txt",
     "build_scripts",
     "dist",
+    "docs",
     "make.js",
     "deno.json",
     "deno.lock",
+    "tsconfig.json",
+    "types",
     // These reload scripts are used for development only and shouldn't appear in the build.
     "reload.html",
     "reload.js",
@@ -522,10 +525,25 @@ task("test-e2e-firefox", [], async () => {
 desc("Run unit and DOM tests");
 task("test", ["test-unit", "test-dom"]);
 
-desc("Check code formatting and lint issues");
+async function runTypecheck() {
+  await shell("deno", [
+    "run",
+    "--allow-read",
+    "--allow-env",
+    "--allow-sys",
+    "typescript/tsc",
+    "--noEmit",
+  ]);
+}
+
+desc("Type-check JavaScript sources with TypeScript");
+task("typecheck", [], runTypecheck);
+
+desc("Check code formatting, lint issues, and static types");
 task("check", [], async () => {
   await shell("deno", ["fmt", "--check"]);
   await shell("deno", ["lint"]);
+  await runTypecheck();
 });
 
 desc("Builds a zip file for submission to the Chrome and Firefox stores. The output is in dist/");
