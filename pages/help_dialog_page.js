@@ -36,6 +36,7 @@ function isAdvancedCommand(command, options) {
 function vomnibarKeys() {
   const isMac = KeyboardUtils.platform === "Mac";
   const copy = isMac ? "⌘ C" : "Ctrl C";
+  const copyMd = isMac ? "⌘ ⇧ C" : "Ctrl ⇧ C";
   const openBackground = isMac ? "⌘ ⇧ ↵" : "Ctrl ⇧ ↵";
   return {
     keys: [
@@ -45,7 +46,9 @@ function vomnibarKeys() {
       [openBackground, "Open the selected result in a background tab"],
       ["Ctrl ↵", "Edit the selected result's URL in the input"],
       [copy, "Copy the selected result's URL"],
+      [copyMd, "Copy the selected result as Markdown"],
       ["Ctrl D", "Close the selected open tab"],
+      ["Alt M / P", "Mute or pin the selected open tab"],
       ["⇧ Del", "Forget a visited page, or close a tab"],
       ["PgUp / PgDn", "Jump between pages of results"],
     ],
@@ -59,8 +62,16 @@ function vomnibarKeys() {
   };
 }
 
+function normalizeForSearch(text) {
+  return (text || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 const HelpDialogPage = {
   dialogElement: null,
+  filterInput: null,
 
   // This setting is pulled out of local storage. It's false by default.
   getShowAdvancedCommands() {
@@ -68,10 +79,42 @@ const HelpDialogPage = {
   },
 
   init() {
-    if (this.dialogElement != null) {
+    if (this.dialogElement != null && this.dialogElement.isConnected) {
       return;
     }
     this.dialogElement = document.querySelector("#dialog");
+    this.filterInput = /** @type {HTMLInputElement | null} */ (
+      this.dialogElement.querySelector("#help-filter-input")
+    );
+
+    if (this.filterInput) {
+      this.filterInput.addEventListener("input", () => {
+        this.applyFilter(this.filterInput.value);
+      });
+      this.filterInput.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          if (this.filterInput.value.length > 0) {
+            event.stopPropagation();
+            event.preventDefault();
+            this.filterInput.value = "";
+            this.applyFilter("");
+          }
+          this.filterInput.blur();
+        }
+      });
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (
+        event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey &&
+        this.filterInput && document.activeElement !== this.filterInput
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.filterInput.focus();
+        this.filterInput.select();
+      }
+    }, true);
 
     const closeButton = this.dialogElement.querySelector("#close");
     closeButton.addEventListener("click", (event) => {
@@ -154,6 +197,10 @@ const HelpDialogPage = {
       }
     }
     descEl.textContent = desc;
+    const row = /** @type {HTMLElement} */ (rowEl.querySelector(".row"));
+    row.dataset.search = normalizeForSearch(
+      `${command.name} ${command.desc} ${options} ${keys.join(" ")}`,
+    );
     return rowEl;
   },
 
@@ -170,6 +217,8 @@ const HelpDialogPage = {
     keyEl.querySelector(".key").textContent = key;
     rowEl.querySelector(".key-bindings").appendChild(keyEl);
     rowEl.querySelector(".help-description").textContent = description;
+    const row = /** @type {HTMLElement} */ (rowEl.querySelector(".row"));
+    row.dataset.search = normalizeForSearch(`${key} ${description}`);
     return rowEl;
   },
 
@@ -210,9 +259,62 @@ const HelpDialogPage = {
 
     this.renderVomnibarKeys();
     this.showAdvancedCommands(this.getShowAdvancedCommands());
+    if (this.filterInput) {
+      this.filterInput.value = "";
+      this.applyFilter("");
+    }
 
     // "Click" the dialog element (so that it becomes scrollable).
     DomUtils.simulateClick(this.dialogElement);
+  },
+
+  applyFilter(rawQuery) {
+    const query = normalizeForSearch(rawQuery).trim();
+    const terms = query ? query.split(/\s+/) : [];
+    const isFiltering = terms.length > 0;
+    this.dialogElement.classList.toggle("filtering", isFiltering);
+
+    const groups = Array.from(
+      this.dialogElement.querySelectorAll("div[data-group], #vomnibar-keys"),
+    );
+    let totalMatches = 0;
+    for (const groupEl of groups) {
+      const rows = Array.from(groupEl.querySelectorAll(".row"));
+      let groupMatches = 0;
+      for (const row of rows) {
+        const haystack = /** @type {HTMLElement} */ (row).dataset.search ||
+          normalizeForSearch(row.textContent);
+        const matched = !isFiltering || terms.every((t) => haystack.includes(t));
+        row.classList.toggle("filtered-out", !matched);
+        if (matched) groupMatches++;
+      }
+      totalMatches += groupMatches;
+      // Hide section heading + notes when filtering and the section has no matches.
+      const heading = groupEl.previousElementSibling;
+      const spacer = heading?.previousElementSibling;
+      const hideGroup = isFiltering && groupMatches === 0;
+      groupEl.classList.toggle("help-group-hidden", hideGroup);
+      if (heading?.tagName === "H2") heading.classList.toggle("help-group-hidden", hideGroup);
+      if (spacer?.tagName === "DIV" && spacer.children.length === 0) {
+        spacer.classList.toggle("help-group-hidden", hideGroup);
+      }
+      for (const note of groupEl.querySelectorAll(".vomnibar-keys-note")) {
+        note.classList.toggle("help-group-hidden", isFiltering);
+      }
+    }
+
+    const countEl = this.dialogElement.querySelector("#help-filter-count");
+    if (countEl) {
+      countEl.textContent = isFiltering
+        ? `${totalMatches} ${totalMatches === 1 ? "match" : "matches"}`
+        : "";
+    }
+    const emptyEl = /** @type {HTMLElement | null} */ (
+      this.dialogElement.querySelector("#help-empty-state")
+    );
+    if (emptyEl) {
+      emptyEl.hidden = !isFiltering || totalMatches > 0;
+    }
   },
 
   hide() {

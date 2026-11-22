@@ -32,6 +32,18 @@
 
         <div class="divider"></div>
 
+        <div id="help-filter-bar">
+          <input
+            id="help-filter-input"
+            type="search"
+            placeholder="Filter commands or keys... (/)"
+            aria-label="Filter help commands"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <span id="help-filter-count" aria-live="polite"></span>
+        </div>
+
         <div id="commands-section">
           <div class="column">
             <div></div>
@@ -67,6 +79,8 @@
             <div data-group="misc"></div>
           </div>
         </div>
+
+        <div id="help-empty-state" hidden>No matching commands.</div>
 
         <div id="toggle-advanced">
           <a href="#">Show advanced commands</a>

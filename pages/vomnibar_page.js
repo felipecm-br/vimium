@@ -563,7 +563,13 @@ class VomnibarUI {
     } else if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && key === "p") {
       return "toggle-pin-tab";
     } else if (
-      isCopyChord(event) && (key === "c") && (this.input.selectionStart === this.input.selectionEnd)
+      isCopyChord(event) && event.shiftKey && (key.toLowerCase() === "c") &&
+      (this.input.selectionStart === this.input.selectionEnd)
+    ) {
+      return "copy-markdown";
+    } else if (
+      isCopyChord(event) && !event.shiftKey && (key === "c") &&
+      (this.input.selectionStart === this.input.selectionEnd)
     ) {
       // With text selected in the input, the browser copies that instead.
       return "copy";
@@ -702,6 +708,9 @@ class VomnibarUI {
     } else if (action === "copy") {
       if (!this.completions[this.selection]?.url) return; // Nothing to copy: leave it to the page.
       this.copySelectedUrl();
+    } else if (action === "copy-markdown") {
+      if (!this.completions[this.selection]?.url) return;
+      this.copySelectedMarkdown();
     } else if ((action === "closeTab") && (this.selection >= 0)) {
       const completion = this.completions[this.selection];
       if (completion.tabId != null) {
@@ -1114,6 +1123,21 @@ class VomnibarUI {
       await navigator.clipboard.writeText(url);
     } catch {
       // The browser can refuse, e.g. when the page's permissions policy blocks the clipboard.
+      message = "Not copied";
+    }
+    this.flashStatus(message);
+  }
+
+  // Copies the selected result as a Markdown link `[Title](URL)`.
+  async copySelectedMarkdown() {
+    const completion = this.completions[this.selection];
+    if (!completion?.url) return;
+    const title = completion.pageTitle || completion.title || completion.url;
+    const text = UrlUtils.formatAsMarkdownLink(title, completion.url);
+    let message = "Copied MD";
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
       message = "Not copied";
     }
     this.flashStatus(message);

@@ -61,4 +61,25 @@ context("help dialog", () => {
       .sort();
     assert.equal(groups, groupsInDialog);
   });
+
+  should("filter rows across command names, keys, and advanced commands", async () => {
+    HelpDialogPage.init();
+    await HelpDialogPage.show();
+    HelpDialogPage.applyFilter("hard");
+    assert.isTrue(HelpDialogPage.dialogElement.classList.contains("filtering"));
+    const visibleReloadRows = Array.from(
+      HelpDialogPage.dialogElement.querySelectorAll(
+        '[data-group="navigation"] .row:not(.filtered-out)',
+      ),
+    );
+    assert.equal(1, visibleReloadRows.length);
+    assert.isTrue(visibleReloadRows[0].textContent.includes("hard"));
+
+    HelpDialogPage.applyFilter("zzzz-no-match");
+    assert.isFalse(HelpDialogPage.dialogElement.querySelector("#help-empty-state").hidden);
+
+    HelpDialogPage.applyFilter("");
+    assert.isFalse(HelpDialogPage.dialogElement.classList.contains("filtering"));
+    assert.isTrue(HelpDialogPage.dialogElement.querySelector("#help-empty-state").hidden);
+  });
 });

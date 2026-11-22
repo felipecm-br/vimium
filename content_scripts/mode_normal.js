@@ -174,17 +174,17 @@ const NormalModeCommands = {
     });
   },
 
-  copyCurrentUrl() {
-    chrome.runtime.sendMessage({ handler: "getCurrentTabUrl" }, function (url) {
-      HUD.copyToClipboard(url);
-      // This length is determined empirically based on a 350px width of the HUD. An alternate
-      // solution is to have the HUD ellipsize based on its width.
-      const maxLength = 40;
-      if (url.length > maxLength) {
-        url = url.slice(0, maxLength - 2) + "...";
-      }
-      HUD.show(`Yanked ${url}`, 2000);
-    });
+  copyCurrentUrl(_count, request) {
+    const opts = request?.registryEntry?.options || {};
+    copyCurrentPageLocation({ clean: Boolean(opts.clean), markdown: Boolean(opts.markdown) });
+  },
+
+  copyCurrentUrlClean() {
+    copyCurrentPageLocation({ clean: true, markdown: false });
+  },
+
+  copyCurrentTitleAndUrl() {
+    copyCurrentPageLocation({ clean: false, markdown: true });
   },
 
   openCopiedUrlInNewTab(count, request) {
@@ -564,6 +564,19 @@ class FocusSelector extends Mode {
       });
     }
   }
+}
+
+function copyCurrentPageLocation({ clean, markdown }) {
+  chrome.runtime.sendMessage({ handler: "getCurrentTabUrl" }, function (url) {
+    if (clean) url = UrlUtils.stripTrackingParams(url);
+    const payload = markdown ? UrlUtils.formatAsMarkdownLink(document.title, url) : url;
+    HUD.copyToClipboard(payload);
+    // This length is determined empirically based on a 350px width of the HUD. An alternate
+    // solution is to have the HUD ellipsize based on its width.
+    const maxLength = 40;
+    const preview = payload.length > maxLength ? payload.slice(0, maxLength - 2) + "..." : payload;
+    HUD.show(`Yanked ${preview}`, 2000);
+  });
 }
 
 Object.assign(globalThis, { NormalMode, NormalModeCommands });

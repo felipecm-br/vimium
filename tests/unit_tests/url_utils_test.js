@@ -93,3 +93,39 @@ context("hasJavascriptProtocol", () => {
     assert.isFalse(UrlUtils.hasJavascriptProtocol("http:foobar"));
   });
 });
+
+context("stripTrackingParams", () => {
+  should("strip analytics and ad tracking parameters while preserving functional ones", () => {
+    assert.equal(
+      "https://example.com/post?id=42&page=2#section",
+      UrlUtils.stripTrackingParams(
+        "https://example.com/post?utm_source=twitter&id=42&fbclid=abc&page=2&gclid=xyz#section",
+      ),
+    );
+    assert.equal(
+      "https://youtu.be/dQw4w9WgXcQ",
+      UrlUtils.stripTrackingParams("https://youtu.be/dQw4w9WgXcQ?si=123456"),
+    );
+  });
+
+  should("leave clean or non-URL strings untouched", () => {
+    assert.equal(
+      "https://example.com/a?q=hello",
+      UrlUtils.stripTrackingParams("https://example.com/a?q=hello"),
+    );
+    assert.equal("not a url", UrlUtils.stripTrackingParams("not a url"));
+  });
+});
+
+context("formatAsMarkdownLink", () => {
+  should("format title and URL, escaping brackets and falling back to URL", () => {
+    assert.equal(
+      "[Docs \\[v2\\]](https://example.com)",
+      UrlUtils.formatAsMarkdownLink("  Docs [v2]  ", "https://example.com"),
+    );
+    assert.equal(
+      "[https://example.com](https://example.com)",
+      UrlUtils.formatAsMarkdownLink("", "https://example.com"),
+    );
+  });
+});

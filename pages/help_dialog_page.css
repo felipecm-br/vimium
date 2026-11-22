@@ -117,13 +117,64 @@ div.divider {
   background-color: #9a9a9a;
 }
 
+#help-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+#help-filter-input {
+  flex: 1;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #8c959f;
+  background-color: #ffffff;
+  color: #1f2328;
+  outline: none;
+}
+
+#help-filter-input:hover {
+  border-color: #57606a;
+}
+
+#help-filter-input:focus {
+  border-color: #0969da;
+  box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.25);
+}
+
+#help-filter-count {
+  font-size: 12px;
+  color: #555;
+  white-space: nowrap;
+}
+
+#help-empty-state {
+  text-align: center;
+  padding: 18px 8px;
+  font-size: 13px;
+  color: #555;
+}
+
+#help-empty-state[hidden] {
+  display: none;
+}
+
 /* Advanced commands are hidden by default until "show advanced" is clicked. */
 .row.advanced {
   display: none;
 }
 
-#dialog.show-advanced .row.advanced {
+#dialog.show-advanced .row.advanced,
+#dialog.filtering .row.advanced {
   display: contents;
+}
+
+.row.filtered-out,
+.help-group-hidden {
+  display: none !important;
 }
 
 footer {
@@ -179,6 +230,26 @@ footer {
   .vomnibar-keys-note {
     color: #9aa0a6;
   }
+
+  #help-filter-input {
+    background-color: #18191c;
+    color: #f1f3f4;
+    border-color: #5f6368;
+  }
+
+  #help-filter-input:hover {
+    border-color: #9aa0a6;
+  }
+
+  #help-filter-input:focus {
+    border-color: #8ab4f8;
+    box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.25);
+  }
+
+  #help-filter-count,
+  #help-empty-state {
+    color: #9aa0a6;
+  }
 }
 
 /* Active Vomnibar theme integration (set by themeManager.init()). */
@@ -230,6 +301,23 @@ footer {
 }
 
 :root[data-vomnibar-theme] .vomnibar-keys-note,
-:root[data-vomnibar-theme] footer {
+:root[data-vomnibar-theme] footer,
+:root[data-vomnibar-theme] #help-filter-count,
+:root[data-vomnibar-theme] #help-empty-state {
   color: var(--vomnibar-secondary-text);
+}
+
+:root[data-vomnibar-theme] #help-filter-input {
+  background-color: var(--vomnibar-inner-bg);
+  color: var(--vomnibar-input-text);
+  border-color: var(--vomnibar-border-color);
+}
+
+:root[data-vomnibar-theme] #help-filter-input:hover {
+  border-color: var(--vomnibar-secondary-text);
+}
+
+:root[data-vomnibar-theme] #help-filter-input:focus {
+  border-color: var(--vomnibar-accent-color);
+  box-shadow: 0 0 0 2px var(--vomnibar-selected-bg);
 }

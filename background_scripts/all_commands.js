@@ -109,7 +109,27 @@ const allCommands = [
   {
     name: "copyCurrentUrl",
     desc: "Copy the current URL to the clipboard",
+    options: {
+      clean: "Strip common tracking parameters (utm_*, fbclid, gclid, etc.) before copying.",
+      markdown: "Copy the current page title and URL formatted as a Markdown link.",
+    },
     group: "navigation",
+    noRepeat: true,
+  },
+
+  {
+    name: "copyCurrentUrlClean",
+    desc: "Copy the current URL without tracking parameters",
+    group: "navigation",
+    advanced: true,
+    noRepeat: true,
+  },
+
+  {
+    name: "copyCurrentTitleAndUrl",
+    desc: "Copy the current page title and URL as Markdown",
+    group: "navigation",
+    advanced: true,
     noRepeat: true,
   },
 
