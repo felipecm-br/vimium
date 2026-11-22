@@ -233,7 +233,13 @@ class FindMode extends Mode {
           if (range) {
             const sourceRange = document.createRange();
             sourceRange.setStart(node, 0);
-            return range.compareBoundaryPoints(Range.START_TO_START, sourceRange) <= 0;
+            try {
+              return range.compareBoundaryPoints(Range.START_TO_START, sourceRange) <= 0;
+            } catch {
+              // Cross-root comparison (light DOM vs ShadowRoot) throws WrongDocumentError;
+              // fall back to vertical viewport position.
+              return sourceRange.getBoundingClientRect().top >= range.getBoundingClientRect().top;
+            }
           } else {
             return false;
           }
@@ -356,10 +362,12 @@ class FindMode extends Mode {
     // Removing the class does not re-color existing selections. we recreate the current selection
     // so it reverts back to the default color.
     const selection = globalThis.getSelection();
-    if (!selection.isCollapsed) {
-      const range = globalThis.getSelection().getRangeAt(0);
-      globalThis.getSelection().removeAllRanges();
-      globalThis.getSelection().addRange(range);
+    if (!selection.isCollapsed && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      if (range.startContainer.getRootNode?.() === document) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
     }
     return focusFoundLink() || selectFoundInputElement();
   }
@@ -419,11 +427,18 @@ const getCurrentRange = function () {
 
 const getLinkFromSelection = function () {
   let node = globalThis.getSelection().anchorNode;
+  if (
+    FindMode.query?.regexMatchedNodes?.length && FindMode.query.activeRegexIndices &&
+    (!node || node === document.body || /** @type {Element} */ (node).shadowRoot)
+  ) {
+    node = FindMode.query.regexMatchedNodes[FindMode.query.activeRegexIndices[0]];
+  }
   while (node && (node !== document.body)) {
     if (node.nodeName.toLowerCase() === "a") {
       return node;
     }
-    node = node.parentNode;
+    node = node.parentNode ||
+      ("host" in node ? /** @type {ShadowRoot} */ (node).host : null);
   }
   return null;
 };
@@ -477,8 +492,13 @@ const highlight = (textNode, startIndex, length) => {
   const range = document.createRange();
   range.setStart(textNode, startIndex);
   range.setEnd(textNode, startIndex + length);
-  selection.removeAllRanges();
-  selection.addRange(range);
+  const inShadowRoot = textNode.getRootNode?.() !== document;
+  if (inShadowRoot && typeof selection.setBaseAndExtent === "function") {
+    selection.setBaseAndExtent(textNode, startIndex, textNode, startIndex + length);
+  } else {
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
 
   // Ensure the highlighted element is visible within the viewport.
   const rect = range.getBoundingClientRect();
@@ -504,11 +524,18 @@ const getAllTextNodes = () => {
   function visit(node) {
     if (node.nodeType === Node.TEXT_NODE) {
       textNodes.push(node);
+    } else if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+      for (const child of node.childNodes) {
+        visit(child);
+      }
     } else if (
       node.nodeType === Node.ELEMENT_NODE &&
       !nonRenderedFindTags.has(node.tagName) &&
       ((checkVisibility ? checkVisibility.call(node) : true) || node.style.display === "contents")
     ) {
+      if (node.shadowRoot && !node.classList?.contains("vimium-reset")) {
+        visit(node.shadowRoot);
+      }
       for (const child of node.childNodes) {
         visit(child);
       }

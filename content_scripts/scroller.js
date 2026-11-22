@@ -145,7 +145,10 @@ const firstScrollableElement = function (element = null) {
   if (doesScroll(element, "y", 1, 1) || doesScroll(element, "y", -1, 1)) {
     return element;
   } else {
-    const children = Array.from(element.children)
+    const rawChildren = element.shadowRoot
+      ? [...element.children, ...element.shadowRoot.children]
+      : Array.from(element.children);
+    const children = rawChildren
       .map((c) => {
         const rect = DomUtils.getVisibleClientRect(c);
         return rect ? { element: c, rect, area: rect.width * rect.height } : null;
@@ -341,12 +344,11 @@ const Scroller = {
     const eventName = Utils.isFirefox() ? "click" : "DOMActivate";
     handler[eventName] = (event) =>
       handlerStack.alwaysContinueBubbling(function () {
-        // If event.path is present, the true event taget (potentially inside a Shadow DOM inside
-        // event.target) can be found as its first element.
-        // NOTE(mrmr1993): event.path has been renamed to event.deepPath in the spec, but this
-        // change is not yet implemented by Chrome.
-        const path = event.deepPath || event.path;
-        return activatedElement = path ? path[0] : event.target;
+        // Use composedPath() so clicks inside an open Shadow DOM resolve to the true inner element.
+        const path = typeof event.composedPath === "function"
+          ? event.composedPath()
+          : (event.deepPath || event.path);
+        return activatedElement = path && path.length > 0 ? path[0] : event.target;
       });
     handlerStack.push(handler);
     CoreScroller.init();

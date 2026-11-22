@@ -1404,3 +1404,73 @@ context("GrabBackFocus", () => {
     assert.isTrue(DomUtils.isEditable(document.activeElement));
   });
 });
+
+context("Shadow DOM support in FindMode and Scroller", () => {
+  setup(() => {
+    initializeModeState();
+    document.getElementById("test-div").innerHTML = "";
+  });
+
+  teardown(() => {
+    document.getElementById("test-div").innerHTML = "";
+    Scroller.reset();
+  });
+
+  should("FindMode matches text and focuses links inside an open Shadow DOM", () => {
+    const host = document.createElement("div");
+    const shadow = host.attachShadow({ mode: "open" });
+    shadow.innerHTML = `<p>shadow-needle <a id="shadow-link" href="#ok">shadow-anchor</a></p>`;
+    document.getElementById("test-div").appendChild(host);
+
+    // Vimium's own .vimium-reset shadow overlays must be ignored.
+    const overlay = document.createElement("div");
+    overlay.className = "vimium-reset";
+    const overlayShadow = overlay.attachShadow({ mode: "open" });
+    overlayShadow.innerHTML = `<p>shadow-needle</p>`;
+    document.getElementById("test-div").appendChild(overlay);
+
+    const count = FindMode.updateQuery("shadow-needle");
+    assert.equal(1, count);
+    assert.isTrue(FindMode.execute("shadow-needle"));
+
+    assert.equal(1, FindMode.updateQuery("shadow-anchor"));
+    FindMode.query.hasResults = FindMode.execute("shadow-anchor");
+    FindMode.handleEnter();
+    assert.equal("shadow-link", shadow.activeElement?.id);
+  });
+
+  should("DomUtils.getContainingElement crosses Shadow DOM host boundaries", () => {
+    const host = document.createElement("div");
+    const shadow = host.attachShadow({ mode: "open" });
+    const inner = document.createElement("div");
+    shadow.appendChild(inner);
+    document.getElementById("test-div").appendChild(host);
+
+    assert.equal(host, DomUtils.getContainingElement(inner));
+  });
+
+  should("Scroller scrolls a scrollable container inside an open Shadow DOM", () => {
+    const host = document.createElement("div");
+    const shadow = host.attachShadow({ mode: "open" });
+    const box = document.createElement("div");
+    box.style.cssText = "width: 200px; height: 80px; overflow-y: auto;";
+    const tall = document.createElement("div");
+    tall.style.cssText = "height: 600px;";
+    box.appendChild(tall);
+    shadow.appendChild(box);
+    document.getElementById("test-div").appendChild(host);
+
+    // Simulate clicking inside the shadow DOM via composedPath.
+    const clickEvent = {
+      type: "DOMActivate",
+      target: host,
+      composedPath: () => [tall, box, shadow, host, document.body],
+    };
+    handlerStack.bubbleEvent("DOMActivate", clickEvent);
+
+    stubSettings("smoothScroll", false);
+    assert.equal(0, box.scrollTop);
+    Scroller.scrollBy("y", 50, 1, false);
+    assert.isTrue(box.scrollTop > 0);
+  });
+});
