@@ -28,19 +28,21 @@ const ExclusionRulesEditor = {
   // `pattern` and `passKeys` are optional.
   addRow(pattern, passKeys) {
     const rulesTable = document.querySelector("#exclusion-rules");
-    const rowTemplate = document.querySelector("#exclusion-rule-template").content;
-    const rowEl = rowTemplate.cloneNode(true);
+    const rowTemplate = /** @type {HTMLTemplateElement} */ (
+      document.querySelector("#exclusion-rule-template")
+    ).content;
+    const rowEl = /** @type {DocumentFragment} */ (rowTemplate.cloneNode(true));
 
-    const patternEl = rowEl.querySelector("[name=pattern]");
+    const patternEl = /** @type {HTMLInputElement} */ (rowEl.querySelector("[name=pattern]"));
     patternEl.value = pattern ?? "";
     patternEl.addEventListener("input", () => this.dispatchEvent("input"));
 
-    const keysEl = rowEl.querySelector("[name=passKeys]");
+    const keysEl = /** @type {HTMLInputElement} */ (rowEl.querySelector("[name=passKeys]"));
     keysEl.value = passKeys ?? "";
     keysEl.addEventListener("input", () => this.dispatchEvent("input"));
 
     rowEl.querySelector(".remove").addEventListener("click", (e) => {
-      e.target.closest("tr").remove();
+      /** @type {Element} */ (e.target).closest("tr").remove();
       this.dispatchEvent("input");
     });
     rulesTable.appendChild(rowEl);
@@ -53,8 +55,10 @@ const ExclusionRulesEditor = {
       .map((el) => {
         return {
           // The ordering of these keys should match the order in defaultOptions in Settings.js.
-          passKeys: el.querySelector("[name=passKeys]").value.trim(),
-          pattern: el.querySelector("[name=pattern]").value.trim(),
+          passKeys: /** @type {HTMLInputElement} */ (el.querySelector("[name=passKeys]")).value
+            .trim(),
+          pattern: /** @type {HTMLInputElement} */ (el.querySelector("[name=pattern]")).value
+            .trim(),
         };
       })
       // Exclude blank patterns.

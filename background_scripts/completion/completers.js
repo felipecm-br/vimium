@@ -313,6 +313,7 @@ ${switchButtonHtml}`;
 // Note. This includes site-specific patterns for very-popular sites with URLs which don't work well
 // in the vomnibar.
 //
+/** @type {Array<[string, RegExp[]]>} */
 Suggestion.stripPatterns = [
   // Google search specific replacements; this replaces query parameters which are known to not be
   // helpful. There's some additional information here:

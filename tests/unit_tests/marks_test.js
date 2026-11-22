@@ -48,4 +48,28 @@ context("marks", () => {
     await marks.goto({ markName: "A" });
     assert.isTrue(updatedTabs[2] && updatedTabs[2].active);
   });
+
+  should("reopen a closed mark's tab and register a scroll-restoration handler", async () => {
+    globalThis.tabLoadedHandlers = {};
+    await createMark({ markName: "B", scrollX: 12, scrollY: 340 }, { id: 1 });
+    stub(globalThis.chrome.tabs, "get", () => {
+      throw new Error("tab closed");
+    });
+    stub(globalThis.chrome.tabs, "query", () => []);
+    stub(globalThis.chrome.tabs, "create", (config) => ({ id: 9, url: config.url }));
+    const sent = [];
+    stub(globalThis.chrome.tabs, "update", (id) => ({ id, windowId: 1 }));
+    stub(globalThis.chrome.windows, "update", () => {});
+    stub(globalThis.chrome.tabs, "sendMessage", (tabId, msg) => sent.push({ tabId, msg }));
+
+    await marks.goto({ markName: "B", tab: { id: 3, index: 0, windowId: 1 } });
+    assert.equal("function", typeof globalThis.tabLoadedHandlers[9]);
+
+    await globalThis.tabLoadedHandlers[9]();
+    assert.equal(
+      [{ tabId: 9, msg: { handler: "setScrollPosition", scrollX: 12, scrollY: 340 } }],
+      sent,
+    );
+    delete globalThis.tabLoadedHandlers;
+  });
 });

@@ -41,7 +41,7 @@ globalThis.tabLoadedHandlers = {}; // tabId -> function()
 // A Vimium secret, available only within the current browser session. The secret is a generated
 // strong random string.
 const randomArray = globalThis.crypto.getRandomValues(new Uint8Array(32)); // 32-byte random token.
-const secretToken = randomArray.reduce((a, b) => a.toString(16) + b.toString(16));
+const secretToken = Array.from(randomArray, (b) => b.toString(16).padStart(2, "0")).join("");
 chrome.storage.session.set({ vimiumSecret: secretToken });
 
 const completionSources = {
@@ -644,8 +644,8 @@ const sendRequestHandlers = {
   getCurrentTabUrl({ tab }) {
     return tab.url;
   },
-  openUrlInNewTab: createRepeatCommand(async (request, callback) => {
-    await TabOperations.openUrlInNewTab(request, callback);
+  openUrlInNewTab: createRepeatCommand(async (request) => {
+    await TabOperations.openUrlInNewTab(request);
   }),
   async openUrlInNewWindow(request) {
     await TabOperations.openUrlInNewWindow(request);
@@ -712,29 +712,27 @@ const sendRequestHandlers = {
         whichIcon = "enabled";
       }
 
-      let iconSet = {
-        "enabled": {
-          "16": "../icons/action_enabled_16.png",
-          "32": "../icons/action_enabled_32.png",
-        },
-        "partial": {
-          "16": "../icons/action_partial_16.png",
-          "32": "../icons/action_partial_32.png",
-        },
-        "disabled": {
-          "16": "../icons/action_disabled_16.png",
-          "32": "../icons/action_disabled_32.png",
-        },
-      };
-
-      if (bgUtils.isFirefox()) {
+      const iconSet = bgUtils.isFirefox()
         // Only Firefox supports SVG icons.
-        iconSet = {
+        ? {
           "enabled": "../icons/action_enabled.svg",
           "partial": "../icons/action_partial.svg",
           "disabled": "../icons/action_disabled.svg",
+        }
+        : {
+          "enabled": {
+            "16": "../icons/action_enabled_16.png",
+            "32": "../icons/action_enabled_32.png",
+          },
+          "partial": {
+            "16": "../icons/action_partial_16.png",
+            "32": "../icons/action_partial_32.png",
+          },
+          "disabled": {
+            "16": "../icons/action_disabled_16.png",
+            "32": "../icons/action_disabled_32.png",
+          },
         };
-      }
 
       chrome.action.setIcon({ path: iconSet[whichIcon], tabId: sender.tab.id });
     }

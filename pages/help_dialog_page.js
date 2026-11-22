@@ -122,23 +122,27 @@ const HelpDialogPage = {
   },
 
   getRowEl(command, options, keys) {
-    const rowTemplate = document.querySelector("template#row").content;
-    const keysTemplate = document.querySelector("template#keys").content;
+    const rowTemplate = /** @type {HTMLTemplateElement} */ (
+      document.querySelector("template#row")
+    ).content;
+    const keysTemplate = /** @type {HTMLTemplateElement} */ (
+      document.querySelector("template#keys")
+    ).content;
 
-    const rowEl = rowTemplate.cloneNode(true);
+    const rowEl = /** @type {DocumentFragment} */ (rowTemplate.cloneNode(true));
     rowEl.querySelector(".help-description").textContent = command.desc;
     if (isAdvancedCommand(command, options)) {
       rowEl.querySelector(".row").classList.add("advanced");
     }
     const keysEl = rowEl.querySelector(".key-bindings");
     for (const key of keys.sort(compareKeys)) {
-      const node = keysTemplate.cloneNode(true);
+      const node = /** @type {DocumentFragment} */ (keysTemplate.cloneNode(true));
       node.querySelector(".key").textContent = key;
       keysEl.appendChild(node);
     }
 
     const maxLength = 40;
-    const descEl = rowEl.querySelector(".help-description");
+    const descEl = /** @type {HTMLElement} */ (rowEl.querySelector(".help-description"));
     let desc = command.desc;
     if (options != "") {
       const optionsString = ellipsize(options, maxLength - command.desc.length);
@@ -155,8 +159,14 @@ const HelpDialogPage = {
 
   // A row for one of the Vomnibar's own keys: `key` is shown as typed.
   getVomnibarKeyRowEl(key, description) {
-    const rowEl = document.querySelector("template#row").content.cloneNode(true);
-    const keyEl = document.querySelector("template#keys").content.cloneNode(true);
+    const rowEl = /** @type {DocumentFragment} */ (
+      /** @type {HTMLTemplateElement} */ (document.querySelector("template#row")).content
+        .cloneNode(true)
+    );
+    const keyEl = /** @type {DocumentFragment} */ (
+      /** @type {HTMLTemplateElement} */ (document.querySelector("template#keys")).content
+        .cloneNode(true)
+    );
     keyEl.querySelector(".key").textContent = key;
     rowEl.querySelector(".key-bindings").appendChild(keyEl);
     rowEl.querySelector(".help-description").textContent = description;
@@ -248,7 +258,7 @@ function init() {
         break;
       case "show":
         HelpDialogPage.init();
-        await HelpDialogPage.show(event.data);
+        await HelpDialogPage.show();
         // If we abandoned (see below) in a mode with a HUD indicator, then we have to reinstate it.
         Mode.setIndicator();
         break;

@@ -111,7 +111,7 @@ class Movement {
   // the selection, and implements "o" for visual mode.
   reverseSelection() {
     const direction = this.getDirection();
-    const element = document.activeElement;
+    const element = /** @type {HTMLElement | null} */ (document.activeElement);
     if (element && DomUtils.isEditable(element) && !element.isContentEditable) {
       // Note(smblott). This implementation is expensive if the selection is large. We only use it
       // here because the normal method (below) does not work within text areas, etc.
@@ -302,7 +302,7 @@ class VisualMode extends KeyHandlerMode {
       // Don't leave the user in insert mode just because they happen to have selected an input.
       if (document.activeElement && DomUtils.isEditable(document.activeElement)) {
         if ((event != null ? event.type : undefined) !== "click") {
-          return document.activeElement.blur();
+          return /** @type {HTMLElement} */ (document.activeElement).blur();
         }
       }
     });
@@ -331,6 +331,7 @@ class VisualMode extends KeyHandlerMode {
     // Establish or use the initial selection. If that's not possible, then enter caret mode.
     if (this.name !== "caret") {
       if (["Caret", "Range"].includes(this.selection.type)) {
+        /** @type {any} */
         let selectionRect = this.selection.getRangeAt(0).getBoundingClientRect();
         if (globalThis.vimiumDomTestsAreRunning) {
           // We're running the DOM tests, where getBoundingClientRect() isn't available.
@@ -358,7 +359,8 @@ class VisualMode extends KeyHandlerMode {
 
       if ((this.selection.type !== "Range") && (this.name !== "caret")) {
         new CaretMode().init();
-        return HUD.show("No usable selection, entering caret mode...", 2500);
+        HUD.show("No usable selection, entering caret mode...", 2500);
+        return;
       }
     }
   }
@@ -594,11 +596,12 @@ class CaretMode extends VisualMode {
     const nodes = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     while ((node = nodes.nextNode())) {
       // Don't choose short text nodes; they're likely to be part of a banner.
-      if ((node.nodeType === 3) && (50 <= node.data.trim().length)) {
+      const text = node.textContent || "";
+      if ((node.nodeType === 3) && (50 <= text.trim().length)) {
         const element = node.parentElement;
         if (DomUtils.getVisibleClientRect(element) && !DomUtils.isEditable(element)) {
           // Start at the offset of the first non-whitespace character.
-          const offset = node.data.length - node.data.replace(/^\s+/, "").length;
+          const offset = text.length - text.replace(/^\s+/, "").length;
           const range = document.createRange();
           range.setStart(node, offset);
           range.setEnd(node, offset);
@@ -611,5 +614,4 @@ class CaretMode extends VisualMode {
   }
 }
 
-globalThis.VisualMode = VisualMode;
-globalThis.VisualLineMode = VisualLineMode;
+Object.assign(globalThis, { VisualMode, VisualLineMode });

@@ -342,7 +342,7 @@ class FindMode extends Mode {
     // be activated. In this case, we don't want to leave it behind (see #1412).
     if (document.activeElement && DomUtils.isEditable(document.activeElement)) {
       if (!DomUtils.isSelected(document.activeElement)) {
-        document.activeElement.blur();
+        /** @type {HTMLElement} */ (document.activeElement).blur();
       }
     }
 
@@ -430,11 +430,13 @@ const getLinkFromSelection = function () {
 
 const focusFoundLink = function () {
   if (FindMode.query.hasResults) {
-    const link = getLinkFromSelection();
+    const link = /** @type {HTMLElement | null} */ (getLinkFromSelection());
     if (link) {
       link.focus();
+      return true;
     }
   }
+  return false;
 };
 
 const selectFoundInputElement = function () {
@@ -517,5 +519,4 @@ const getAllTextNodes = () => {
   return textNodes;
 };
 
-globalThis.PostFindMode = PostFindMode;
-globalThis.FindMode = FindMode;
+Object.assign(globalThis, { PostFindMode, FindMode });

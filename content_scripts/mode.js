@@ -27,6 +27,7 @@
 let count = 0;
 
 class Mode {
+  static singletons = {};
   // This is a function rather than a constructor, becausae often subclasses need to reference
   // `this` when setting up the options argument. `this` can't be referenced in subclasses prior to
   // calling their superclass constructor.

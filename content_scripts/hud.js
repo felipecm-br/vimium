@@ -146,9 +146,9 @@ const HUD = {
     // refocusing this window.
     globalThis.focus();
 
-    const focusNode = DomUtils.getSelectionFocusElement();
+    const focusNode = /** @type {HTMLElement | null} */ (DomUtils.getSelectionFocusElement());
     if (document.activeElement != null) {
-      document.activeElement.blur();
+      /** @type {HTMLElement} */ (document.activeElement).blur?.();
     }
 
     if (focusNode && focusNode.focus) {
@@ -277,4 +277,4 @@ ${this.cssSelector} {
   }
 }
 
-globalThis.HUD = HUD;
+Object.assign(globalThis, { HUD });

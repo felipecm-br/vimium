@@ -24,7 +24,9 @@
     "npm:jsdom@26": "26.0.0",
     "npm:json5@*": "2.2.3",
     "npm:json5@^2.2.3": "2.2.3",
-    "npm:puppeteer@^25.3.0": "25.3.0"
+    "npm:puppeteer@^25.3.0": "25.3.0",
+    "npm:typescript@5.8.3": "5.8.3",
+    "npm:typescript@^5.8.3": "5.8.3"
   },
   "jsr": {
     "@b-fuze/deno-dom@0.1.49": {
@@ -109,7 +111,7 @@
     }
   },
   "npm": {
-    "@asamuzakjp/css-color@2.8.3_@csstools+css-parser-algorithms@3.0.4__@csstools+css-tokenizer@3.0.3_@csstools+css-tokenizer@3.0.3": {
+    "@asamuzakjp/css-color@2.8.3_@csstools+css-parser-algorithms@3.0.4_@csstools+css-tokenizer@3.0.3": {
       "integrity": "sha512-GIc76d9UI1hCvOATjZPyHFmE5qhRccp3/zGfMPapK3jBi+yocEzp6BBB0UnfRYP9NP4FANqUZYb0hnfs3TM3hw==",
       "dependencies": [
         "@csstools/css-calc",
@@ -122,14 +124,14 @@
     "@csstools/color-helpers@5.0.2": {
       "integrity": "sha512-JqWH1vsgdGcw2RR6VliXXdA0/59LttzlU8UlRT/iUUsEeWfYq8I+K0yhihEUTTHLRm1EXvpsCx3083EU15ecsA=="
     },
-    "@csstools/css-calc@2.1.2_@csstools+css-parser-algorithms@3.0.4__@csstools+css-tokenizer@3.0.3_@csstools+css-tokenizer@3.0.3": {
+    "@csstools/css-calc@2.1.2_@csstools+css-parser-algorithms@3.0.4_@csstools+css-tokenizer@3.0.3": {
       "integrity": "sha512-TklMyb3uBB28b5uQdxjReG4L80NxAqgrECqLZFQbyLekwwlcDDS8r3f07DKqeo8C4926Br0gf/ZDe17Zv4wIuw==",
       "dependencies": [
         "@csstools/css-parser-algorithms",
         "@csstools/css-tokenizer"
       ]
     },
-    "@csstools/css-color-parser@3.0.8_@csstools+css-parser-algorithms@3.0.4__@csstools+css-tokenizer@3.0.3_@csstools+css-tokenizer@3.0.3": {
+    "@csstools/css-color-parser@3.0.8_@csstools+css-parser-algorithms@3.0.4_@csstools+css-tokenizer@3.0.3": {
       "integrity": "sha512-pdwotQjCCnRPuNi06jFuP68cykU1f3ZWExLe/8MQ1LOs8Xq+fTkYgd+2V8mWUWMrOn9iS2HftPVaMZDaXzGbhQ==",
       "dependencies": [
         "@csstools/color-helpers",
@@ -497,6 +499,10 @@
     "typed-query-selector@2.12.2": {
       "integrity": "sha512-EOPFbyIub4ngnEdqi2yOcNeDLaX/0jcE1JoAXQDDMIthap7FoN795lc/SHfIq2d416VufXpM8z/lD+WRm2gfOQ=="
     },
+    "typescript@5.8.3": {
+      "integrity": "sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ==",
+      "bin": true
+    },
     "w3c-xmlserializer@5.0.0": {
       "integrity": "sha512-o8qghlI8NZHU1lLPrpi2+Uq7abh4GGPpYANlalzWxyWteJOCsr/P+oPBA49TOLu5FTZO4d3F9MnWJfiMo4BkmA==",
       "dependencies": [
@@ -595,7 +601,8 @@
       "jsr:@std/path@^1.0.8",
       "npm:jsdom@26",
       "npm:json5@^2.2.3",
-      "npm:puppeteer@^25.3.0"
+      "npm:puppeteer@^25.3.0",
+      "npm:typescript@^5.8.3"
     ]
   }
 }

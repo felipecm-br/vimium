@@ -47,7 +47,7 @@ const scrollProperties = {
 // it is either "max" (meaning the height or width of element), or "viewSize". In both cases, we
 // look up and return the requested amount, either in `element` or in `window`, as appropriate.
 const getDimension = function (el, direction, amount) {
-  if (Utils.isString(amount)) {
+  if (typeof amount === "string") {
     const name = amount;
     // the clientSizes of the body are the dimensions of the entire page, but the viewport should
     // only be the part visible through the window
@@ -145,11 +145,12 @@ const firstScrollableElement = function (element = null) {
   if (doesScroll(element, "y", 1, 1) || doesScroll(element, "y", -1, 1)) {
     return element;
   } else {
-    // children = children.filter (c) -> c.rect # Filter out non-visible elements.
     const children = Array.from(element.children)
-      .map((c) => ({ "element": c, "rect": DomUtils.getVisibleClientRect(c) }))
-      .filter((child) => child.rect); // Filter out non-visible elements.
-    children.map((child) => child.area = child.rect.width * child.rect.height);
+      .map((c) => {
+        const rect = DomUtils.getVisibleClientRect(c);
+        return rect ? { element: c, rect, area: rect.width * rect.height } : null;
+      })
+      .filter(Boolean);
     for (child of children.sort((a, b) => b.area - a.area)) { // Largest to smallest by visible area.
       const el = firstScrollableElement(child.element);
       if (el) {
@@ -367,7 +368,7 @@ const Scroller = {
     if (continuous == null) {
       continuous = true;
     }
-    if (!getScrollingElement() && amount instanceof Number) {
+    if (!getScrollingElement() && typeof amount === "number") {
       if (direction === "x") {
         globalThis.scrollBy(amount, 0);
       } else {
@@ -467,4 +468,4 @@ const specialScrollingElementMap = {
   "web.telegram.org": ".MessageList",
 };
 
-globalThis.Scroller = Scroller;
+Object.assign(globalThis, { Scroller });

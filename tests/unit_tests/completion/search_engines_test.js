@@ -71,3 +71,11 @@ context("Webster completion", () => {
     assert.equal(["one", "two"], results);
   });
 });
+
+context("GoogleMaps completion", () => {
+  should("strips the 'map of ' prefix from suggestions", () => {
+    const response = JSON.stringify(["map of par", ["map of paris", "map of parma", "other"]]);
+    const results = new Engines.GoogleMaps().parse(response);
+    assert.equal(["paris", "parma"], results);
+  });
+});

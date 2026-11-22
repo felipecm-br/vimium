@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2024", "DOM", "DOM.Iterable", "WebWorker"],
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "include": [
+    "types/**/*.d.ts",
+    "background_scripts/**/*.js",
+    "pages/**/*.js",
+    "lib/**/*.js",
+    "content_scripts/**/*.js"
+  ],
+  "exclude": [
+    "dist",
+    "tests",
+    "test_harnesses",
+    "pages/all_content_scripts.js",
+    "background_scripts/reload.js"
+  ]
+}

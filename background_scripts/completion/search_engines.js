@@ -34,9 +34,17 @@
 //   "description".
 // TODO(philc): This base class is doing very little. We should remove it and use composition.
 class BaseEngine {
+  /**
+   * @param {{
+   *   engineUrl: string,
+   *   regexps: string[],
+   *   example: { searchUrl?: string, keyword?: string, description?: string, explanation?: string },
+   * }} options
+   */
   constructor(options) {
-    Object.assign(this, options);
-    this.regexps = this.regexps.map((regexp) => new RegExp(regexp));
+    this.engineUrl = options.engineUrl;
+    this.example = options.example;
+    this.regexps = options.regexps.map((regexp) => new RegExp(regexp));
   }
 
   match(searchUrl) {
@@ -87,7 +95,7 @@ search.\
   parse(text) {
     return JSON.parse(text)[1]
       .filter((suggestion) => suggestion.startsWith(googleMapsPrefix))
-      .map((suggestion) => suggestion.slice(googleMapsPrefix));
+      .map((suggestion) => suggestion.slice(googleMapsPrefix.length));
   }
 }
 

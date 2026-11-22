@@ -1213,7 +1213,8 @@ class VomnibarUI {
     // a new tab. One listener for the list, its rows and their buttons, since the rows are
     // re-rendered on every keystroke.
     this.completionList.addEventListener("click", (event) => {
-      const switchButton = event.target.closest?.(".switch-tab-btn");
+      const target = /** @type {Element | null} */ (event.target);
+      const switchButton = /** @type {HTMLElement | null} */ (target?.closest?.(".switch-tab-btn"));
       if (switchButton) this.switchToTab(event, Number(switchButton.dataset.tabId));
       else this.onCompletionClick(event);
     });
@@ -1253,7 +1254,7 @@ class VomnibarUI {
     // A click anywhere else hides the vomnibar.
     document.body.addEventListener("mousedown", (event) => {
       // Only hide if the click is outside the vomnibar
-      if (!this.box.contains(event.target) && !this.isHiding) {
+      if (!this.box.contains(/** @type {Node} */ (event.target)) && !this.isHiding) {
         this.hide();
       }
     });

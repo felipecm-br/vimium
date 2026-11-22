@@ -15,7 +15,8 @@
 // Effects levels "Quick" and "Fast" (see pages/vomnibar_effects.js): Vimium's UI shows and hides
 // without motion.
 const effectsAreInstant = () =>
-  globalThis.Settings?.isLoaded?.() && ["Quick", "Fast"].includes(Settings.get("vomnibarEffects"));
+  typeof Settings !== "undefined" && Settings.isLoaded?.() &&
+  ["Quick", "Fast"].includes(Settings.get("vomnibarEffects"));
 
 const KeystrokePopup = {
   element: null,
@@ -56,7 +57,7 @@ const KeystrokePopup = {
 
     const popup = DomUtils.createElement("div");
     popup.id = "vimium-keystroke-popup";
-    const themeName = globalThis.Settings?.isLoaded?.()
+    const themeName = typeof Settings !== "undefined" && Settings.isLoaded?.()
       ? (Settings.get("vomnibarTheme") || "Default")
       : "Default";
     const themeClass = `vimium-theme-${themeName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
@@ -126,11 +127,13 @@ class KeyHandlerMode extends Mode {
     KeystrokePopup.hide();
   }
 
+  commandHandler(_args) {}
+
   init(options) {
     const args = Object.assign(options, { keydown: this.onKeydown.bind(this) });
     super.init(args);
 
-    this.commandHandler = options.commandHandler || (function () {});
+    if (options.commandHandler) this.commandHandler = options.commandHandler;
     this.setKeyMapping(options.keyMapping || {});
 
     if (options.exitOnEscape) {
@@ -246,5 +249,4 @@ class KeyHandlerMode extends Mode {
   }
 }
 
-globalThis.KeyHandlerMode = KeyHandlerMode;
-globalThis.KeystrokePopup = KeystrokePopup;
+Object.assign(globalThis, { KeyHandlerMode, KeystrokePopup });

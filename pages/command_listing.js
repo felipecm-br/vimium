@@ -28,8 +28,12 @@ async function populatePage() {
   const commandToOptionsToKeys =
     (await chrome.storage.session.get("commandToOptionsToKeys")).commandToOptionsToKeys;
 
-  const commandTemplate = document.querySelector("template#command").content;
-  const keysTemplate = document.querySelector("template#keys").content;
+  const commandTemplate = /** @type {HTMLTemplateElement} */ (
+    document.querySelector("template#command")
+  ).content;
+  const keysTemplate = /** @type {HTMLTemplateElement} */ (
+    document.querySelector("template#keys")
+  ).content;
 
   for (const h2 of Array.from(h2s)) {
     const group = h2.dataset["group"];
@@ -41,14 +45,14 @@ async function populatePage() {
       // going to visually distinguish versions of the command with options and versions without.
       const keys = Object.values(commandToOptionsToKeys[command.name] || {})
         .flat(1);
-      const el = commandTemplate.cloneNode(true);
+      const el = /** @type {DocumentFragment} */ (commandTemplate.cloneNode(true));
       // Used for linking to commands using the URL fragment, and by the tests.
       el.querySelector(".command").id = command.name;
       el.querySelector("h3 code").textContent = command.name;
 
       const keysEl = el.querySelector(".key-bindings");
       for (const key of keys.sort(compareKeys)) {
-        const node = keysTemplate.cloneNode(true);
+        const node = /** @type {DocumentFragment} */ (keysTemplate.cloneNode(true));
         node.querySelector(".key").textContent = key;
         keysEl.appendChild(node);
       }

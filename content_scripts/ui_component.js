@@ -75,7 +75,7 @@ class UIComponent {
   // - className: the CSS class to add to the iframe.
   // - messageHandler: optional; a function to handle messages from the iframe's page.
   async load(iframeUrl, className, messageHandler) {
-    if (this.iframeFrameElement) throw new Error("init should only be called once.");
+    if (this.iframeElement) throw new Error("init should only be called once.");
     this.messageHandler = messageHandler;
     const isDomTests = iframeUrl.includes("?dom_tests=true");
     this.iframeElement = DomUtils.createElement("iframe");
@@ -187,7 +187,9 @@ class UIComponent {
       // CSS transition, so no forced reflow is needed to restart it.
       // Effects "Fast" skips it: a full-page backdrop-filter is the costliest thing Vimium paints.
       // "Quick" keeps it, without the fade.
-      const level = globalThis.Settings?.isLoaded?.() ? Settings.get("vomnibarEffects") : null;
+      const level = typeof Settings !== "undefined" && Settings.isLoaded?.()
+        ? Settings.get("vomnibarEffects")
+        : null;
       this.glassBackground?.classList.toggle("vomnibar-glass-bg-instant", level === "Quick");
       if (this.glassBackground && level !== "Fast") {
         this.stylesheetLoaded.then(() => {
@@ -261,4 +263,4 @@ class UIComponent {
   }
 }
 
-globalThis.UIComponent = UIComponent;
+Object.assign(globalThis, { UIComponent });

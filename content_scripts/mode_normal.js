@@ -293,7 +293,7 @@ const NormalModeCommands = {
     const visibleInputs = [];
 
     for (let i = 0, end = resultSet.snapshotLength; i < end; i++) {
-      element = resultSet.snapshotItem(i);
+      element = /** @type {HTMLElement} */ (resultSet.snapshotItem(i));
       if (!DomUtils.getVisibleClientRect(element, true)) {
         continue;
       }
@@ -432,7 +432,7 @@ function findLink(linkStrings) {
   // links lower in the page are more likely to be the ones we want, so we loop through the snapshot
   // backwards.
   for (let i = links.snapshotLength - 1; i >= 0; i--) {
-    const link = links.snapshotItem(i);
+    const link = /** @type {any} */ (links.snapshotItem(i));
 
     // NOTE(philc): We used to enforce the bounding client rect on the link had nonzero width and
     // height. However, that's not a valid requirement. If an anchor tag has a single floated span
@@ -506,7 +506,7 @@ function findElementWithRelValue(value) {
   for (const tag of relTags) {
     const els = document.getElementsByTagName(tag);
     for (const el of Array.from(els)) {
-      if (el.hasAttribute("rel") && (el.rel.toLowerCase() === value)) {
+      if (el.getAttribute("rel")?.toLowerCase() === value) {
         return el;
       }
     }
@@ -515,7 +515,7 @@ function findElementWithRelValue(value) {
 
 class FocusSelector extends Mode {
   constructor(hints, visibleInputs, selectedInputIndex) {
-    super(...arguments);
+    super();
     super.init({
       name: "focus-selector",
       exitOnClick: true,
@@ -566,5 +566,4 @@ class FocusSelector extends Mode {
   }
 }
 
-globalThis.NormalMode = NormalMode;
-globalThis.NormalModeCommands = NormalModeCommands;
+Object.assign(globalThis, { NormalMode, NormalModeCommands });

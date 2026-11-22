@@ -9,9 +9,11 @@ function cleanUpRegexp(re) {
 }
 
 export function populatePage() {
-  const template = document.querySelector("#engine-template").content;
+  const template = /** @type {HTMLTemplateElement} */ (
+    document.querySelector("#engine-template")
+  ).content;
   for (const engineClass of completionEngines.list) {
-    const el = template.cloneNode(true);
+    const el = /** @type {DocumentFragment} */ (template.cloneNode(true));
     const engine = new engineClass();
     const h4 = el.querySelector("h4");
     h4.textContent = engine.constructor.name;

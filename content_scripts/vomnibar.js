@@ -131,4 +131,4 @@ const Vomnibar = {
   },
 };
 
-globalThis.Vomnibar = Vomnibar;
+Object.assign(globalThis, { Vomnibar });

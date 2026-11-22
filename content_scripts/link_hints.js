@@ -240,7 +240,7 @@ const HintCoordinator = {
     if (!DomUtils.isReady() || DomUtils.windowIsTooSmall()) return [];
 
     const currentMode = availableModes[modeIndex];
-    const requireHref = [COPY_LINK_URL, OPEN_INCOGNITO].includes(currentMode);
+    const requireHref = currentMode === COPY_LINK_URL || currentMode === OPEN_INCOGNITO;
     const includeTextElements = currentMode === COPY_ELEMENT_TEXT;
     // If link hints is launched within the help dialog, then we only offer hints from that frame.
     // This improves the usability of the help dialog on the options page (particularly for
@@ -331,7 +331,7 @@ const HintCoordinator = {
 };
 
 const LinkHints = {
-  activateMode(count, { mode, registryEntry }) {
+  activateMode(count, { mode = OPEN_IN_CURRENT_TAB, registryEntry = null } = {}) {
     if (count == null) count = 1;
     if (mode == null) mode = OPEN_IN_CURRENT_TAB;
 
@@ -509,9 +509,10 @@ class LinkHintsMode {
     if (this.confirming === "enter") return;
 
     if (windowIsFocused()) {
-      const typedCharacters = this.markerMatcher.linkTextKeystrokeQueue
-        ? this.markerMatcher.linkTextKeystrokeQueue.join("")
-        : "";
+      const typedCharacters =
+        "linkTextKeystrokeQueue" in this.markerMatcher && this.markerMatcher.linkTextKeystrokeQueue
+          ? this.markerMatcher.linkTextKeystrokeQueue.join("")
+          : "";
       const indicator = this.mode.indicator + (typedCharacters ? `: \"${typedCharacters}\"` : "") +
         ".";
       this.hintMode.setIndicator(indicator);
@@ -602,7 +603,7 @@ class LinkHintsMode {
       }
     } else if (event.key === "Enter") {
       // Activate the active hint, if there is one.  Only FilterHints uses an active hint.
-      if (this.markerMatcher.activeHintMarker) {
+      if ("activeHintMarker" in this.markerMatcher && this.markerMatcher.activeHintMarker) {
         HintCoordinator.sendMessage("activateActiveHintMarker");
       }
     } else if (event.key === "Tab") {
@@ -644,7 +645,10 @@ class LinkHintsMode {
   }
 
   updateVisibleMarkers() {
-    const { hintKeystrokeQueue, linkTextKeystrokeQueue } = this.markerMatcher;
+    const hintKeystrokeQueue = this.markerMatcher.hintKeystrokeQueue;
+    const linkTextKeystrokeQueue = "linkTextKeystrokeQueue" in this.markerMatcher
+      ? this.markerMatcher.linkTextKeystrokeQueue
+      : undefined;
     return HintCoordinator.sendMessage("updateKeyState", {
       hintKeystrokeQueue,
       linkTextKeystrokeQueue,
@@ -1613,7 +1617,7 @@ const LocalHints = {
 
       // Only visible candidates pay for innerText (the text the user sees). Layout is already up
       // to date from the rect read above, so this doesn't force a new one.
-      const text = (element.innerText ?? element.textContent).trim();
+      const text = (/** @type {HTMLElement} */ (element).innerText ?? element.textContent).trim();
       if (text.length === 0) continue;
       // Skip very long text (likely a container)
       if (text.length > 500) continue;

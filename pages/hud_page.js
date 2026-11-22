@@ -38,7 +38,7 @@ export function onKeyEvent(event) {
     return null;
   }
 
-  const inputEl = document.querySelector("#hud-find-input");
+  const inputEl = /** @type {HTMLElement | null} */ (document.querySelector("#hud-find-input"));
   // Don't do anything if we're not in find mode.
   if (inputEl == null) return;
 
@@ -176,7 +176,7 @@ export const handlers = {
     if (countEl == null) return;
 
     if (Utils.isFirefox()) {
-      document.querySelector("#hud-find-input").focus();
+      /** @type {HTMLElement} */ (document.querySelector("#hud-find-input")).focus();
     }
     const countText = matchCount > 0
       ? ` (${matchCount} Match${matchCount === 1 ? "" : "es"})`
@@ -187,7 +187,7 @@ export const handlers = {
   copyToClipboard(message) {
     if (!ensureClipboardIsAvailable()) return;
     Utils.setTimeout(TIME_TO_WAIT_FOR_IPC_MESSAGES, async function () {
-      const focusedElement = document.activeElement;
+      const focusedElement = /** @type {HTMLElement | null} */ (document.activeElement);
       // In Chrome, if we do not focus the current window before invoking navigator.clipboard APIs,
       // the error "DOMException: Document is not focused." is thrown.
       globalThis.focus();
@@ -205,7 +205,7 @@ export const handlers = {
   pasteFromClipboard() {
     if (!ensureClipboardIsAvailable()) return;
     Utils.setTimeout(TIME_TO_WAIT_FOR_IPC_MESSAGES, async function () {
-      const focusedElement = document.activeElement;
+      const focusedElement = /** @type {HTMLElement | null} */ (document.activeElement);
       // In Chrome, if we do not focus the current window before invoking navigator.clipboard APIs,
       // the error "DOMException: Document is not focused." is thrown.
       globalThis.focus();

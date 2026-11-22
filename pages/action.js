@@ -14,7 +14,7 @@ const ActionPage = {
     this.tabUrl = activeTab.url;
 
     const hideUI = () => {
-      document.querySelector("#dialog-body").style.display = "none";
+      /** @type {HTMLElement} */ (document.querySelector("#dialog-body")).style.display = "none";
       document.querySelector("footer").style.display = "none";
     };
 
@@ -35,20 +35,24 @@ const ActionPage = {
           // browser permissions dialog will now be shown *under* the action page!
           globalThis.close();
         });
-        document.querySelector("#firefox-missing-permissions-error").style.display = "block";
+        /** @type {HTMLElement} */ (
+          document.querySelector("#firefox-missing-permissions-error")
+        ).style.display = "block";
         return;
       }
     }
 
     if (!await this.isVimiumInstalledInTab(activeTab.id)) {
       hideUI();
-      document.querySelector("#not-enabled-error").style.display = "block";
+      /** @type {HTMLElement} */ (document.querySelector("#not-enabled-error")).style.display =
+        "block";
       return;
     }
 
-    document.querySelector("#optionsLink").href = chrome.runtime.getURL("pages/options.html");
+    /** @type {HTMLAnchorElement} */ (document.querySelector("#optionsLink")).href = chrome.runtime
+      .getURL("pages/options.html");
 
-    const saveButton = document.querySelector("#save");
+    const saveButton = /** @type {HTMLButtonElement} */ (document.querySelector("#save"));
     saveButton.addEventListener("click", () => this.onSave());
 
     document.querySelector("#cancel").addEventListener("click", () => globalThis.close());
@@ -98,7 +102,8 @@ const ActionPage = {
   showValidationErrors() {
     const rows = document.querySelectorAll(".rule");
     for (const row of rows) {
-      const pattern = row.querySelector("input[name=pattern]").value;
+      const pattern = /** @type {HTMLInputElement} */ (row.querySelector("input[name=pattern]"))
+        .value;
       const regExp = this.getPatternRegExp(pattern);
       const validationEl = row.querySelector(".validationMessage");
       const patternMatchesUrl = this.tabUrl.match(regExp);
@@ -113,8 +118,10 @@ const ActionPage = {
   },
 
   showExclusionRulesEditor() {
-    document.querySelector("#exclusions-container").style.display = "block";
-    document.querySelector("#add-first-rule-container").style.display = "none";
+    /** @type {HTMLElement} */ (document.querySelector("#exclusions-container")).style.display =
+      "block";
+    /** @type {HTMLElement} */ (document.querySelector("#add-first-rule-container")).style.display =
+      "none";
   },
 
   syncEnabledKeysCaption() {
@@ -133,7 +140,7 @@ const ActionPage = {
     rules = rules.filter((r) => !this.tabUrl.match(this.getPatternRegExp(r.pattern)));
     rules = rules.concat(ExclusionRulesEditor.getRules());
     Settings.set("exclusionRules", rules);
-    const el = document.querySelector("#save");
+    const el = /** @type {HTMLButtonElement} */ (document.querySelector("#save"));
     el.disabled = true;
     el.textContent = "Saved";
   },

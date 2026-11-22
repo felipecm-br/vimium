@@ -23,7 +23,8 @@ class TabRecency {
       await this.initPromise;
       return;
     }
-    let resolveFn;
+    /** @type {(value?: unknown) => void} */
+    let resolveFn = () => {};
     this.initPromise = new Promise((resolve, _reject) => {
       resolveFn = resolve;
     });

@@ -11,6 +11,7 @@
     "drake": "https://deno.land/x/drake@v1.5.1/mod.ts",
     "jsdom": "npm:jsdom@^26.0.0",
     "json5": "npm:json5@^2.2.3",
-    "puppeteer": "npm:puppeteer@^25.3.0"
+    "puppeteer": "npm:puppeteer@^25.3.0",
+    "typescript": "npm:typescript@^5.8.3"
   }
 }

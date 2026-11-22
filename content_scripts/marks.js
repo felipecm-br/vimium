@@ -135,4 +135,4 @@ const Marks = {
   },
 };
 
-globalThis.Marks = Marks;
+Object.assign(globalThis, { Marks });

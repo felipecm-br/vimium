@@ -142,7 +142,7 @@ handlerStack.push({
         (target.tagName === "A") &&
         (target.origin === document.location.origin) &&
         // Clicking the link will change the url of this frame.
-        ((target.pathName !== document.location.pathName) ||
+        ((target.pathname !== document.location.pathname) ||
           (target.search !== document.location.search)) &&
         (["", "_self"].includes(target.target) ||
           ((target.target === "_parent") && (globalThis.parent === window)) ||
@@ -327,7 +327,7 @@ function focusThisFrame(request) {
     // On Firefox, window.focus doesn't always draw focus back from a child frame (bug 554039). We
     // blur the active element if it is an iframe, which gives the window back focus as intended.
     if (document.activeElement.tagName.toLowerCase() === "iframe") {
-      document.activeElement.blur();
+      /** @type {HTMLElement} */ (document.activeElement).blur();
     }
     if (request.highlight) {
       flashFrame();

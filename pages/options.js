@@ -66,7 +66,9 @@ function populateVomnibarSelectors() {
 
 async function refreshLearnedChoicesUI() {
   const countEl = document.querySelector("#learned-choices-count");
-  const clearBtn = document.querySelector("#clear-learned-choices");
+  const clearBtn = /** @type {HTMLButtonElement | null} */ (
+    document.querySelector("#clear-learned-choices")
+  );
   if (!countEl || !clearBtn) return;
   try {
     const count = await chrome.runtime.sendMessage({ handler: "getLearnedChoicesCount" });
@@ -89,7 +91,7 @@ export async function init() {
   const shortcutLabel = document.querySelector("#shortcut-to-save-all");
   shortcutLabel.textContent = KeyboardUtils.platform == "Mac" ? "Cmd-Enter" : "Ctrl-Enter";
 
-  const saveButton = document.querySelector("#save");
+  const saveButton = /** @type {HTMLButtonElement} */ (document.querySelector("#save"));
 
   const onUpdated = () => {
     maintainNewTabUrlView();
@@ -103,8 +105,9 @@ export async function init() {
     // <select> elements).
     el.addEventListener("input", () => onUpdated());
     if (el.tagName === "SELECT") {
+      const selectEl = /** @type {HTMLSelectElement} */ (el);
       el.addEventListener("change", () => {
-        if (el.name === "vomnibarTheme") themeManager.previewTheme(el.value);
+        if (selectEl.name === "vomnibarTheme") themeManager.previewTheme(selectEl.value);
         onUpdated();
       });
     }
@@ -171,6 +174,7 @@ export async function init() {
   await refreshLearnedChoicesUI();
 }
 
+/** @returns {HTMLInputElement | null} */
 export function getOptionEl(optionName) {
   return document.querySelector(`*[name="${optionName}"]`);
 }
@@ -195,14 +199,16 @@ function setFormFromSettings(settings) {
         el.checked = value;
         break;
       case "number":
-        el.value = value;
+        el.value = String(value);
         break;
       case "string":
       case "select":
         el.value = value;
         break;
       case "option": {
-        const optionEl = document.querySelector(`input[name="${optionName}"][value="${value}"]`);
+        const optionEl = /** @type {HTMLInputElement} */ (
+          document.querySelector(`input[name="${optionName}"][value="${value}"]`)
+        );
         optionEl.checked = true;
         break;
       }
@@ -220,7 +226,7 @@ function setFormFromSettings(settings) {
 
   ExclusionRulesEditor.setForm(settings["exclusionRules"]);
 
-  document.querySelector("#upload-backup").value = "";
+  /** @type {HTMLInputElement} */ (document.querySelector("#upload-backup")).value = "";
   maintainLinkHintsView();
   maintainNewTabUrlView();
 }
@@ -244,7 +250,9 @@ function getSettingsFromForm() {
         value = el.value;
         break;
       case "option": {
-        const optionEl = document.querySelector(`input[name="${optionName}"]:checked`);
+        const optionEl = /** @type {HTMLInputElement} */ (
+          document.querySelector(`input[name="${optionName}"]:checked`)
+        );
         value = optionEl.value;
         break;
       }
@@ -369,7 +377,7 @@ export async function saveOptions() {
     themeManager.isPreviewMode = false;
     themeManager.previousTheme = null;
   }
-  const el = document.querySelector("#save");
+  const el = /** @type {HTMLButtonElement} */ (document.querySelector("#save"));
   el.disabled = true;
   el.textContent = "Saved";
 }
@@ -381,7 +389,9 @@ function showElement(el, visible) {
 // Hide or show extra form elements depending on which radio button is selected for
 // newTabDestination.
 function maintainNewTabUrlView() {
-  const destination = document.querySelector("[name=newTabDestination]:checked").value;
+  const destination = /** @type {HTMLInputElement} */ (
+    document.querySelector("[name=newTabDestination]:checked")
+  ).value;
   showElement(
     document.querySelector("#openVomnibarContainer"),
     destination == Settings.newTabDestinations.vimiumNewTabPage,
@@ -424,12 +434,13 @@ export function prepareBackupSettings() {
 function onDownloadBackupClicked() {
   const settings = prepareBackupSettings();
   const blob = new Blob([settings]);
-  document.querySelector("#download-backup").href = URL.createObjectURL(blob);
+  /** @type {HTMLAnchorElement} */ (document.querySelector("#download-backup")).href = URL
+    .createObjectURL(blob);
 }
 
 function onUploadBackupClicked(event) {
   if (document.activeElement) {
-    document.activeElement.blur();
+    /** @type {HTMLElement} */ (document.activeElement).blur();
   }
 
   const files = event.target.files;
@@ -440,7 +451,7 @@ function onUploadBackupClicked(event) {
     reader.onload = async () => {
       let backup;
       try {
-        backup = JSON.parse(reader.result);
+        backup = JSON.parse(String(reader.result));
       } catch (error) {
         console.log("parsing error:", error);
         alert("Failed to parse Vimium backup: " + error);
@@ -449,7 +460,7 @@ function onUploadBackupClicked(event) {
 
       await Settings.setSettings(backup);
       setFormFromSettings(Settings.getSettings());
-      const saveButton = document.querySelector("#save");
+      const saveButton = /** @type {HTMLButtonElement} */ (document.querySelector("#save"));
       saveButton.disabled = true;
       saveButton.textContent = "Saved";
       alert("Settings have been restored from the backup.");
