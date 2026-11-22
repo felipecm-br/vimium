@@ -166,6 +166,27 @@ globalThis.chrome = {
     },
     sendMessage(_id, _properties) {},
     update(_id, _properties) {},
+    remove(_ids) {},
+    move(_ids, _props) {},
+    discard(_id) {},
+    group(_opts) {},
+    ungroup(_ids) {},
+  },
+
+  tabGroups: {
+    query() {
+      return [];
+    },
+    get(_id) {
+      return {};
+    },
+    update(_id, _props) {},
+  },
+
+  commands: {
+    onCommand: {
+      addListener() {},
+    },
   },
 
   webNavigation: {

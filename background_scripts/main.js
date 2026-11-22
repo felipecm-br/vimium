@@ -320,6 +320,134 @@ const BackgroundCommands = {
     });
   },
 
+  async moveTabToNextWindow({ tab }) {
+    const windows = (await chrome.windows.getAll({ windowTypes: ["normal"] }))
+      .filter((w) => w.incognito === tab.incognito)
+      .sort((a, b) => a.id - b.id);
+    if (windows.length <= 1) {
+      await chrome.windows.create({ tabId: tab.id, incognito: tab.incognito });
+      return;
+    }
+    const currentIdx = windows.findIndex((w) => w.id === tab.windowId);
+    const targetWindow = windows[(currentIdx + 1) % windows.length];
+    await chrome.tabs.move(tab.id, { windowId: targetWindow.id, index: -1 });
+    await chrome.tabs.update(tab.id, { active: true });
+    await chrome.windows.update(targetWindow.id, { focused: true });
+  },
+
+  async jumpToAudibleTab({ tab }) {
+    const audibleTabs = (await chrome.tabs.query({ audible: true }))
+      .sort((a, b) => (a.windowId - b.windowId) || (a.index - b.index));
+    if (audibleTabs.length === 0) {
+      showTabHud(tab?.id, "No audible tabs.");
+      return;
+    }
+    const currentIdx = audibleTabs.findIndex((t) => t.id === tab?.id);
+    const target = currentIdx >= 0
+      ? audibleTabs[(currentIdx + 1) % audibleTabs.length]
+      : audibleTabs[0];
+    if (target.id === tab?.id) {
+      showTabHud(tab.id, "Current tab is the only audible tab.");
+      return;
+    }
+    await selectSpecificTab({ id: target.id });
+  },
+
+  async discardTabs({ tab, registryEntry }) {
+    const allWindows = Boolean(registryEntry?.options?.all);
+    const query = allWindows ? {} : { currentWindow: true };
+    const tabs = await chrome.tabs.query(query);
+    const candidates = tabs.filter((t) =>
+      t.id !== tab?.id && !t.active && !t.pinned && !t.audible && !t.discarded
+    );
+    let discardedCount = 0;
+    for (const candidate of candidates) {
+      try {
+        await chrome.tabs.discard(candidate.id);
+        discardedCount++;
+      } catch {
+        // Tabs with unsaved forms or restricted schemes may refuse discard.
+      }
+    }
+    showTabHud(
+      tab?.id,
+      discardedCount > 0
+        ? `Hibernated ${discardedCount} tab${discardedCount === 1 ? "" : "s"}.`
+        : "No tabs to hibernate.",
+    );
+  },
+
+  async deduplicateTabs({ tab, registryEntry }) {
+    const allWindows = Boolean(registryEntry?.options?.all);
+    const query = allWindows ? {} : { currentWindow: true };
+    const tabs = await chrome.tabs.query(query);
+    const byUrl = new Map();
+    for (const t of tabs) {
+      if (!t.url) continue;
+      const list = byUrl.get(t.url) || [];
+      list.push(t);
+      byUrl.set(t.url, list);
+    }
+    const toRemove = [];
+    for (const group of byUrl.values()) {
+      if (group.length <= 1) continue;
+      // Keep the active tab first, otherwise a pinned tab, otherwise the earliest tab.
+      const keep = group.find((t) => t.id === tab?.id || t.active) ||
+        group.find((t) => t.pinned) ||
+        group[0];
+      for (const candidate of group) {
+        if (candidate.id !== keep.id && !(candidate.pinned && bgUtils.isFirefox())) {
+          toRemove.push(candidate.id);
+        }
+      }
+    }
+    if (toRemove.length > 0) {
+      await chrome.tabs.remove(toRemove);
+    }
+    showTabHud(
+      tab?.id,
+      toRemove.length > 0
+        ? `Closed ${toRemove.length} duplicate tab${toRemove.length === 1 ? "" : "s"}.`
+        : "No duplicate tabs found.",
+    );
+  },
+
+  async toggleTabGroup({ tab, registryEntry }) {
+    if (typeof chrome.tabs.group !== "function") {
+      showTabHud(tab?.id, "Tab groups are not supported in this browser.");
+      return;
+    }
+    const opts = registryEntry?.options || {};
+    const isGrouped = tab.groupId != null && tab.groupId !== -1;
+    if (isGrouped) {
+      if (opts.collapse && chrome.tabGroups?.get && chrome.tabGroups?.update) {
+        const group = await chrome.tabGroups.get(tab.groupId);
+        await chrome.tabGroups.update(tab.groupId, { collapsed: !group.collapsed });
+      } else {
+        await chrome.tabs.ungroup(tab.id);
+      }
+      return;
+    }
+
+    let groupId = null;
+    if (opts.title && chrome.tabGroups?.query) {
+      const existing = (await chrome.tabGroups.query({ windowId: tab.windowId }))
+        .find((g) => g.title === opts.title);
+      if (existing) {
+        groupId = await chrome.tabs.group({ tabIds: tab.id, groupId: existing.id });
+      }
+    }
+    if (groupId == null) {
+      groupId = await chrome.tabs.group({ tabIds: tab.id });
+      if ((opts.title || opts.color) && chrome.tabGroups?.update) {
+        const updateProps = {};
+        if (opts.title) updateProps.title = opts.title;
+        if (opts.color) updateProps.color = opts.color;
+        await chrome.tabGroups.update(groupId, updateProps);
+      }
+    }
+  },
+
   nextTab(request) {
     return selectTab("next", request);
   },
@@ -438,6 +566,14 @@ const BackgroundCommands = {
     });
   },
 };
+
+function showTabHud(tabId, message) {
+  if (tabId == null) return;
+  const result = chrome.tabs.sendMessage(tabId, { handler: "showMessage", message }, {
+    frameId: 0,
+  });
+  result?.catch?.(() => {});
+}
 
 async function forCountTabs(count, currentTab, callback) {
   const tabs = await chrome.tabs.query(visibleTabsQueryArgs);
@@ -811,6 +947,20 @@ const sendRequestHandlers = {
     const tab = await chrome.tabs.get(request.tabIdToSwitch);
     await chrome.windows.update(tab.windowId, { focused: true });
   },
+
+  async toggleMuteTabFromVomnibar(request) {
+    const tab = await chrome.tabs.get(request.tabId);
+    const muted = !tab?.mutedInfo?.muted;
+    await chrome.tabs.update(request.tabId, { muted });
+    return { muted };
+  },
+
+  async togglePinTabFromVomnibar(request) {
+    const tab = await chrome.tabs.get(request.tabId);
+    const pinned = !tab?.pinned;
+    await chrome.tabs.update(request.tabId, { pinned });
+    return { pinned };
+  },
 };
 
 Utils.addChromeRuntimeOnMessageListener(
@@ -991,11 +1141,69 @@ chrome.runtime.onStartup.addListener(async () => {
   await initializeExtension();
 });
 
+// Dispatches browser-level shortcuts declared in manifest.json "commands". These fire directly in
+// the background worker, so they keep working on restricted pages (chrome://, about:, Web Store,
+// PDF viewer) where Vimium's content scripts cannot be injected.
+async function handleBrowserCommand(commandName) {
+  await Settings.onLoaded();
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!tab) return;
+  const baseRequest = { count: 1, tab, tabId: tab.id, registryEntry: { options: {} } };
+  switch (commandName) {
+    case "open-vomnibar-omnisearch": {
+      try {
+        await chrome.tabs.sendMessage(
+          tab.id,
+          {
+            handler: "runInTopFrame",
+            sourceFrameId: 0,
+            registryEntry: { command: "Vomnibar.activateOmniSearch", options: {} },
+          },
+          { frameId: 0 },
+        );
+      } catch {
+        // Content scripts are blocked on restricted pages; open a fresh tab instead.
+        await BackgroundCommands.createTab(baseRequest);
+      }
+      break;
+    }
+    case "previous-tab":
+      await BackgroundCommands.previousTab(baseRequest);
+      break;
+    case "next-tab":
+      await BackgroundCommands.nextTab(baseRequest);
+      break;
+    case "visit-previous-tab":
+      await BackgroundCommands.visitPreviousTab(baseRequest);
+      break;
+    case "remove-tab":
+      await BackgroundCommands.removeTab(baseRequest);
+      break;
+    case "restore-tab":
+      await BackgroundCommands.restoreTab(baseRequest);
+      break;
+    case "toggle-mute-tab":
+      await BackgroundCommands.toggleMuteTab(baseRequest);
+      break;
+    case "jump-to-audible-tab":
+      await BackgroundCommands.jumpToAudibleTab(baseRequest);
+      break;
+    case "deduplicate-tabs":
+      await BackgroundCommands.deduplicateTabs(baseRequest);
+      break;
+  }
+}
+
+chrome.commands?.onCommand?.addListener((command) => {
+  handleBrowserCommand(command);
+});
+
 Object.assign(globalThis, {
   TabOperations,
   // Exported for tests:
   HintCoordinator,
   BackgroundCommands,
+  handleBrowserCommand,
   majorVersionHasIncreased,
   nextZoomLevel,
 });

@@ -48,6 +48,9 @@ export class Suggestion {
   deDuplicate = true;
   // The tab represented by this suggestion. Populated by TabCompleter.
   tabId;
+  audible = false;
+  muted = false;
+  pinned = false;
   // Whether this is a suggestion provided by a user's custom search engine.
   isCustomSearch;
   // Set by CommandCompleter.
@@ -163,6 +166,14 @@ export class Suggestion {
       ? `<span class="folder">${this.highlightQueryTerms(Utils.escapeHtml(this.folder))}</span>`
       : "";
 
+    const tabBadges = [];
+    if (this.description === "tab") {
+      if (this.pinned) tabBadges.push(`<span class="tab-state-badge pinned">pin</span>`);
+      if (this.muted) tabBadges.push(`<span class="tab-state-badge muted">muted</span>`);
+      else if (this.audible) tabBadges.push(`<span class="tab-state-badge audible">audio</span>`);
+    }
+    const tabBadgesHtml = tabBadges.join("");
+
     // Add switch button for tabs
     const switchButtonHtml = this.description === "tab" && this.tabId != null
       ? `<button class="suggestion-icons switch-tab-btn" data-tab-id="${this.tabId}" aria-label="Switch to tab" title="Switch to tab"><span class="action-icon material-symbols-outlined" aria-hidden="true">tab_move</span></button>`
@@ -172,7 +183,7 @@ export class Suggestion {
 ${iconsHtml}
 <div class="suggestion-content">
   <div class="top-half">
-    <span class="title">${titleHtml}</span>${folderHtml}
+    <span class="title">${titleHtml}</span>${tabBadgesHtml}${folderHtml}
     <span class="url">${this.highlightQueryTerms(Utils.escapeHtml(this.shortenUrl()))}</span>
     ${relevancyHtml}
   </div>
@@ -676,6 +687,9 @@ export class TabCompleter {
           url: tab.url,
           title: tab.title,
           tabId: tab.id,
+          audible: Boolean(tab.audible),
+          muted: Boolean(tab.mutedInfo?.muted),
+          pinned: Boolean(tab.pinned),
           deDuplicate: false,
         });
         suggestion.relevancy = this.computeRelevancy(suggestion);
@@ -1222,6 +1236,9 @@ export class OmniSearchCompleter {
         url: tab.url,
         title: tab.title,
         tabId: tab.id,
+        audible: Boolean(tab.audible),
+        muted: Boolean(tab.mutedInfo?.muted),
+        pinned: Boolean(tab.pinned),
         deDuplicate: false,
         relevancy: 1.0 - (index * 0.1), // MRU ordering preserved via relevancy
         relevancyData: { recency: Math.max(0, 1 - index * 0.1) },

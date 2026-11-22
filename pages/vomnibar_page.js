@@ -558,6 +558,10 @@ class VomnibarUI {
       return "remove";
     } else if (event.ctrlKey && (key === "d")) {
       return "closeTab";
+    } else if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && key === "m") {
+      return "toggle-mute-tab";
+    } else if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && key === "p") {
+      return "toggle-pin-tab";
     } else if (
       isCopyChord(event) && (key === "c") && (this.input.selectionStart === this.input.selectionEnd)
     ) {
@@ -710,6 +714,23 @@ class VomnibarUI {
       }
       // Already prevented default at the top of the function, so just return
       return;
+    } else if (
+      (action === "toggle-mute-tab" || action === "toggle-pin-tab") && (this.selection >= 0)
+    ) {
+      const completion = this.completions[this.selection];
+      if (completion?.tabId != null) {
+        this._deactivateGoogleMode();
+        const isMute = action === "toggle-mute-tab";
+        const res = await chrome.runtime.sendMessage({
+          handler: isMute ? "toggleMuteTabFromVomnibar" : "togglePinTabFromVomnibar",
+          tabId: completion.tabId,
+        });
+        const message = isMute
+          ? (res?.muted ? "Muted" : "Unmuted")
+          : (res?.pinned ? "Pinned" : "Unpinned");
+        this.flashStatus(message);
+        await this.update();
+      }
     }
 
     event.stopImmediatePropagation();
@@ -1073,6 +1094,17 @@ class VomnibarUI {
     return `<span class="row-actions" aria-hidden="true">${html}</span>`;
   }
 
+  flashStatus(message) {
+    this.positionIndicator.textContent = message;
+    this.positionIndicator.classList.add("visible");
+    this.status.textContent = message;
+    clearTimeout(this.copiedTimer);
+    this.copiedTimer = setTimeout(() => {
+      this.updatePositionIndicator();
+      this.status.textContent = "";
+    }, 1200);
+  }
+
   // Copies the selected result's URL, and says whether it did where the position in the list shows.
   async copySelectedUrl() {
     const url = this.completions[this.selection]?.url;
@@ -1084,14 +1116,7 @@ class VomnibarUI {
       // The browser can refuse, e.g. when the page's permissions policy blocks the clipboard.
       message = "Not copied";
     }
-    this.positionIndicator.textContent = message;
-    this.positionIndicator.classList.add("visible");
-    this.status.textContent = message;
-    clearTimeout(this.copiedTimer);
-    this.copiedTimer = setTimeout(() => {
-      this.updatePositionIndicator();
-      this.status.textContent = "";
-    }, 1200);
+    this.flashStatus(message);
   }
 
   // The button on an open tab's row, which switches to that tab.

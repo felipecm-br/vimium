@@ -38,8 +38,8 @@ function createFirefoxManifest(manifest) {
   manifest = JSON.parse(JSON.stringify(manifest)); // Deep clone.
 
   manifest.permissions = manifest.permissions
-    // The favicon permission is not yet supported by Firefox.
-    .filter((p) => p != "favicon")
+    // The favicon permission is not yet supported by Firefox; tabGroups requires Firefox 139+.
+    .filter((p) => !["favicon", "tabGroups"].includes(p))
     // Firefox needs clipboardRead and clipboardWrite for commands like "copyCurrentUrl", but Chrome
     // does not. See #4186.
     .concat(["clipboardRead", "clipboardWrite"]);

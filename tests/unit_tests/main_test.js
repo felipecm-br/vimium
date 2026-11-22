@@ -264,3 +264,208 @@ context("majorVersionHasIncreased", () => {
     assert.equal(true, majorVersionHasIncreased("2.0.0"));
   });
 });
+
+context("Modern tab management commands", () => {
+  should("jumpToAudibleTab cycles across audible tabs and focuses the target window", async () => {
+    const audibleTabs = [
+      { id: 10, windowId: 1, index: 0, audible: true },
+      { id: 20, windowId: 2, index: 1, audible: true },
+    ];
+    let activated = null;
+    let focusedWindow = null;
+    stub(chrome.tabs, "query", withPromise(() => audibleTabs));
+    stub(chrome.tabs, "get", withPromise((id) => audibleTabs.find((t) => t.id === id)));
+    stub(
+      chrome.tabs,
+      "update",
+      withPromise((id, props) => {
+        activated = { id, props };
+        return audibleTabs.find((t) => t.id === id);
+      }),
+    );
+    stub(
+      chrome.windows,
+      "update",
+      withPromise((id, props) => {
+        focusedWindow = { id, props };
+      }),
+    );
+
+    await BackgroundCommands.jumpToAudibleTab({ tab: audibleTabs[0] });
+    assert.equal({ id: 20, props: { active: true } }, activated);
+    assert.equal({ id: 2, props: { focused: true } }, focusedWindow);
+  });
+
+  should("discardTabs hibernates only inactive unpinned non-audible tabs", async () => {
+    const tabs = [
+      { id: 1, active: true, pinned: false, audible: false, discarded: false },
+      { id: 2, active: false, pinned: true, audible: false, discarded: false },
+      { id: 3, active: false, pinned: false, audible: true, discarded: false },
+      { id: 4, active: false, pinned: false, audible: false, discarded: true },
+      { id: 5, active: false, pinned: false, audible: false, discarded: false },
+      { id: 6, active: false, pinned: false, audible: false, discarded: false },
+    ];
+    const discarded = [];
+    const hudMessages = [];
+    stub(chrome.tabs, "query", withPromise(() => tabs));
+    stub(chrome.tabs, "discard", withPromise((id) => discarded.push(id)));
+    stub(chrome.tabs, "sendMessage", withPromise((_id, msg) => hudMessages.push(msg.message)));
+
+    await BackgroundCommands.discardTabs({
+      tab: tabs[0],
+      registryEntry: new RegistryEntry({ options: {} }),
+    });
+    assert.equal([5, 6], discarded);
+    assert.equal(["Hibernated 2 tabs."], hudMessages);
+  });
+
+  should("deduplicateTabs keeps active/pinned tabs and closes duplicates", async () => {
+    const tabs = [
+      { id: 1, url: "https://a.com", active: false, pinned: false },
+      { id: 2, url: "https://a.com", active: true, pinned: false },
+      { id: 3, url: "https://b.com", active: false, pinned: false },
+      { id: 4, url: "https://b.com", active: false, pinned: true },
+      { id: 5, url: "https://c.com", active: false, pinned: false },
+    ];
+    let removed = [];
+    stub(chrome.tabs, "query", withPromise(() => tabs));
+    stub(
+      chrome.tabs,
+      "remove",
+      withPromise((ids) => {
+        removed = ids;
+      }),
+    );
+    stub(chrome.tabs, "sendMessage", withPromise(() => {}));
+
+    await BackgroundCommands.deduplicateTabs({
+      tab: tabs[1],
+      registryEntry: new RegistryEntry({ options: {} }),
+    });
+    assert.equal([1, 3], removed);
+  });
+
+  should("moveTabToNextWindow moves tab to the next matching window", async () => {
+    const windows = [
+      { id: 100, incognito: false },
+      { id: 200, incognito: false },
+      { id: 300, incognito: true },
+    ];
+    let moved = null;
+    let focused = null;
+    stub(chrome.windows, "getAll", withPromise(() => windows));
+    stub(
+      chrome.tabs,
+      "move",
+      withPromise((id, opts) => {
+        moved = { id, opts };
+      }),
+    );
+    stub(chrome.tabs, "update", withPromise(() => {}));
+    stub(
+      chrome.windows,
+      "update",
+      withPromise((id, opts) => {
+        focused = { id, opts };
+      }),
+    );
+
+    await BackgroundCommands.moveTabToNextWindow({
+      tab: { id: 7, windowId: 100, incognito: false },
+    });
+    assert.equal({ id: 7, opts: { windowId: 200, index: -1 } }, moved);
+    assert.equal({ id: 200, opts: { focused: true } }, focused);
+  });
+
+  should("toggleTabGroup creates, names, collapses, and ungroups tabs", async () => {
+    let grouped = null;
+    let groupUpdate = null;
+    let ungrouped = null;
+    stub(chrome.tabGroups, "query", withPromise(() => []));
+    stub(
+      chrome.tabs,
+      "group",
+      withPromise((opts) => {
+        grouped = opts;
+        return 42;
+      }),
+    );
+    stub(
+      chrome.tabGroups,
+      "update",
+      withPromise((id, props) => {
+        groupUpdate = { id, props };
+      }),
+    );
+    stub(chrome.tabGroups, "get", withPromise(() => ({ id: 42, collapsed: false })));
+    stub(
+      chrome.tabs,
+      "ungroup",
+      withPromise((id) => {
+        ungrouped = id;
+      }),
+    );
+
+    await BackgroundCommands.toggleTabGroup({
+      tab: { id: 9, windowId: 1, groupId: -1 },
+      registryEntry: new RegistryEntry({ options: { title: "Work", color: "blue" } }),
+    });
+    assert.equal({ tabIds: 9 }, grouped);
+    assert.equal({ id: 42, props: { title: "Work", color: "blue" } }, groupUpdate);
+
+    await BackgroundCommands.toggleTabGroup({
+      tab: { id: 9, windowId: 1, groupId: 42 },
+      registryEntry: new RegistryEntry({ options: { collapse: true } }),
+    });
+    assert.equal({ id: 42, props: { collapsed: true } }, groupUpdate);
+
+    await BackgroundCommands.toggleTabGroup({
+      tab: { id: 9, windowId: 1, groupId: 42 },
+      registryEntry: new RegistryEntry({ options: {} }),
+    });
+    assert.equal(9, ungrouped);
+  });
+});
+
+context("handleBrowserCommand (chrome.commands)", () => {
+  should(
+    "opens OmniSearch via content script, falling back to createTab on restricted pages",
+    async () => {
+      await Settings.load();
+      const activeTab = { id: 5, windowId: 1, index: 0, url: "chrome://settings" };
+      stub(chrome.tabs, "query", withPromise(() => [activeTab]));
+      stub(
+        chrome.tabs,
+        "sendMessage",
+        () => Promise.reject(new Error("Receiving end does not exist")),
+      );
+      let created = null;
+      stub(
+        chrome.tabs,
+        "create",
+        withPromise((opts) => {
+          created = opts;
+          return { id: 6 };
+        }),
+      );
+
+      await handleBrowserCommand("open-vomnibar-omnisearch");
+      assert.isTrue(created != null);
+      Settings.clear();
+    },
+  );
+
+  should("dispatches background tab commands directly", async () => {
+    await Settings.load();
+    const activeTab = { id: 5, windowId: 1, index: 0, url: "chrome://extensions" };
+    let called = false;
+    stub(chrome.tabs, "query", withPromise(() => [activeTab]));
+    stub(BackgroundCommands, "jumpToAudibleTab", () => {
+      called = true;
+    });
+
+    await handleBrowserCommand("jump-to-audible-tab");
+    assert.isTrue(called);
+    Settings.clear();
+  });
+});

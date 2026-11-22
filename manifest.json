@@ -37,6 +37,7 @@
     // loads. This permission was required when moving to manifest V3.
     "scripting",
     "favicon", // The favicon permission is not yet supported by Firefox.
+    "tabGroups", // Filtered out for Firefox in make.js for strict_min_version 112 compatibility.
     "webNavigation",
     "search"
   ],
@@ -103,6 +104,38 @@
     // Uncomment for Firefox.
     // "default_area": "navbar",
     "default_popup": "pages/action.html"
+  },
+  // Browser-level shortcuts configurable at chrome://extensions/shortcuts or about:addons.
+  // Unlike content-script bindings, these work even on restricted chrome://, about:, PDF, and
+  // Web Store tabs where content scripts cannot run.
+  "commands": {
+    "open-vomnibar-omnisearch": {
+      "description": "Open OmniSearch (opens a new tab on restricted pages)"
+    },
+    "previous-tab": {
+      "description": "Switch to the tab on the left"
+    },
+    "next-tab": {
+      "description": "Switch to the tab on the right"
+    },
+    "visit-previous-tab": {
+      "description": "Switch to previously visited tab"
+    },
+    "remove-tab": {
+      "description": "Close current tab"
+    },
+    "restore-tab": {
+      "description": "Reopen last closed tab"
+    },
+    "toggle-mute-tab": {
+      "description": "Mute or unmute current tab"
+    },
+    "jump-to-audible-tab": {
+      "description": "Jump to tab playing audio"
+    },
+    "deduplicate-tabs": {
+      "description": "Close duplicate tabs in current window"
+    }
   },
   "web_accessible_resources": [
     {

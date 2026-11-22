@@ -591,6 +591,62 @@ const allCommands = [
   },
 
   {
+    name: "moveTabToNextWindow",
+    desc: "Move tab to the next window",
+    group: "tabs",
+    advanced: true,
+    background: true,
+    noRepeat: true,
+  },
+
+  {
+    name: "jumpToAudibleTab",
+    desc: "Jump to tab playing audio",
+    group: "tabs",
+    advanced: true,
+    background: true,
+    noRepeat: true,
+  },
+
+  {
+    name: "discardTabs",
+    desc: "Hibernate inactive tabs to free memory",
+    options: {
+      all: "Hibernate inactive tabs across all windows instead of only the current window.",
+    },
+    group: "tabs",
+    advanced: true,
+    background: true,
+    noRepeat: true,
+  },
+
+  {
+    name: "deduplicateTabs",
+    desc: "Close duplicate tabs",
+    options: {
+      all: "Close duplicate tabs across all windows instead of only the current window.",
+    },
+    group: "tabs",
+    advanced: true,
+    background: true,
+    noRepeat: true,
+  },
+
+  {
+    name: "toggleTabGroup",
+    desc: "Group or ungroup current tab",
+    options: {
+      title: "Name of the tab group to join or create.",
+      color: "Color for a newly created tab group (e.g. blue, red, green, yellow, purple, cyan).",
+      collapse: "Collapse or expand the current tab's group instead of ungrouping it.",
+    },
+    group: "tabs",
+    advanced: true,
+    background: true,
+    noRepeat: true,
+  },
+
+  {
     name: "closeTabsOnLeft",
     desc: "Close tabs on the left",
     group: "tabs",

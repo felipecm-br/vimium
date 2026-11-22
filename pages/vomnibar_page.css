@@ -538,6 +538,26 @@ ul {
   min-width: 0;
 }
 
+/* Tab state pills (pin / audio / muted) next to an open tab's title. */
+#vomnibar li .tab-state-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--vomnibar-border-color);
+  color: var(--vomnibar-secondary-text);
+  background: var(--vomnibar-hover-bg);
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+#vomnibar li .tab-state-badge.audible {
+  color: var(--vomnibar-accent-color);
+  border-color: var(--vomnibar-accent-color);
+}
+
 /* A bookmark's folder, between its name and URL. */
 #vomnibar li .folder {
   font-size: 12px;
